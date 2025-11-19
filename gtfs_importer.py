@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-GTFS Data Importer for PostgreSQL
+GTFS 数据导入工具 for PostgreSQL
 
-This tool imports GTFS (General Transit Feed Specification) data from ZIP files
-or directories into a PostgreSQL database.
+此工具将 GTFS (General Transit Feed Specification) 数据从 ZIP 文件
+或目录导入到 PostgreSQL 数据库中。
 
-Usage:
+使用方法:
     python gtfs_importer.py --zip path/to/gtfs.zip
     python gtfs_importer.py --dir path/to/gtfs_folder
     python gtfs_importer.py --zip gtfs.zip --clean --host localhost --database gtfs_db
@@ -24,9 +24,9 @@ from psycopg2.extras import execute_batch
 
 
 class GTFSImporter:
-    """Import GTFS data into PostgreSQL database."""
+    """将 GTFS 数据导入 PostgreSQL 数据库"""
 
-    # Define the order of table imports (respecting foreign key constraints)
+    # 定义表导入顺序（遵循外键约束）
     TABLE_ORDER = [
         'agency',
         'routes',
@@ -47,7 +47,7 @@ class GTFSImporter:
         'attributions'
     ]
 
-    # Map GTFS txt files to database table names
+    # GTFS txt 文件到数据库表名的映射
     FILE_TO_TABLE = {
         'agency.txt': 'agency',
         'routes.txt': 'routes',
@@ -71,7 +71,7 @@ class GTFSImporter:
     def __init__(self, host: str = 'localhost', port: int = 5432,
                  database: str = 'gtfs_db', user: Optional[str] = None,
                  password: Optional[str] = None):
-        """Initialize the importer with database connection parameters."""
+        """使用数据库连接参数初始化导入器"""
         self.host = host
         self.port = port
         self.database = database
@@ -81,7 +81,7 @@ class GTFSImporter:
         self.cursor = None
 
     def connect(self):
-        """Connect to the PostgreSQL database."""
+        """连接到 PostgreSQL 数据库"""
         try:
             conn_params = {
                 'host': self.host,
@@ -100,7 +100,7 @@ class GTFSImporter:
             sys.exit(1)
 
     def disconnect(self):
-        """Close database connection."""
+        """关闭数据库连接"""
         if self.cursor:
             self.cursor.close()
         if self.conn:
@@ -108,7 +108,7 @@ class GTFSImporter:
             print("Database connection closed")
 
     def clean_tables(self, tables: Optional[List[str]] = None):
-        """Truncate specified tables or all tables."""
+        """清空指定表或所有表"""
         try:
             tables_to_clean = tables if tables else list(reversed(self.TABLE_ORDER))
 
@@ -129,7 +129,7 @@ class GTFSImporter:
             print(f"Error cleaning tables: {e}")
 
     def import_file(self, file_path: Path, table_name: str) -> int:
-        """Import a single GTFS txt file into the database."""
+        """将单个 GTFS txt 文件导入数据库"""
         if not file_path.exists():
             print(f"  Skipping {table_name}: file not found")
             return 0
@@ -143,24 +143,24 @@ class GTFSImporter:
                     print(f"  Skipping {table_name}: no data")
                     return 0
 
-                # Get column names from the first row
+                # 从第一行获取列名
                 columns = list(rows[0].keys())
 
-                # Prepare INSERT statement
+                # 准备 INSERT 语句
                 insert_query = sql.SQL("INSERT INTO {} ({}) VALUES ()").format(
                     sql.Identifier(table_name),
                     sql.SQL(', ').join(map(sql.Identifier, columns)),
                     sql.SQL(', ').join(sql.Placeholder() * len(columns))
                 )
 
-                # Prepare data for batch insert
+                # 准备批量插入的数据
                 data = []
                 for row in rows:
-                    # Convert empty strings to None for proper NULL handling
+                    # 将空字符串转换为 None 以正确处理 NULL
                     values = tuple(v if v != '' else None for v in row.values())
                     data.append(values)
 
-                # Execute batch insert
+                # 执行批量插入
                 execute_batch(self.cursor, insert_query, data, page_size=1000)
                 self.conn.commit()
 
@@ -173,14 +173,14 @@ class GTFSImporter:
             return 0
 
     def import_from_directory(self, directory: Path, tables: Optional[List[str]] = None):
-        """Import all GTFS files from a directory."""
+        """从目录导入所有 GTFS 文件"""
         print(f"\nImporting GTFS data from: {directory}")
 
         total_rows = 0
         tables_to_import = tables if tables else self.TABLE_ORDER
 
         for table in tables_to_import:
-            # Find the corresponding file
+            # 查找对应的文件
             file_name = None
             for fname, tname in self.FILE_TO_TABLE.items():
                 if tname == table:
@@ -197,31 +197,31 @@ class GTFSImporter:
         print(f"\nTotal rows imported: {total_rows:,}")
 
     def import_from_zip(self, zip_path: Path, tables: Optional[List[str]] = None):
-        """Extract and import GTFS data from a ZIP file."""
+        """从 ZIP 文件解压并导入 GTFS 数据"""
         print(f"\nExtracting GTFS data from: {zip_path}")
 
-        # Create temporary extraction directory
+        # 创建临时解压目录
         extract_dir = zip_path.parent / f"{zip_path.stem}_temp"
         extract_dir.mkdir(exist_ok=True)
 
         try:
-            # Extract ZIP file
+            # 解压 ZIP 文件
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 zip_ref.extractall(extract_dir)
             print(f"Extracted to: {extract_dir}")
 
-            # Import from extracted directory
+            # 从解压目录导入
             self.import_from_directory(extract_dir, tables)
 
         finally:
-            # Clean up temporary directory
+            # 清理临时目录
             import shutil
             if extract_dir.exists():
                 shutil.rmtree(extract_dir)
                 print(f"\nCleaned up temporary directory: {extract_dir}")
 
     def verify_import(self):
-        """Verify the imported data by showing row counts."""
+        """通过显示行数验证导入的数据"""
         print("\n" + "="*60)
         print("Import Verification - Row Counts")
         print("="*60)
@@ -240,7 +240,7 @@ class GTFSImporter:
 
 
 def main():
-    """Main entry point for the GTFS importer."""
+    """GTFS 导入器的主入口"""
     parser = argparse.ArgumentParser(
         description='Import GTFS data into PostgreSQL database',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -253,12 +253,12 @@ Examples:
         """
     )
 
-    # Input source (mutually exclusive)
+    # 输入源（互斥）
     source_group = parser.add_mutually_exclusive_group(required=True)
     source_group.add_argument('--zip', type=str, help='Path to GTFS ZIP file')
     source_group.add_argument('--dir', type=str, help='Path to GTFS directory')
 
-    # Database connection parameters
+    # 数据库连接参数
     parser.add_argument('--host', type=str, default='localhost',
                        help='Database host (default: localhost)')
     parser.add_argument('--port', type=int, default=5432,
@@ -270,7 +270,7 @@ Examples:
     parser.add_argument('--password', type=str,
                        help='Database password')
 
-    # Import options
+    # 导入选项
     parser.add_argument('--clean', action='store_true',
                        help='Clean (truncate) tables before importing')
     parser.add_argument('--tables', nargs='+',
@@ -280,7 +280,7 @@ Examples:
 
     args = parser.parse_args()
 
-    # Create importer instance
+    # 创建导入器实例
     importer = GTFSImporter(
         host=args.host,
         port=args.port,
@@ -290,14 +290,14 @@ Examples:
     )
 
     try:
-        # Connect to database
+        # 连接数据库
         importer.connect()
 
-        # Clean tables if requested
+        # 如果需要，清空表
         if args.clean:
             importer.clean_tables(args.tables)
 
-        # Import data
+        # 导入数据
         if args.zip:
             zip_path = Path(args.zip)
             if not zip_path.exists():
@@ -311,7 +311,7 @@ Examples:
                 sys.exit(1)
             importer.import_from_directory(dir_path, args.tables)
 
-        # Verify import
+        # 验证导入
         if not args.no_verify:
             importer.verify_import()
 

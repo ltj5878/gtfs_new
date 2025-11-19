@@ -1,13 +1,13 @@
 """
-GTFS Realtime Speed Calculator Module
+GTFS Realtime 速度计算模块
 
-This module provides speed calculation functionality for vehicles based on
-consecutive GPS position updates from GTFS Realtime data.
+此模块基于 GTFS Realtime 数据中连续的 GPS 位置更新，
+为车辆提供速度计算功能。
 
-Usage:
+使用方法:
     calculator = SpeedCalculator()
 
-    # Process vehicle positions from GTFS Realtime
+    # 处理来自 GTFS Realtime 的车辆位置
     for position in vehicle_positions:
         result = calculator.calculate_speed(
             vehicle_id=position['vehicle_id'],
@@ -28,7 +28,7 @@ from datetime import datetime
 
 @dataclass
 class VehiclePosition:
-    """Store vehicle position data"""
+    """存储车辆位置数据"""
     latitude: float
     longitude: float
     timestamp: int
@@ -36,7 +36,7 @@ class VehiclePosition:
 
 @dataclass
 class SpeedResult:
-    """Speed calculation result"""
+    """速度计算结果"""
     vehicle_id: str
     speed_mps: float
     speed_kmh: float
@@ -49,10 +49,10 @@ class SpeedResult:
 
 class SpeedCalculator:
     """
-    Calculate vehicle speed from consecutive GPS positions.
+    根据连续的 GPS 位置计算车辆速度。
 
-    This class maintains a history of vehicle positions and calculates
-    speed based on distance traveled and time elapsed between updates.
+    此类维护车辆位置历史记录，并根据行驶距离和
+    更新之间的时间间隔计算速度。
     """
 
     EARTH_RADIUS_METERS = 6371000
@@ -67,12 +67,12 @@ class SpeedCalculator:
         max_speed_kmh: float = MAX_REALISTIC_SPEED_KMH
     ):
         """
-        Initialize the speed calculator.
+        初始化速度计算器。
 
         Args:
-            min_time_delta: Minimum seconds between updates to calculate speed (default: 5)
-            min_distance_threshold: Distance in meters below which vehicle is considered stopped (default: 5)
-            max_speed_kmh: Maximum realistic speed in km/h for filtering GPS errors (default: 120)
+            min_time_delta: 计算速度所需的最小更新间隔秒数（默认: 5）
+            min_distance_threshold: 低于此距离（米）时车辆被视为停止（默认: 5）
+            max_speed_kmh: 用于过滤 GPS 错误的最大合理速度 km/h（默认: 120）
         """
         self._vehicle_history: Dict[str, VehiclePosition] = {}
         self.min_time_delta = min_time_delta
@@ -87,17 +87,17 @@ class SpeedCalculator:
         timestamp: int
     ) -> Optional[SpeedResult]:
         """
-        Calculate vehicle speed based on current and previous position.
+        根据当前和之前的位置计算车辆速度。
 
         Args:
-            vehicle_id: Unique vehicle identifier
-            latitude: Current latitude in degrees
-            longitude: Current longitude in degrees
-            timestamp: Unix timestamp of current position
+            vehicle_id: 唯一车辆标识符
+            latitude: 当前纬度（度）
+            longitude: 当前经度（度）
+            timestamp: 当前位置的 Unix 时间戳
 
         Returns:
-            SpeedResult object if speed can be calculated, None otherwise
-            (None is returned for first position or if time delta is too small)
+            如果可以计算速度则返回 SpeedResult 对象，否则返回 None
+            （首次位置或时间间隔太小时返回 None）
         """
         current_position = VehiclePosition(latitude, longitude, timestamp)
 
@@ -151,16 +151,16 @@ class SpeedCalculator:
         lon2: float
     ) -> float:
         """
-        Calculate great-circle distance between two GPS coordinates using Haversine formula.
+        使用 Haversine 公式计算两个 GPS 坐标之间的大圆距离。
 
         Args:
-            lat1: Latitude of first point in degrees
-            lon1: Longitude of first point in degrees
-            lat2: Latitude of second point in degrees
-            lon2: Longitude of second point in degrees
+            lat1: 第一个点的纬度（度）
+            lon1: 第一个点的经度（度）
+            lat2: 第二个点的纬度（度）
+            lon2: 第二个点的经度（度）
 
         Returns:
-            Distance in meters
+            距离（米）
         """
         lat1_rad = math.radians(lat1)
         lat2_rad = math.radians(lat2)
@@ -176,22 +176,22 @@ class SpeedCalculator:
         return self.EARTH_RADIUS_METERS * c
 
     def get_vehicle_count(self) -> int:
-        """Get number of vehicles being tracked."""
+        """获取正在跟踪的车辆数量"""
         return len(self._vehicle_history)
 
     def get_tracked_vehicles(self) -> list:
-        """Get list of vehicle IDs currently being tracked."""
+        """获取当前正在跟踪的车辆 ID 列表"""
         return list(self._vehicle_history.keys())
 
     def clear_vehicle(self, vehicle_id: str) -> bool:
         """
-        Clear history for a specific vehicle.
+        清除特定车辆的历史记录。
 
         Args:
-            vehicle_id: Vehicle ID to clear
+            vehicle_id: 要清除的车辆 ID
 
         Returns:
-            True if vehicle was found and cleared, False otherwise
+            如果找到并清除了车辆则返回 True，否则返回 False
         """
         if vehicle_id in self._vehicle_history:
             del self._vehicle_history[vehicle_id]
@@ -199,18 +199,18 @@ class SpeedCalculator:
         return False
 
     def clear_all(self):
-        """Clear all vehicle history."""
+        """清除所有车辆历史记录"""
         self._vehicle_history.clear()
 
     def get_last_position(self, vehicle_id: str) -> Optional[Tuple[float, float, int]]:
         """
-        Get last known position for a vehicle.
+        获取车辆的最后已知位置。
 
         Args:
-            vehicle_id: Vehicle ID to query
+            vehicle_id: 要查询的车辆 ID
 
         Returns:
-            Tuple of (latitude, longitude, timestamp) or None if not found
+            (纬度, 经度, 时间戳) 的元组，如果未找到则返回 None
         """
         if vehicle_id in self._vehicle_history:
             pos = self._vehicle_history[vehicle_id]

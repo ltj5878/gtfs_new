@@ -1,7 +1,7 @@
--- GTFS Database Schema for PostgreSQL
--- This schema follows the GTFS specification with additional SF Muni extensions
+-- PostgreSQL GTFS 数据库架构
+-- 此架构遵循 GTFS 规范，包含 SF Muni 扩展
 
--- Drop existing tables if they exist
+-- 删除已存在的表
 DROP TABLE IF EXISTS stop_times CASCADE;
 DROP TABLE IF EXISTS trips CASCADE;
 DROP TABLE IF EXISTS fare_rules CASCADE;
@@ -20,7 +20,7 @@ DROP TABLE IF EXISTS agency CASCADE;
 DROP TABLE IF EXISTS feed_info CASCADE;
 DROP TABLE IF EXISTS attributions CASCADE;
 
--- Agency table: Transit agencies with service represented in this dataset
+-- 运营机构表：数据集中的公交运营机构
 CREATE TABLE agency (
     agency_id TEXT PRIMARY KEY,
     agency_name TEXT NOT NULL,
@@ -32,7 +32,7 @@ CREATE TABLE agency (
     agency_email TEXT
 );
 
--- Routes table: Transit routes
+-- 线路表：公交线路信息
 CREATE TABLE routes (
     route_id TEXT PRIMARY KEY,
     agency_id TEXT REFERENCES agency(agency_id),
@@ -45,7 +45,7 @@ CREATE TABLE routes (
     route_text_color TEXT
 );
 
--- Route attributes table (SF Muni extension)
+-- 线路属性表（SF Muni 扩展）
 CREATE TABLE route_attributes (
     route_id TEXT PRIMARY KEY REFERENCES routes(route_id),
     category TEXT,
@@ -53,7 +53,7 @@ CREATE TABLE route_attributes (
     running_way TEXT
 );
 
--- Directions table (SF Muni extension)
+-- 方向表（SF Muni 扩展）
 CREATE TABLE directions (
     route_id TEXT REFERENCES routes(route_id),
     direction_id INTEGER,
@@ -61,7 +61,7 @@ CREATE TABLE directions (
     PRIMARY KEY (route_id, direction_id)
 );
 
--- Stops table: Individual locations where vehicles pick up or drop off riders
+-- 站点表：车辆接送乘客的具体位置
 CREATE TABLE stops (
     stop_id TEXT PRIMARY KEY,
     stop_code TEXT,
@@ -78,7 +78,7 @@ CREATE TABLE stops (
     platform_code TEXT
 );
 
--- Calendar table: Service patterns that operate recurringly
+-- 日历表：定期运营的服务模式
 CREATE TABLE calendar (
     service_id TEXT PRIMARY KEY,
     monday INTEGER NOT NULL,
@@ -92,13 +92,13 @@ CREATE TABLE calendar (
     end_date DATE NOT NULL
 );
 
--- Calendar attributes table (SF Muni extension)
+-- 日历属性表（SF Muni 扩展）
 CREATE TABLE calendar_attributes (
     service_id TEXT PRIMARY KEY REFERENCES calendar(service_id),
     service_description TEXT
 );
 
--- Calendar dates table: Exceptions for the services defined in calendar
+-- 日历日期表：日历中定义服务的例外情况
 CREATE TABLE calendar_dates (
     service_id TEXT NOT NULL,
     date DATE NOT NULL,
@@ -106,7 +106,7 @@ CREATE TABLE calendar_dates (
     PRIMARY KEY (service_id, date)
 );
 
--- Shapes table: Rules for mapping vehicle travel paths
+-- 形状表：车辆行驶路径的地理轨迹
 CREATE TABLE shapes (
     shape_id TEXT NOT NULL,
     shape_pt_lon DOUBLE PRECISION NOT NULL,
@@ -116,7 +116,7 @@ CREATE TABLE shapes (
     PRIMARY KEY (shape_id, shape_pt_sequence)
 );
 
--- Trips table: Trips for each route
+-- 班次表：每条线路的班次信息
 CREATE TABLE trips (
     trip_id TEXT PRIMARY KEY,
     route_id TEXT NOT NULL REFERENCES routes(route_id),
@@ -130,7 +130,7 @@ CREATE TABLE trips (
     wheelchair_accessible INTEGER
 );
 
--- Stop times table: Times that a vehicle arrives at and departs from stops
+-- 站点时刻表：车辆到达和离开站点的时间
 CREATE TABLE stop_times (
     trip_id TEXT NOT NULL REFERENCES trips(trip_id),
     arrival_time TEXT NOT NULL,
@@ -145,13 +145,13 @@ CREATE TABLE stop_times (
     PRIMARY KEY (trip_id, stop_sequence)
 );
 
--- Rider categories table (SF Muni extension)
+-- 乘客类别表（SF Muni 扩展）
 CREATE TABLE rider_categories (
     rider_category_id TEXT PRIMARY KEY,
     rider_category_description TEXT
 );
 
--- Fare attributes table: Fare information
+-- 票价属性表：票价信息
 CREATE TABLE fare_attributes (
     fare_id TEXT PRIMARY KEY,
     price DOUBLE PRECISION NOT NULL,
@@ -161,7 +161,7 @@ CREATE TABLE fare_attributes (
     transfer_duration INTEGER
 );
 
--- Fare rider categories table (SF Muni extension)
+-- 票价乘客类别表（SF Muni 扩展）
 CREATE TABLE fare_rider_categories (
     fare_id TEXT NOT NULL REFERENCES fare_attributes(fare_id),
     rider_category_id TEXT NOT NULL REFERENCES rider_categories(rider_category_id),
@@ -171,7 +171,7 @@ CREATE TABLE fare_rider_categories (
     PRIMARY KEY (fare_id, rider_category_id)
 );
 
--- Fare rules table: Rules for applying fares
+-- 票价规则表：票价应用规则
 CREATE TABLE fare_rules (
     fare_id TEXT NOT NULL REFERENCES fare_attributes(fare_id),
     route_id TEXT REFERENCES routes(route_id),
@@ -181,7 +181,7 @@ CREATE TABLE fare_rules (
     PRIMARY KEY (fare_id, route_id, origin_id, destination_id, contains_id)
 );
 
--- Feed info table: Dataset metadata
+-- 数据源信息表：数据集元数据
 CREATE TABLE feed_info (
     feed_publisher_name TEXT NOT NULL,
     feed_publisher_url TEXT NOT NULL,
@@ -191,7 +191,7 @@ CREATE TABLE feed_info (
     feed_version TEXT
 );
 
--- Attributions table: Dataset attributions
+-- 归属表：数据集归属信息
 CREATE TABLE attributions (
     organization_name TEXT NOT NULL,
     is_producer INTEGER,
@@ -199,7 +199,7 @@ CREATE TABLE attributions (
     attribution_email TEXT
 );
 
--- Create indexes for better query performance
+-- 创建索引以提高查询性能
 CREATE INDEX idx_routes_agency_id ON routes(agency_id);
 CREATE INDEX idx_routes_type ON routes(route_type);
 
@@ -221,15 +221,15 @@ CREATE INDEX idx_shapes_shape_id ON shapes(shape_id);
 
 CREATE INDEX idx_fare_rules_route_id ON fare_rules(route_id);
 
--- Add comments to tables
-COMMENT ON TABLE agency IS 'Transit agencies with service represented in this dataset';
-COMMENT ON TABLE routes IS 'Transit routes';
-COMMENT ON TABLE stops IS 'Individual locations where vehicles pick up or drop off riders';
-COMMENT ON TABLE trips IS 'Trips for each route';
-COMMENT ON TABLE stop_times IS 'Times that a vehicle arrives at and departs from stops';
-COMMENT ON TABLE calendar IS 'Service patterns that operate recurringly';
-COMMENT ON TABLE calendar_dates IS 'Exceptions for the services defined in calendar';
-COMMENT ON TABLE shapes IS 'Rules for mapping vehicle travel paths';
-COMMENT ON TABLE fare_attributes IS 'Fare information for a transit agency';
-COMMENT ON TABLE fare_rules IS 'Rules for applying fares';
-COMMENT ON TABLE feed_info IS 'Dataset metadata';
+-- 为表添加注释
+COMMENT ON TABLE agency IS '数据集中的公交运营机构';
+COMMENT ON TABLE routes IS '公交线路信息';
+COMMENT ON TABLE stops IS '车辆接送乘客的具体位置';
+COMMENT ON TABLE trips IS '每条线路的班次信息';
+COMMENT ON TABLE stop_times IS '车辆到达和离开站点的时间';
+COMMENT ON TABLE calendar IS '定期运营的服务模式';
+COMMENT ON TABLE calendar_dates IS '日历中定义服务的例外情况';
+COMMENT ON TABLE shapes IS '车辆行驶路径的地理轨迹';
+COMMENT ON TABLE fare_attributes IS '公交机构的票价信息';
+COMMENT ON TABLE fare_rules IS '票价应用规则';
+COMMENT ON TABLE feed_info IS '数据集元数据';

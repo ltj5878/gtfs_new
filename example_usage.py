@@ -1,8 +1,8 @@
 """
-Example usage of SpeedCalculator with GTFSDataFetcher
+SpeedCalculator 与 GTFSDataFetcher 的使用示例
 
-This script demonstrates how to integrate the SpeedCalculator module
-with the existing GTFS data fetcher without modifying the original code.
+此脚本演示如何在不修改原始代码的情况下，
+将 SpeedCalculator 模块与现有的 GTFS 数据获取器集成。
 """
 
 from gtfs_data_fetcher import GTFSDataFetcher
