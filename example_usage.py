@@ -11,7 +11,7 @@ import time
 
 
 def main():
-    api_key = "YOUR_API_KEY_HERE"
+    api_key = "bee75731-9589-41c0-a9c0-435461d7c486"
 
     fetcher = GTFSDataFetcher(api_key)
     calculator = SpeedCalculator(
@@ -25,7 +25,7 @@ def main():
 
     try:
         while True:
-            vehicle_positions = fetcher.fetch_gtfs_realtime('vehiclepositions')
+            vehicle_positions = fetcher.fetch_gtfs_realtime(operator_id='SF', feed_type='vehiclepositions')
 
             if vehicle_positions:
                 parsed_positions = fetcher.parse_vehicle_positions(vehicle_positions)
