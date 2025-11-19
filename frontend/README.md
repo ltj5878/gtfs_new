@@ -2,6 +2,55 @@
 
 基于 Vue 3 + Vite + Element Plus 的公交数据可视化前端应用。
 
+## 快速启动
+
+### 前置要求
+
+- Node.js 16+
+- npm 或 pnpm
+- 后端 API 服务已启动（运行在 http://localhost:5000）
+
+### 完整启动步骤
+
+```bash
+# 1. 进入前端目录
+cd frontend
+
+# 2. 安装依赖
+npm install
+# 或使用 pnpm
+pnpm install
+
+# 3. 启动开发服务器
+npm run dev
+```
+
+**前端应用将运行在**: http://localhost:5173
+
+### 快速启动（已安装依赖）
+
+```bash
+cd frontend
+npm run dev
+```
+
+### 构建生产版本
+
+```bash
+# 构建
+npm run build
+
+# 预览构建结果
+npm run preview
+```
+
+### 验证应用
+
+打开浏览器访问 http://localhost:5173，你应该能看到：
+- 首页显示数据统计
+- 可以浏览线路列表
+- 可以查看站点信息
+
 ## 技术栈
 
 - **Vue 3**: 渐进式 JavaScript 框架
@@ -151,6 +200,34 @@ docs: 更新前端文档
 - Firefox >= 78
 - Safari >= 14
 - Edge >= 88
+
+## 环境变量
+
+创建 `.env.local` 文件配置环境变量：
+
+```bash
+# API 基础 URL
+VITE_API_BASE_URL=http://localhost:5000/api
+```
+
+## 目录说明
+
+- **api/**: API 请求封装，统一管理所有后端接口调用
+- **assets/**: 静态资源文件（图片、字体等）
+- **components/**: 可复用的 Vue 组件
+- **views/**: 页面级组件
+- **router/**: Vue Router 路由配置
+- **stores/**: Pinia 状态管理
+- **utils/**: 工具函数和辅助方法
+
+## 相关文档
+
+- [项目主 README](../README.md)
+- [后端 API 文档](../backend/API_DOCUMENTATION.md)
+- [Vue 3 文档](https://vuejs.org/)
+- [Element Plus 文档](https://element-plus.org/)
+- [Pinia 文档](https://pinia.vuejs.org/)
+- [Vite 文档](https://vitejs.dev/)
 
 ## 许可证
 

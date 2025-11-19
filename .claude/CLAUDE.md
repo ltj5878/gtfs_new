@@ -446,7 +446,7 @@ ORDER BY r.route_short_name;
 
 ## 相关文档
 
-- [PostgreSQL 安装配置指南](../README_POSTGRESQL.md)
+- [PostgreSQL 安装配置指南](../backend/README_POSTGRESQL.md)
 - [项目 README](../README.md)
 - [API 接口文档](../backend/API_DOCUMENTATION.md)
 - [GTFS 规范文档](https://gtfs.org/reference/static)
