@@ -27,11 +27,6 @@ const router = createRouter({
       path: '/stops/:id',
       name: 'stop-detail',
       component: () => import('@/views/StopDetail.vue')
-    },
-    {
-      path: '/map',
-      name: 'map',
-      component: () => import('@/views/Map.vue')
     }
   ]
 })

@@ -16,7 +16,18 @@
       "Bash(createdb:*)",
       "Bash(npm install:*)",
       "Bash(npm run dev)",
-      "Bash(unzip:*)"
+      "Bash(unzip:*)",
+      "Bash(brew list:*)",
+      "Bash(pip3 install:*)",
+      "Bash(PORT=5001 python3:*)",
+      "Bash(node:*)",
+      "Bash(/opt/homebrew/bin/psql:*)",
+      "Bash(brew --prefix:*)",
+      "Bash(/opt/homebrew/opt/postgresql@16/bin/psql:*)",
+      "Bash(lsof:*)",
+      "Bash(PORT=5002 python3:*)",
+      "Bash(test:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

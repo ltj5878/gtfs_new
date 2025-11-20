@@ -38,8 +38,13 @@
               <template #header>
                 <div class="map-header">
                   <span>地图位置</span>
-                  <el-button type="primary" size="small" @click="$router.push('/map')">
-                    查看完整地图
+                  <el-button
+                    v-if="stopStore.stopRoutes.length > 0"
+                    type="primary"
+                    size="small"
+                    @click="viewRouteMap"
+                  >
+                    查看线路地图
                   </el-button>
                 </div>
               </template>
@@ -85,11 +90,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStopStore } from '@/stores/stopStore'
 import { Location, MapLocation } from '@element-plus/icons-vue'
 import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
 const route = useRoute()
 const router = useRouter()
@@ -112,17 +118,26 @@ L.Icon.Default.mergeOptions({
 const initStopMap = () => {
   if (!stopStore.currentStop) return
 
-  nextTick(() => {
+  // 使用 setTimeout 确保 DOM 完全渲染
+  setTimeout(() => {
     try {
+      const mapElement = document.getElementById('stop-map')
+      if (!mapElement) {
+        console.error('地图容器不存在')
+        return
+      }
+
       // 创建地图实例，以站点位置为中心
-      map.value = L.map('stop-map').setView([
-        stopStore.currentStop.stop_lat,
-        stopStore.currentStop.stop_lon
-      ], 16)
+      map.value = L.map('stop-map', {
+        center: [stopStore.currentStop.stop_lat, stopStore.currentStop.stop_lon],
+        zoom: 16,
+        scrollWheelZoom: true
+      })
 
       // 添加地图图层
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
       }).addTo(map.value)
 
       // 添加站点标记
@@ -144,11 +159,14 @@ const initStopMap = () => {
 
       stopMarker.bindPopup(popupContent).openPopup()
 
+      // 强制刷新地图尺寸
+      map.value.invalidateSize()
+
       console.log('站点地图初始化成功，站点:', stopStore.currentStop.stop_name)
     } catch (error) {
       console.error('站点地图初始化失败:', error)
     }
-  })
+  }, 100)
 }
 
 const routeTypeNames = {
@@ -179,6 +197,13 @@ const handleRouteClick = (route) => {
   router.push(`/routes/${route.route_id}`)
 }
 
+const viewRouteMap = () => {
+  if (stopStore.stopRoutes.length > 0) {
+    // 跳转到第一条线路的详情页，那里有完整的线路地图
+    router.push(`/routes/${stopStore.stopRoutes[0].route_id}`)
+  }
+}
+
 onMounted(async () => {
   try {
     await stopStore.fetchStopById(route.params.id)
@@ -194,6 +219,13 @@ onMounted(async () => {
     loadingRoutes.value = false
   }
 })
+
+onUnmounted(() => {
+  if (map.value) {
+    map.value.remove()
+    map.value = null
+  }
+})
 </script>
 
 <style scoped>
@@ -207,6 +239,12 @@ onMounted(async () => {
   gap: 12px;
   font-size: 20px;
   font-weight: 600;
+}
+
+.map-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .map-container {

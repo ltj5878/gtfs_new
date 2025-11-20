@@ -15,7 +15,6 @@
           <el-menu-item index="/">首页</el-menu-item>
           <el-menu-item index="/routes">线路</el-menu-item>
           <el-menu-item index="/stops">站点</el-menu-item>
-          <el-menu-item index="/map">地图</el-menu-item>
         </el-menu>
       </div>
     </el-header>
@@ -49,7 +48,6 @@ const activeMenu = computed(() => {
   const path = route.path
   if (path.startsWith('/routes')) return '/routes'
   if (path.startsWith('/stops')) return '/stops'
-  if (path.startsWith('/map')) return '/map'
   return '/'
 })
 
