@@ -21,11 +21,12 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   response => {
-    const { data } = response
-    if (data.code === 200) {
-      return data.data
+    // 如果响应数据有code字段，则返回data字段
+    if (response.data && response.data.code === 200) {
+      return response.data.data || response.data
     }
-    return Promise.reject(new Error(data.message || '请求失败'))
+    // 否则返回完整响应
+    return response.data
   },
   error => {
     const message = error.response?.data?.message || error.message || '网络错误'

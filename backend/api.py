@@ -416,6 +416,57 @@ def get_trip_stop_times(trip_id):
         return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
 
 
+@app.route('/api/routes/<route_id>/shapes', methods=['GET'])
+def get_route_shapes(route_id):
+    """获取指定线路的所有轨迹"""
+    try:
+        direction_id = request.args.get('direction_id', type=int)
+
+        # 根据trips表获取该线路的所有shape_id
+        query = """
+            SELECT DISTINCT t.shape_id, d.direction_id
+            FROM trips t
+            LEFT JOIN directions d ON t.route_id = d.route_id AND t.direction_id = d.direction_id
+            WHERE t.route_id = %s
+        """
+        params = [route_id]
+
+        if direction_id is not None:
+            query += " AND t.direction_id = %s"
+            params.append(direction_id)
+
+        shape_ids = execute_query(query, tuple(params))
+
+        if not shape_ids:
+            return jsonify(success_response([]))
+
+        # 获取所有shape的轨迹点
+        all_shapes = []
+        for shape_info in shape_ids:
+            shape_id = shape_info['shape_id']
+            shape_direction_id = shape_info.get('direction_id')
+
+            shape_query = """
+                SELECT shape_id, shape_pt_lat, shape_pt_lon,
+                       shape_pt_sequence, shape_dist_traveled
+                FROM shapes
+                WHERE shape_id = %s
+                ORDER BY shape_pt_sequence
+            """
+            shape_points = execute_query(shape_query, (shape_id,))
+
+            if shape_points:
+                all_shapes.append({
+                    'shape_id': shape_id,
+                    'direction_id': shape_direction_id,
+                    'points': shape_points
+                })
+
+        return jsonify(success_response(all_shapes))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
 @app.route('/api/shapes/<shape_id>', methods=['GET'])
 def get_shape(shape_id):
     """获取线路轨迹"""

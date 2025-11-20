@@ -36,14 +36,15 @@
           <el-col :xs="24" :md="12">
             <el-card>
               <template #header>
-                <span>地图位置</span>
+                <div class="map-header">
+                  <span>地图位置</span>
+                  <el-button type="primary" size="small" @click="$router.push('/map')">
+                    查看完整地图
+                  </el-button>
+                </div>
               </template>
-              <div class="map-placeholder">
-                <el-icon :size="60"><MapLocation /></el-icon>
-                <p>地图功能开发中...</p>
-                <p class="coordinates">
-                  {{ stopStore.currentStop.stop_lat.toFixed(6) }}, {{ stopStore.currentStop.stop_lon.toFixed(6) }}
-                </p>
+              <div class="map-container">
+                <div id="stop-map" class="map"></div>
               </div>
             </el-card>
           </el-col>
@@ -84,16 +85,71 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStopStore } from '@/stores/stopStore'
 import { Location, MapLocation } from '@element-plus/icons-vue'
+import L from 'leaflet'
 
 const route = useRoute()
 const router = useRouter()
 const stopStore = useStopStore()
 
 const loadingRoutes = ref(false)
+
+// 地图相关变量
+const map = ref(null)
+
+// 修复Leaflet默认图标问题
+delete L.Icon.Default.prototype._getIconUrl
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+})
+
+// 初始化站点地图
+const initStopMap = () => {
+  if (!stopStore.currentStop) return
+
+  nextTick(() => {
+    try {
+      // 创建地图实例，以站点位置为中心
+      map.value = L.map('stop-map').setView([
+        stopStore.currentStop.stop_lat,
+        stopStore.currentStop.stop_lon
+      ], 16)
+
+      // 添加地图图层
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map.value)
+
+      // 添加站点标记
+      const stopMarker = L.marker([
+        stopStore.currentStop.stop_lat,
+        stopStore.currentStop.stop_lon
+      ]).addTo(map.value)
+
+      // 创建弹出窗口内容
+      const popupContent = `
+        <div>
+          <strong>${stopStore.currentStop.stop_name}</strong><br>
+          <small>ID: ${stopStore.currentStop.stop_id}</small><br>
+          ${stopStore.currentStop.stop_code ? `<small>编号: ${stopStore.currentStop.stop_code}</small><br>` : ''}
+          <small>纬度: ${stopStore.currentStop.stop_lat.toFixed(6)}</small><br>
+          <small>经度: ${stopStore.currentStop.stop_lon.toFixed(6)}</small>
+        </div>
+      `
+
+      stopMarker.bindPopup(popupContent).openPopup()
+
+      console.log('站点地图初始化成功，站点:', stopStore.currentStop.stop_name)
+    } catch (error) {
+      console.error('站点地图初始化失败:', error)
+    }
+  })
+}
 
 const routeTypeNames = {
   0: '轻轨/地铁',
@@ -127,6 +183,9 @@ onMounted(async () => {
   try {
     await stopStore.fetchStopById(route.params.id)
 
+    // 初始化地图
+    initStopMap()
+
     loadingRoutes.value = true
     await stopStore.fetchStopRoutes(route.params.id)
   } catch (error) {
@@ -150,19 +209,16 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-.map-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 40px;
-  color: #909399;
-  text-align: center;
+.map-container {
+  height: 300px;
+  position: relative;
 }
 
-.coordinates {
-  font-size: 12px;
-  margin-top: 8px;
+.map {
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  min-height: 300px;
 }
 
 .routes-card {

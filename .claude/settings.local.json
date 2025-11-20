@@ -2,7 +2,21 @@
   "permissions": {
     "allow": [
       "WebSearch",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(python3:*)",
+      "Bash(source:*)",
+      "Bash(pip install:*)",
+      "Bash(brew services list:*)",
+      "Bash(psql:*)",
+      "Bash(python:*)",
+      "Bash(curl:*)",
+      "Bash(brew install:*)",
+      "Bash(export:*)",
+      "Bash(brew services start:*)",
+      "Bash(createdb:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run dev)",
+      "Bash(unzip:*)"
     ],
     "deny": [],
     "ask": []

@@ -147,7 +147,7 @@ class GTFSImporter:
                 columns = list(rows[0].keys())
 
                 # 准备 INSERT 语句
-                insert_query = sql.SQL("INSERT INTO {} ({}) VALUES ()").format(
+                insert_query = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
                     sql.Identifier(table_name),
                     sql.SQL(', ').join(map(sql.Identifier, columns)),
                     sql.SQL(', ').join(sql.Placeholder() * len(columns))
