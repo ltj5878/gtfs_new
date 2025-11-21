@@ -30,7 +30,9 @@
       "Bash(cat:*)",
       "Bash(pip3 list:*)",
       "Bash(/opt/homebrew/Cellar/postgresql@16/16.11/bin/psql:*)",
-      "Bash(npm --version:*)"
+      "Bash(npm --version:*)",
+      "Bash(kill:*)",
+      "Bash(PORT=5001 python:*)"
     ],
     "deny": [],
     "ask": []

@@ -521,6 +521,405 @@ def get_stats():
         return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
 
 
+# ===== 准点率和实时数据接口 =====
+
+@app.route('/api/realtime/vehicles', methods=['GET'])
+def get_realtime_vehicles():
+    """获取实时车辆位置信息"""
+    try:
+        # 获取查询参数
+        route_id = request.args.get('route_id')
+        limit = min(int(request.args.get('limit', 100)), 500)  # 最大500条
+
+        # 构建查询语句
+        base_query = """
+            SELECT vehicle_id, trip_id, route_id, latitude, longitude,
+                   bearing, speed, position_timestamp, current_status, stop_id
+            FROM realtime_vehicle_positions
+            WHERE position_timestamp >= NOW() - INTERVAL '10 minutes'
+        """
+
+        params = []
+        if route_id:
+            base_query += " AND route_id = %s"
+            params.append(route_id)
+
+        base_query += " ORDER BY position_timestamp DESC LIMIT %s"
+        params.append(limit)
+
+        vehicles = execute_query(base_query, params)
+        return jsonify(success_response(vehicles))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/realtime/delays', methods=['GET'])
+def get_realtime_delays():
+    """获取实时延误信息"""
+    try:
+        # 获取查询参数
+        route_id = request.args.get('route_id')
+        stop_id = request.args.get('stop_id')
+        hours = min(int(request.args.get('hours', 2)), 24)  # 最多24小时
+        limit = min(int(request.args.get('limit', 200)), 1000)
+
+        # 构建查询语句
+        base_query = """
+            SELECT rdr.trip_id, rdr.route_id, rdr.stop_id, rdr.vehicle_id,
+                   rdr.scheduled_time, rdr.actual_time, rdr.arrival_delay,
+                   rdr.departure_delay, rdr.record_timestamp,
+                   r.route_short_name, r.route_long_name,
+                   s.stop_name
+            FROM realtime_delay_records rdr
+            LEFT JOIN routes r ON rdr.route_id = r.route_id
+            LEFT JOIN stops s ON rdr.stop_id = s.stop_id
+            WHERE record_timestamp >= NOW() - INTERVAL '%s hours'
+        """ % hours
+
+        params = []
+        if route_id:
+            base_query += " AND rdr.route_id = %s"
+            params.append(route_id)
+        if stop_id:
+            base_query += " AND rdr.stop_id = %s"
+            params.append(stop_id)
+
+        base_query += " ORDER BY rdr.record_timestamp DESC LIMIT %s"
+        params.append(limit)
+
+        delays = execute_query(base_query, params)
+        return jsonify(success_response(delays))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/realtime/summary', methods=['GET'])
+def get_realtime_summary():
+    """获取实时数据汇总"""
+    try:
+        summary = {
+            "active_vehicles": execute_count("""
+                SELECT COUNT(DISTINCT vehicle_id)
+                FROM realtime_vehicle_positions
+                WHERE position_timestamp >= NOW() - INTERVAL '10 minutes'
+            """),
+            "recent_delays": execute_count("""
+                SELECT COUNT(*)
+                FROM realtime_delay_records
+                WHERE record_timestamp >= NOW() - INTERVAL '1 hour'
+            """),
+            "routes_with_delays": execute_count("""
+                SELECT COUNT(DISTINCT route_id)
+                FROM realtime_delay_records
+                WHERE record_timestamp >= NOW() - INTERVAL '1 hour'
+            """),
+            "avg_delay_minutes": execute_query_one("""
+                SELECT COALESCE(AVG(arrival_delay) / 60, 0) as avg_delay
+                FROM realtime_delay_records
+                WHERE record_timestamp >= NOW() - INTERVAL '1 hour'
+            """)['avg_delay']
+        }
+        return jsonify(success_response(summary))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/punctuality/routes', methods=['GET'])
+def get_route_punctuality():
+    """获取线路准点率统计"""
+    try:
+        # 获取查询参数
+        route_id = request.args.get('route_id')
+        date = request.args.get('date')
+        days = min(int(request.args.get('days', 7)), 90)  # 最多90天
+        limit = min(int(request.args.get('limit', 20)), 100)
+
+        # 构建查询语句
+        if route_id:
+            # 查询特定线路
+            query = """
+                SELECT
+                    rdp.route_id, r.route_short_name, r.route_long_name,
+                    rdp.stat_date, rdp.total_trips, rdp.punctuality_rate,
+                    rdp.avg_arrival_delay / 60 as avg_delay_minutes,
+                    rdp.on_time_trips, rdp.late_trips, rdp.very_late_trips
+                FROM route_daily_punctuality rdp
+                JOIN routes r ON rdp.route_id = r.route_id
+                WHERE rdp.route_id = %s
+            """
+            params = [route_id]
+
+            if date:
+                query += " AND rdp.stat_date = %s"
+                params.append(date)
+            else:
+                query += " AND rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'" % days
+
+            query += " ORDER BY rdp.stat_date DESC"
+            results = execute_query(query, params)
+        else:
+            # 查询所有线路的汇总
+            query = """
+                SELECT
+                    rdp.route_id, r.route_short_name, r.route_long_name,
+                    AVG(rdp.punctuality_rate) as avg_punctuality_rate,
+                    SUM(rdp.total_trips) as total_trips,
+                    AVG(rdp.avg_arrival_delay) / 60 as avg_delay_minutes,
+                    MAX(rdp.stat_date) as last_stat_date
+                FROM route_daily_punctuality rdp
+                JOIN routes r ON rdp.route_id = r.route_id
+                WHERE rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
+            """ % days
+            query += " GROUP BY rdp.route_id, r.route_short_name, r.route_long_name"
+            query += " ORDER BY avg_punctuality_rate DESC LIMIT %s"
+            params = [limit]
+            results = execute_query(query, params)
+
+        return jsonify(success_response(results))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/punctuality/stops', methods=['GET'])
+def get_stop_punctuality():
+    """获取站点准点率统计"""
+    try:
+        # 获取查询参数
+        stop_id = request.args.get('stop_id')
+        date = request.args.get('date')
+        days = min(int(request.args.get('days', 7)), 90)
+        limit = min(int(request.args.get('limit', 20)), 100)
+
+        if stop_id:
+            # 查询特定站点
+            query = """
+                SELECT
+                    sdp.stop_id, s.stop_name, s.stop_lat, s.stop_lon,
+                    sdp.stat_date, sdp.total_visits, sdp.punctuality_rate,
+                    sdp.avg_arrival_delay / 60 as avg_delay_minutes
+                FROM stop_daily_punctuality sdp
+                JOIN stops s ON sdp.stop_id = s.stop_id
+                WHERE sdp.stop_id = %s
+            """
+            params = [stop_id]
+
+            if date:
+                query += " AND sdp.stat_date = %s"
+                params.append(date)
+            else:
+                query += " AND sdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'" % days
+
+            query += " ORDER BY sdp.stat_date DESC"
+            results = execute_query(query, params)
+        else:
+            # 查询所有站点的汇总
+            query = """
+                SELECT
+                    sdp.stop_id, s.stop_name, s.stop_lat, s.stop_lon,
+                    AVG(sdp.punctuality_rate) as avg_punctuality_rate,
+                    SUM(sdp.total_visits) as total_visits,
+                    AVG(sdp.avg_arrival_delay) / 60 as avg_delay_minutes,
+                    MAX(sdp.stat_date) as last_stat_date
+                FROM stop_daily_punctuality sdp
+                JOIN stops s ON sdp.stop_id = s.stop_id
+                WHERE sdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
+            """ % days
+            query += " GROUP BY sdp.stop_id, s.stop_name, s.stop_lat, s.stop_lon"
+            query += " ORDER BY avg_punctuality_rate DESC LIMIT %s"
+            params = [limit]
+            results = execute_query(query, params)
+
+        return jsonify(success_response(results))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/punctuality/overview', methods=['GET'])
+def get_system_punctuality_overview():
+    """获取系统准点率概览"""
+    try:
+        # 获取查询参数
+        days = min(int(request.args.get('days', 7)), 90)
+
+        # 查询系统概览
+        query = """
+            SELECT
+                COUNT(DISTINCT rdp.route_id) as total_routes,
+                SUM(rdp.total_trips) as total_trips,
+                AVG(rdp.punctuality_rate) as system_punctuality_rate,
+                AVG(rdp.avg_arrival_delay) / 60 as system_avg_delay_minutes,
+                MAX(rdp.stat_date) as latest_data_date
+            FROM route_daily_punctuality rdp
+            WHERE rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
+        """ % days
+
+        system_stats = execute_query_one(query)
+
+        if not system_stats or system_stats['total_routes'] == 0:
+            # 如果没有统计数据，返回默认值
+            overview = {
+                "total_routes": 0,
+                "total_trips": 0,
+                "system_punctuality_rate": 0,
+                "system_avg_delay_minutes": 0,
+                "latest_data_date": None,
+                "best_routes": [],
+                "worst_routes": [],
+                "analysis_period": f"最近 {days} 天",
+                "data_available": False
+            }
+            return jsonify(success_response(overview))
+
+        # 获取最佳和最差线路
+        best_routes_query = """
+            SELECT
+                rdp.route_id, r.route_short_name, r.route_long_name,
+                AVG(rdp.punctuality_rate) as avg_punctuality_rate,
+                SUM(rdp.total_trips) as total_trips
+            FROM route_daily_punctuality rdp
+            JOIN routes r ON rdp.route_id = r.route_id
+            WHERE rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
+            GROUP BY rdp.route_id, r.route_short_name, r.route_long_name
+            ORDER BY avg_punctuality_rate DESC
+            LIMIT 5
+        """ % days
+
+        worst_routes_query = """
+            SELECT
+                rdp.route_id, r.route_short_name, r.route_long_name,
+                AVG(rdp.punctuality_rate) as avg_punctuality_rate,
+                SUM(rdp.total_trips) as total_trips
+            FROM route_daily_punctuality rdp
+            JOIN routes r ON rdp.route_id = r.route_id
+            WHERE rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
+            AND rdp.total_trips >= 10  -- 至少10个班次
+            GROUP BY rdp.route_id, r.route_short_name, r.route_long_name
+            ORDER BY avg_punctuality_rate ASC
+            LIMIT 5
+        """ % days
+
+        best_routes = execute_query(best_routes_query)
+        worst_routes = execute_query(worst_routes_query)
+
+        # 构建返回结果
+        overview = {
+            "total_routes": system_stats['total_routes'],
+            "total_trips": system_stats['total_trips'],
+            "system_punctuality_rate": round(float(system_stats['system_punctuality_rate'] or 0), 2),
+            "system_avg_delay_minutes": round(float(system_stats['system_avg_delay_minutes'] or 0), 2),
+            "latest_data_date": system_stats['latest_data_date'].strftime('%Y-%m-%d') if system_stats['latest_data_date'] else None,
+            "best_routes": best_routes,
+            "worst_routes": worst_routes,
+            "analysis_period": f"最近 {days} 天",
+            "data_available": True
+        }
+
+        return jsonify(success_response(overview))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/punctuality/hourly', methods=['GET'])
+def get_hourly_punctuality():
+    """获取时段准点率统计"""
+    try:
+        # 获取查询参数
+        route_id = request.args.get('route_id')
+        date = request.args.get('date')
+
+        if not date:
+            date = 'CURRENT_DATE'
+
+        # 构建查询语句
+        query = """
+            SELECT
+                hour_of_day,
+                AVG(punctuality_rate) as avg_punctuality_rate,
+                SUM(total_trips) as total_trips,
+                AVG(avg_arrival_delay) / 60 as avg_delay_minutes
+            FROM hourly_punctuality_stats
+            WHERE stat_date = %s
+        """ % ('CURRENT_DATE' if date == 'CURRENT_DATE' else f"'{date}'")
+
+        params = []
+        if route_id:
+            query += " AND route_id = %s"
+            params.append(route_id)
+
+        query += " GROUP BY hour_of_day ORDER BY hour_of_day"
+
+        hourly_stats = execute_query(query, params)
+
+        # 确保返回24小时的数据
+        result = []
+        hour_data = {stat['hour_of_day']: stat for stat in hourly_stats}
+
+        for hour in range(24):
+            if hour in hour_data:
+                result.append({
+                    'hour': hour,
+                    'hour_label': f"{hour:02d}:00",
+                    'punctuality_rate': round(float(hour_data[hour]['avg_punctuality_rate'] or 0), 2),
+                    'total_trips': hour_data[hour]['total_trips'],
+                    'avg_delay_minutes': round(float(hour_data[hour]['avg_delay_minutes'] or 0), 2)
+                })
+            else:
+                result.append({
+                    'hour': hour,
+                    'hour_label': f"{hour:02d}:00",
+                    'punctuality_rate': 0,
+                    'total_trips': 0,
+                    'avg_delay_minutes': 0
+                })
+
+        return jsonify(success_response(result))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/punctuality/config', methods=['GET', 'PUT'])
+def punctuality_config():
+    """获取或更新准点率配置"""
+    try:
+        if request.method == 'GET':
+            # 获取配置
+            query = "SELECT config_key, config_value, description FROM punctuality_config ORDER BY config_key"
+            configs = execute_query(query)
+
+            # 转换为字典格式
+            config_dict = {}
+            for config in configs:
+                # 尝试转换为数值类型
+                try:
+                    if '.' in config['config_value']:
+                        config_dict[config['config_key']] = float(config['config_value'])
+                    else:
+                        config_dict[config['config_key']] = int(config['config_value'])
+                except ValueError:
+                    config_dict[config['config_key']] = config['config_value']
+
+            return jsonify(success_response(config_dict))
+
+        else:  # PUT
+            # 更新配置
+            configs = request.get_json()
+            if not configs:
+                return jsonify(error_response("配置数据不能为空", 400)), 400
+
+            for key, value in configs:
+                query = """
+                    UPDATE punctuality_config
+                    SET config_value = %s, updated_at = CURRENT_TIMESTAMP
+                    WHERE config_key = %s
+                """
+                execute_query(query, (str(value), key))
+
+            return jsonify(success_response({"message": "配置更新成功"}))
+
+    except Exception as e:
+        return jsonify(error_response(f"操作失败: {str(e)}", 500)), 500
+
+
 @app.errorhandler(404)
 def not_found(error):
     """404 错误处理"""

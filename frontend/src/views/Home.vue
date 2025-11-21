@@ -38,6 +38,27 @@
               地图视图
             </el-button>
           </div>
+
+          <el-divider content-position="left">准点率分析</el-divider>
+
+          <div class="punctuality-links">
+            <el-button type="warning" @click="$router.push('/punctuality')" size="large">
+              <el-icon><TrendCharts /></el-icon>
+              准点率概览
+            </el-button>
+            <el-button type="primary" @click="$router.push('/punctuality/routes')" size="large">
+              <el-icon><Guide /></el-icon>
+              线路准点率
+            </el-button>
+            <el-button type="success" @click="$router.push('/punctuality/stops')" size="large">
+              <el-icon><Location /></el-icon>
+              站点准点率
+            </el-button>
+            <el-button type="danger" @click="$router.push('/punctuality/realtime')" size="large">
+              <el-icon><Monitor /></el-icon>
+              实时监控
+            </el-button>
+          </div>
         </el-card>
       </el-col>
 
@@ -71,7 +92,8 @@ import {
   TrendCharts,
   Position,
   Timer,
-  DataLine
+  DataLine,
+  Monitor
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -168,14 +190,25 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-.quick-links {
+.quick-links,
+.punctuality-links {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.quick-links .el-button {
+.quick-links .el-button,
+.punctuality-links .el-button {
   width: 100%;
   justify-content: flex-start;
+}
+
+.punctuality-links .el-button {
+  transition: all 0.3s ease;
+}
+
+.punctuality-links .el-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 </style>
