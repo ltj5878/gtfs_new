@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -24,7 +24,8 @@ apiClient.interceptors.response.use(
     // 如果响应数据有code字段，则返回data字段
     if (response.data && typeof response.data === 'object' && 'code' in response.data) {
       if (response.data.code === 200) {
-        return response.data.data || response.data
+        // 返回 data 字段，如果 data 不存在则返回整个响应对象
+        return 'data' in response.data ? response.data.data : response.data
       } else {
         // API返回错误状态码
         return Promise.reject(new Error(response.data.message || 'API错误'))

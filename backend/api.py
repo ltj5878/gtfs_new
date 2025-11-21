@@ -665,6 +665,11 @@ def get_route_punctuality():
                     AVG(rdp.punctuality_rate) as avg_punctuality_rate,
                     SUM(rdp.total_trips) as total_trips,
                     AVG(rdp.avg_arrival_delay) / 60 as avg_delay_minutes,
+                    MAX(rdp.max_arrival_delay) / 60 as max_delay_minutes,
+                    SUM(rdp.on_time_trips) as on_time_trips,
+                    SUM(rdp.early_trips) as early_trips,
+                    SUM(rdp.late_trips) as late_trips,
+                    SUM(rdp.very_late_trips) as very_late_trips,
                     MAX(rdp.stat_date) as last_stat_date
                 FROM route_daily_punctuality rdp
                 JOIN routes r ON rdp.route_id = r.route_id
@@ -719,6 +724,11 @@ def get_stop_punctuality():
                     AVG(sdp.punctuality_rate) as avg_punctuality_rate,
                     SUM(sdp.total_visits) as total_visits,
                     AVG(sdp.avg_arrival_delay) / 60 as avg_delay_minutes,
+                    MAX(sdp.max_arrival_delay) / 60 as max_delay_minutes,
+                    SUM(sdp.on_time_visits) as on_time_visits,
+                    SUM(sdp.early_visits) as early_visits,
+                    SUM(sdp.late_visits) as late_visits,
+                    SUM(sdp.very_late_visits) as very_late_visits,
                     MAX(sdp.stat_date) as last_stat_date
                 FROM stop_daily_punctuality sdp
                 JOIN stops s ON sdp.stop_id = s.stop_id
