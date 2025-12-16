@@ -7,7 +7,8 @@ GTFS 数据 RESTful API 服务
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from db import Database, execute_query, execute_query_one, execute_count
-from typing import Dict, Any
+from route_mappings import enrich_route_attributes
+from typing import Dict, Any, List
 import os
 
 app = Flask(__name__)
@@ -140,8 +141,12 @@ def get_routes():
 
         routes = execute_query(query, tuple(params))
 
+        # 为每条路线添加映射后的文本
+        lang = request.args.get('lang', 'zh')
+        enriched_routes = [enrich_route_attributes(route, lang) for route in routes]
+
         return jsonify(success_response({
-            "routes": routes,
+            "routes": enriched_routes,
             "pagination": {
                 "page": page,
                 "page_size": page_size,
@@ -167,7 +172,10 @@ def get_route(route_id):
         """
         route = execute_query_one(query, (route_id,))
         if route:
-            return jsonify(success_response(route))
+            # 添加映射后的文本
+            lang = request.args.get('lang', 'zh')
+            enriched_route = enrich_route_attributes(route, lang)
+            return jsonify(success_response(enriched_route))
         return jsonify(error_response("线路不存在", 404)), 404
     except Exception as e:
         return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500

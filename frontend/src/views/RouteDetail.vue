@@ -28,9 +28,21 @@
                 <el-descriptions-item label="线路名称">{{ routeStore.currentRoute.route_long_name }}</el-descriptions-item>
                 <el-descriptions-item label="线路编号">{{ routeStore.currentRoute.route_short_name }}</el-descriptions-item>
                 <el-descriptions-item label="线路类型">{{ getRouteTypeName(routeStore.currentRoute.route_type) }}</el-descriptions-item>
-                <el-descriptions-item v-if="routeStore.currentRoute.category" label="类别">{{ routeStore.currentRoute.category }}</el-descriptions-item>
-                <el-descriptions-item v-if="routeStore.currentRoute.subcategory" label="子类别">{{ routeStore.currentRoute.subcategory }}</el-descriptions-item>
-                <el-descriptions-item v-if="routeStore.currentRoute.running_way" label="运行方式">{{ routeStore.currentRoute.running_way }}</el-descriptions-item>
+                <el-descriptions-item v-if="routeStore.currentRoute.category" label="类别">
+                  <el-tooltip :content="routeStore.currentRoute.category_description" placement="top">
+                    <span>{{ routeStore.currentRoute.category_text || routeStore.currentRoute.category }}</span>
+                  </el-tooltip>
+                </el-descriptions-item>
+                <el-descriptions-item v-if="routeStore.currentRoute.subcategory" label="子类别">
+                  <el-tooltip :content="routeStore.currentRoute.subcategory_description" placement="top">
+                    <span>{{ routeStore.currentRoute.subcategory_text || routeStore.currentRoute.subcategory }}</span>
+                  </el-tooltip>
+                </el-descriptions-item>
+                <el-descriptions-item v-if="routeStore.currentRoute.running_way" label="运行方式">
+                  <el-tooltip :content="routeStore.currentRoute.running_way_description" placement="top">
+                    <span>{{ routeStore.currentRoute.running_way_text || routeStore.currentRoute.running_way }}</span>
+                  </el-tooltip>
+                </el-descriptions-item>
               </el-descriptions>
             </el-card>
           </el-col>
