@@ -3,7 +3,7 @@
     <!-- 欢迎区域 -->
     <div class="welcome-section">
       <h1 class="welcome-title">GTFS 公交数据分析系统</h1>
-      <p class="welcome-subtitle">旧金山湾区公交数据实时监控与分析平台</p>
+      <p class="welcome-subtitle">公交数据实时监控与分析平台</p>
     </div>
 
     <!-- 统计数据卡片 -->
