@@ -28,6 +28,11 @@ const router = createRouter({
       name: 'stop-detail',
       component: () => import('@/views/StopDetail.vue')
     },
+    {
+      path: '/map',
+      name: 'map',
+      component: () => import('@/views/Map.vue')
+    },
     // 准点率分析页面
     {
       path: '/punctuality',
