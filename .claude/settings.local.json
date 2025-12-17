@@ -32,7 +32,8 @@
       "Bash(/opt/homebrew/Cellar/postgresql@16/16.11/bin/psql:*)",
       "Bash(npm --version:*)",
       "Bash(kill:*)",
-      "Bash(PORT=5001 python:*)"
+      "Bash(PORT=5001 python:*)",
+      "WebFetch(domain:gtfs.org)"
     ],
     "deny": [],
     "ask": []
