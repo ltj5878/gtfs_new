@@ -18,7 +18,7 @@
         <el-divider />
 
         <el-row :gutter="20">
-          <el-col :xs="24" :md="12">
+          <el-col :xs="24">
             <el-card>
               <template #header>
                 <span>线路信息</span>
@@ -44,26 +44,6 @@
                   </el-tooltip>
                 </el-descriptions-item>
               </el-descriptions>
-            </el-card>
-          </el-col>
-
-          <el-col :xs="24" :md="12">
-            <el-card>
-              <template #header>
-                <span>方向信息</span>
-              </template>
-              <div v-if="routeStore.directions.length > 0">
-                <el-radio-group v-model="selectedDirection" @change="handleDirectionChange">
-                  <el-radio-button
-                    v-for="dir in routeStore.directions"
-                    :key="dir.direction_id"
-                    :label="dir.direction_id"
-                  >
-                    {{ dir.direction }}
-                  </el-radio-button>
-                </el-radio-group>
-              </div>
-              <el-empty v-else description="暂无方向信息" :image-size="80" />
             </el-card>
           </el-col>
         </el-row>
@@ -97,7 +77,18 @@
           <el-col :xs="24" :lg="12">
             <el-card class="map-card">
               <template #header>
-                <span>线路地图</span>
+                <div class="map-card-header">
+                  <span>线路地图</span>
+                  <el-radio-group v-if="routeStore.directions.length > 0" v-model="selectedDirection" @change="handleDirectionChange" size="small">
+                    <el-radio-button
+                      v-for="dir in routeStore.directions"
+                      :key="dir.direction_id"
+                      :label="dir.direction_id"
+                    >
+                      {{ dir.direction }}
+                    </el-radio-button>
+                  </el-radio-group>
+                </div>
               </template>
               <div class="map-container">
                 <div id="route-map" class="route-map"></div>
@@ -409,6 +400,12 @@ onUnmounted(() => {
 .stop-code {
   font-size: 12px;
   color: #909399;
+}
+
+.map-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 /* 响应式设计 */
