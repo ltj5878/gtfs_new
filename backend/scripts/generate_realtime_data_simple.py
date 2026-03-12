@@ -5,7 +5,7 @@
 
 import random
 from datetime import datetime, timedelta
-from db import Database, execute_count
+from core.db import Database, execute_count
 
 def main():
     print("正在生成实时数据...")

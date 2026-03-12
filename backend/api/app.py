@@ -6,8 +6,8 @@ GTFS 数据 RESTful API 服务
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from db import Database, execute_query, execute_query_one, execute_count
-from route_mappings import enrich_route_attributes
+from core.db import Database, execute_query, execute_query_one, execute_count
+from core.route_mappings import enrich_route_attributes
 from typing import Dict, Any, List
 import os
 

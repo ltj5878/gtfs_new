@@ -12,16 +12,19 @@ import psycopg2
 from psycopg2.extras import execute_batch, execute_values
 import schedule
 
-from gtfs_data_fetcher import GTFSDataFetcher
-from punctuality_calculator import PunctualityCalculator, DelayRecord, PunctualityThresholds
-from db import Database, execute_query, execute_query_one, execute_count, get_connection
+from data_acquisition.gtfs_data_fetcher import GTFSDataFetcher
+from business_logic.punctuality_calculator import PunctualityCalculator, DelayRecord, PunctualityThresholds
+from core.db import Database, execute_query, execute_query_one, execute_count
+
+import os as _os
+_log_path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'punctuality_service.log')
 
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('punctuality_service.log'),
+        logging.FileHandler(_log_path),
         logging.StreamHandler()
     ]
 )
