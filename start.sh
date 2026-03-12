@@ -35,7 +35,7 @@ start() {
     echo -e "${YELLOW}后端已在运行 (PID: $(cat $BACKEND_PID_FILE))${NC}"
   else
     cd "$BACKEND_DIR"
-    PORT=$BACKEND_PORT python3 api.py > "$BACKEND_LOG" 2>&1 &
+    PORT=$BACKEND_PORT python3 -m api.app > "$BACKEND_LOG" 2>&1 &
     echo $! > "$BACKEND_PID_FILE"
     sleep 2
     if curl -s "http://localhost:$BACKEND_PORT/api/health" > /dev/null 2>&1; then

@@ -5,8 +5,8 @@ SpeedCalculator 与 GTFSDataFetcher 的使用示例
 将 SpeedCalculator 模块与现有的 GTFS 数据获取器集成。
 """
 
-from gtfs_data_fetcher import GTFSDataFetcher
-from speed_calculator import SpeedCalculator
+from data_acquisition.gtfs_data_fetcher import GTFSDataFetcher
+from business_logic.speed_calculator import SpeedCalculator
 import time
 
 

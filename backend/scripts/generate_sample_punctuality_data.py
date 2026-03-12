@@ -8,7 +8,7 @@ import random
 import sys
 import os
 from datetime import datetime, timedelta
-from db import Database, execute_query, execute_query_one, execute_count
+from core.db import Database, execute_query, execute_query_one, execute_count
 
 def generate_sample_routes():
     """生成示例线路准点率数据"""
