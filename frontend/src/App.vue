@@ -16,6 +16,11 @@
           <el-menu-item index="/routes">线路</el-menu-item>
           <el-menu-item index="/stops">站点</el-menu-item>
         </el-menu>
+        <div class="header-user" v-if="authStore.isLoggedIn">
+          <el-icon><User /></el-icon>
+          <span>{{ authStore.username }}</span>
+          <el-button link type="primary" @click="handleLogout">退出</el-button>
+        </div>
       </div>
     </el-header>
 
@@ -39,10 +44,12 @@
 <script setup>
 import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { TrendCharts } from '@element-plus/icons-vue'
+import { TrendCharts, User } from '@element-plus/icons-vue'
+import { useAuthStore } from '@/stores/authStore.js'
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
 
 const activeMenu = computed(() => {
   const path = route.path
@@ -53,6 +60,11 @@ const activeMenu = computed(() => {
 
 const handleMenuSelect = (index) => {
   router.push(index)
+}
+
+const handleLogout = async () => {
+  await authStore.logout()
+  router.push('/login')
 }
 </script>
 
@@ -134,6 +146,15 @@ html, body, #app {
 
 .footer-content p {
   margin: 2px 0;
+}
+
+.header-user {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #606266;
+  white-space: nowrap;
 }
 
 .fade-enter-active,

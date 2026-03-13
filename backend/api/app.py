@@ -10,9 +10,17 @@ from core.db import Database, execute_query, execute_query_one, execute_count
 from core.route_mappings import enrich_route_attributes
 from typing import Dict, Any, List
 import os
+import sys
+
+# 将 backend 目录加入 sys.path，确保 auth 模块可被导入
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from auth.routes import auth_bp
+from auth.models import init_default_user
 
 app = Flask(__name__)
 CORS(app)
+app.register_blueprint(auth_bp)
 
 
 @app.before_request
@@ -20,6 +28,7 @@ def before_first_request():
     """初始化数据库连接池"""
     if Database._connection_pool is None:
         Database.initialize()
+        init_default_user()
 
 
 @app.teardown_appcontext

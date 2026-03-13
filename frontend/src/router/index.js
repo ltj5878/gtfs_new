@@ -4,73 +4,82 @@ const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/views/Login.vue'),
+      meta: { requiresAuth: false }
+    },
+    {
       path: '/',
       name: 'home',
-      component: () => import('@/views/Home.vue')
+      component: () => import('@/views/Home.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/routes',
       name: 'routes',
-      component: () => import('@/views/Routes.vue')
+      component: () => import('@/views/Routes.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/routes/:id',
       name: 'route-detail',
-      component: () => import('@/views/RouteDetail.vue')
+      component: () => import('@/views/RouteDetail.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/stops',
       name: 'stops',
-      component: () => import('@/views/Stops.vue')
+      component: () => import('@/views/Stops.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/stops/:id',
       name: 'stop-detail',
-      component: () => import('@/views/StopDetail.vue')
+      component: () => import('@/views/StopDetail.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/map',
       name: 'map',
-      component: () => import('@/views/Map.vue')
+      component: () => import('@/views/Map.vue'),
+      meta: { requiresAuth: true }
     },
-    // 准点率分析页面
     {
       path: '/punctuality',
       name: 'punctuality-overview',
       component: () => import('@/views/PunctualityOverview.vue'),
-      meta: {
-        title: '准点率概览',
-        icon: 'TrendCharts'
-      }
+      meta: { requiresAuth: true, title: '准点率概览', icon: 'TrendCharts' }
     },
     {
       path: '/punctuality/routes',
       name: 'route-punctuality',
       component: () => import('@/views/RoutePunctuality.vue'),
-      meta: {
-        title: '线路准点率',
-        icon: 'Bus'
-      }
+      meta: { requiresAuth: true, title: '线路准点率', icon: 'Bus' }
     },
     {
       path: '/punctuality/stops',
       name: 'stop-punctuality',
       component: () => import('@/views/StopPunctuality.vue'),
-      meta: {
-        title: '站点准点率',
-        icon: 'MapLocation'
-      }
+      meta: { requiresAuth: true, title: '站点准点率', icon: 'MapLocation' }
     },
     {
       path: '/punctuality/realtime',
       name: 'realtime-monitor',
       component: () => import('@/views/RealtimeMonitor.vue'),
-      meta: {
-        title: '实时监控',
-        icon: 'Monitor'
-      }
+      meta: { requiresAuth: true, title: '实时监控', icon: 'Monitor' }
     }
   ]
+})
+
+router.beforeEach((to, _from) => {
+  const token = localStorage.getItem('auth_token')
+  if (to.meta.requiresAuth && !token) {
+    return { name: 'login' }
+  }
+  if (to.name === 'login' && token) {
+    return { name: 'home' }
+  }
 })
 
 export default router

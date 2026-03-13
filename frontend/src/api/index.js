@@ -12,6 +12,10 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   config => {
+    const token = localStorage.getItem('auth_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
     return config
   },
   error => {
@@ -36,6 +40,11 @@ apiClient.interceptors.response.use(
   },
   error => {
     console.error('API请求错误:', error)
+    if (error.response?.status === 401 && window.location.pathname !== '/login') {
+      localStorage.removeItem('auth_token')
+      localStorage.removeItem('auth_username')
+      window.location.href = '/login'
+    }
     const message = error.response?.data?.message || error.message || '网络错误'
     return Promise.reject(new Error(message))
   }
