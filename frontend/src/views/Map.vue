@@ -70,15 +70,17 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Location, RefreshRight, Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import apiClient from '@/api/index'
+import { useRegionStore } from '@/stores/regionStore'
 
 const router = useRouter()
+const regionStore = useRegionStore()
 const loading = ref(false)
 const map = ref(null)
 const markersLayer = ref(null)
@@ -135,8 +137,8 @@ const initMap = () => {
 // 加载运营机构
 const loadAgencies = async () => {
   try {
-    const response = await axios.get('http://localhost:5000/api/agencies')
-    agencies.value = response.data.data || []
+    const data = await apiClient.get('/agencies')
+    agencies.value = Array.isArray(data) ? data : (data?.agencies || [])
   } catch (error) {
     console.error('加载运营机构失败:', error)
     ElMessage.error('加载运营机构失败')
@@ -151,9 +153,8 @@ const loadRoutes = async (agencyId = null) => {
     if (agencyId) {
       params.agency_id = agencyId
     }
-    const response = await axios.get('http://localhost:5000/api/routes', { params })
-    // 注意：routes API 返回的数据结构是 { pagination: {...}, routes: [...] }
-    routes.value = response.data.data?.routes || []
+    const data = await apiClient.get('/routes', { params })
+    routes.value = data?.routes || []
   } catch (error) {
     console.error('加载线路失败:', error)
     ElMessage.error('加载线路失败')
@@ -169,8 +170,8 @@ const loadStops = async (routeId = null) => {
 
     if (routeId) {
       // 加载特定线路的站点
-      const response = await axios.get(`http://localhost:5000/api/routes/${routeId}/stops`)
-      stops.value = response.data.data || []
+      const data = await apiClient.get(`/routes/${routeId}/stops`)
+      stops.value = Array.isArray(data) ? data : (data?.stops || [])
       visibleStops.value = stops.value
 
       // 存储该线路的站点信息
@@ -195,17 +196,17 @@ const loadStops = async (routeId = null) => {
 const loadAllRoutesWithStops = async () => {
   try {
     // 获取所有线路
-    const routesResponse = await axios.get('http://localhost:5000/api/routes', {
+    const data = await apiClient.get('/routes', {
       params: { page_size: 100 } // 限制显示前100条线路，避免数据过多
     })
-    const allRoutes = routesResponse.data.data?.routes || []
+    const allRoutes = data?.routes || []
 
     // 为每条线路加载站点
     routeStopsMap.value = {}
     const promises = allRoutes.slice(0, 20).map(async (route) => { // 只显示前20条线路
       try {
-        const response = await axios.get(`http://localhost:5000/api/routes/${route.route_id}/stops`)
-        const routeStops = response.data.data || []
+        const routeData = await apiClient.get(`/routes/${route.route_id}/stops`)
+        const routeStops = Array.isArray(routeData) ? routeData : (routeData?.stops || [])
         if (routeStops.length > 0) {
           routeStopsMap.value[route.route_id] = routeStops
         }
@@ -283,14 +284,14 @@ const displayStopsWithRoute = async (routeId) => {
 // 加载并显示线路轨迹
 const loadAndDisplayRouteShape = async (routeId, color) => {
   try {
-    const response = await axios.get(`http://localhost:5000/api/routes/${routeId}/shapes`)
-    const shapes = response.data.data || []
+    const shapes = await apiClient.get(`/routes/${routeId}/shapes`)
+    const shapeList = Array.isArray(shapes) ? shapes : (shapes?.shapes || [])
 
-    if (shapes.length === 0) return
+    if (shapeList.length === 0) return
 
     // 按 shape_id 分组
     const shapeGroups = {}
-    shapes.forEach(point => {
+    shapeList.forEach(point => {
       if (!shapeGroups[point.shape_id]) {
         shapeGroups[point.shape_id] = []
       }
@@ -428,6 +429,17 @@ const getRouteLabel = (routeId) => {
 
 onMounted(async () => {
   initMap()
+  await loadAgencies()
+  await loadRoutes()
+})
+
+watch(() => regionStore.selectedRegion, async () => {
+  selectedAgency.value = null
+  selectedRoute.value = null
+  markersLayer.value.clearLayers()
+  routeLayer.value.clearLayers()
+  visibleStops.value = []
+  routeStopsMap.value = {}
   await loadAgencies()
   await loadRoutes()
 })

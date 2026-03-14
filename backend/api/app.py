@@ -67,17 +67,45 @@ def health_check():
         return jsonify(error_response(f"健康检查失败: {str(e)}", 500)), 500
 
 
+@app.route('/api/regions', methods=['GET'])
+def get_regions():
+    """获取所有可用地区列表"""
+    try:
+        query = """
+            SELECT region_id, region_name, country, timezone, api_type,
+                   api_base_url, gtfs_static_url, enabled
+            FROM regions
+            WHERE enabled = true
+            ORDER BY region_id
+        """
+        regions = execute_query(query)
+        return jsonify(success_response(regions))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
 @app.route('/api/agencies', methods=['GET'])
 def get_agencies():
     """获取所有运营机构"""
     try:
-        query = """
-            SELECT agency_id, agency_name, agency_url, agency_timezone,
+        region = request.args.get('region')
+        where_clauses = []
+        params = []
+
+        if region:
+            where_clauses.append("region = %s")
+            params.append(region)
+
+        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+
+        query = f"""
+            SELECT region, agency_id, agency_name, agency_url, agency_timezone,
                    agency_lang, agency_phone, agency_fare_url, agency_email
             FROM agency
+            WHERE {where_sql}
             ORDER BY agency_name
         """
-        agencies = execute_query(query)
+        agencies = execute_query(query, tuple(params) if params else None)
         return jsonify(success_response(agencies))
     except Exception as e:
         return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
@@ -87,13 +115,19 @@ def get_agencies():
 def get_agency(agency_id):
     """获取指定运营机构详情"""
     try:
+        region = request.args.get('region')
         query = """
-            SELECT agency_id, agency_name, agency_url, agency_timezone,
+            SELECT region, agency_id, agency_name, agency_url, agency_timezone,
                    agency_lang, agency_phone, agency_fare_url, agency_email
             FROM agency
             WHERE agency_id = %s
         """
-        agency = execute_query_one(query, (agency_id,))
+        params = [agency_id]
+        if region:
+            query += " AND region = %s"
+            params.append(region)
+
+        agency = execute_query_one(query, tuple(params))
         if agency:
             return jsonify(success_response(agency))
         return jsonify(error_response("运营机构不存在", 404)), 404
@@ -110,11 +144,16 @@ def get_routes():
         agency_id = request.args.get('agency_id', type=str)
         route_type = request.args.get('route_type', type=int)
         search = request.args.get('search', type=str)
+        region = request.args.get('region', type=str)
 
         offset = (page - 1) * page_size
 
         where_clauses = []
         params = []
+
+        if region:
+            where_clauses.append("r.region = %s")
+            params.append(region)
 
         if agency_id:
             where_clauses.append("r.agency_id = %s")
@@ -137,11 +176,11 @@ def get_routes():
         total = execute_count(count_query, tuple(params))
 
         query = f"""
-            SELECT r.route_id, r.agency_id, r.route_short_name, r.route_long_name,
+            SELECT r.region, r.route_id, r.agency_id, r.route_short_name, r.route_long_name,
                    r.route_desc, r.route_type, r.route_url, r.route_color, r.route_text_color,
                    ra.category, ra.subcategory, ra.running_way
             FROM routes r
-            LEFT JOIN route_attributes ra ON r.route_id = ra.route_id
+            LEFT JOIN route_attributes ra ON r.region = ra.region AND r.route_id = ra.route_id
             WHERE {where_sql}
             ORDER BY r.route_short_name, r.route_long_name
             LIMIT %s OFFSET %s
@@ -171,17 +210,22 @@ def get_routes():
 def get_route(route_id):
     """获取指定线路详情"""
     try:
+        region = request.args.get('region')
         query = """
-            SELECT r.route_id, r.agency_id, r.route_short_name, r.route_long_name,
+            SELECT r.region, r.route_id, r.agency_id, r.route_short_name, r.route_long_name,
                    r.route_desc, r.route_type, r.route_url, r.route_color, r.route_text_color,
                    ra.category, ra.subcategory, ra.running_way
             FROM routes r
-            LEFT JOIN route_attributes ra ON r.route_id = ra.route_id
+            LEFT JOIN route_attributes ra ON r.region = ra.region AND r.route_id = ra.route_id
             WHERE r.route_id = %s
         """
-        route = execute_query_one(query, (route_id,))
+        params = [route_id]
+        if region:
+            query += " AND r.region = %s"
+            params.append(region)
+
+        route = execute_query_one(query, tuple(params))
         if route:
-            # 添加映射后的文本
             lang = request.args.get('lang', 'zh')
             enriched_route = enrich_route_attributes(route, lang)
             return jsonify(success_response(enriched_route))
@@ -194,13 +238,19 @@ def get_route(route_id):
 def get_route_directions(route_id):
     """获取线路的所有方向"""
     try:
+        region = request.args.get('region')
         query = """
-            SELECT route_id, direction_id, direction
+            SELECT region, route_id, direction_id, direction
             FROM directions
             WHERE route_id = %s
-            ORDER BY direction_id
         """
-        directions = execute_query(query, (route_id,))
+        params = [route_id]
+        if region:
+            query += " AND region = %s"
+            params.append(region)
+        query += " ORDER BY direction_id"
+
+        directions = execute_query(query, tuple(params))
         return jsonify(success_response(directions))
     except Exception as e:
         return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
@@ -211,9 +261,14 @@ def get_route_stops(route_id):
     """获取线路的所有站点"""
     try:
         direction_id = request.args.get('direction_id', type=int)
+        region = request.args.get('region')
 
         where_clause = "r.route_id = %s"
         params = [route_id]
+
+        if region:
+            where_clause += " AND r.region = %s"
+            params.append(region)
 
         if direction_id is not None:
             where_clause += " AND t.direction_id = %s"
@@ -224,9 +279,9 @@ def get_route_stops(route_id):
                    s.stop_lat, s.stop_lon, s.stop_desc,
                    MIN(st.stop_sequence) as min_sequence
             FROM stops s
-            JOIN stop_times st ON s.stop_id = st.stop_id
-            JOIN trips t ON st.trip_id = t.trip_id
-            JOIN routes r ON t.route_id = r.route_id
+            JOIN stop_times st ON s.region = st.region AND s.stop_id = st.stop_id
+            JOIN trips t ON st.region = t.region AND st.trip_id = t.trip_id
+            JOIN routes r ON t.region = r.region AND t.route_id = r.route_id
             WHERE {where_clause}
             GROUP BY s.stop_id, s.stop_code, s.stop_name, s.stop_lat, s.stop_lon, s.stop_desc
             ORDER BY min_sequence
@@ -247,11 +302,16 @@ def get_stops():
         lat = request.args.get('lat', type=float)
         lon = request.args.get('lon', type=float)
         radius = request.args.get('radius', 1.0, type=float)
+        region = request.args.get('region', type=str)
 
         offset = (page - 1) * page_size
 
         where_clauses = []
         params = []
+
+        if region:
+            where_clauses.append("region = %s")
+            params.append(region)
 
         if search:
             where_clauses.append("stop_name ILIKE %s")
@@ -273,7 +333,7 @@ def get_stops():
         total = execute_count(count_query, tuple(params))
 
         query = f"""
-            SELECT stop_id, stop_code, stop_name, stop_lat, stop_lon,
+            SELECT region, stop_id, stop_code, stop_name, stop_lat, stop_lon,
                    zone_id, stop_desc, stop_url, location_type,
                    parent_station, stop_timezone, wheelchair_boarding, platform_code
             FROM stops
@@ -302,14 +362,20 @@ def get_stops():
 def get_stop(stop_id):
     """获取指定站点详情"""
     try:
+        region = request.args.get('region')
         query = """
-            SELECT stop_id, stop_code, stop_name, stop_lat, stop_lon,
+            SELECT region, stop_id, stop_code, stop_name, stop_lat, stop_lon,
                    zone_id, stop_desc, stop_url, location_type,
                    parent_station, stop_timezone, wheelchair_boarding, platform_code
             FROM stops
             WHERE stop_id = %s
         """
-        stop = execute_query_one(query, (stop_id,))
+        params = [stop_id]
+        if region:
+            query += " AND region = %s"
+            params.append(region)
+
+        stop = execute_query_one(query, tuple(params))
         if stop:
             return jsonify(success_response(stop))
         return jsonify(error_response("站点不存在", 404)), 404
@@ -321,16 +387,24 @@ def get_stop(stop_id):
 def get_stop_routes(stop_id):
     """获取经过指定站点的所有线路"""
     try:
-        query = """
-            SELECT DISTINCT r.route_id, r.route_short_name, r.route_long_name,
+        region = request.args.get('region')
+        where_clause = "st.stop_id = %s"
+        params = [stop_id]
+
+        if region:
+            where_clause += " AND r.region = %s"
+            params.append(region)
+
+        query = f"""
+            SELECT DISTINCT r.region, r.route_id, r.route_short_name, r.route_long_name,
                    r.route_type, r.route_color, r.route_text_color
             FROM routes r
-            JOIN trips t ON r.route_id = t.route_id
-            JOIN stop_times st ON t.trip_id = st.trip_id
-            WHERE st.stop_id = %s
+            JOIN trips t ON r.region = t.region AND r.route_id = t.route_id
+            JOIN stop_times st ON t.region = st.region AND t.trip_id = st.trip_id
+            WHERE {where_clause}
             ORDER BY r.route_short_name, r.route_long_name
         """
-        routes = execute_query(query, (stop_id,))
+        routes = execute_query(query, tuple(params))
         return jsonify(success_response(routes))
     except Exception as e:
         return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
@@ -343,6 +417,7 @@ def get_trips():
         route_id = request.args.get('route_id', type=str)
         service_id = request.args.get('service_id', type=str)
         direction_id = request.args.get('direction_id', type=int)
+        region = request.args.get('region', type=str)
         page = request.args.get('page', 1, type=int)
         page_size = request.args.get('page_size', 20, type=int)
 
@@ -350,6 +425,10 @@ def get_trips():
 
         where_clauses = []
         params = []
+
+        if region:
+            where_clauses.append("region = %s")
+            params.append(region)
 
         if route_id:
             where_clauses.append("route_id = %s")
@@ -369,7 +448,7 @@ def get_trips():
         total = execute_count(count_query, tuple(params))
 
         query = f"""
-            SELECT trip_id, route_id, service_id, trip_headsign,
+            SELECT region, trip_id, route_id, service_id, trip_headsign,
                    trip_short_name, direction_id, block_id, shape_id,
                    wheelchair_accessible, bikes_allowed
             FROM trips
@@ -398,14 +477,20 @@ def get_trips():
 def get_trip(trip_id):
     """获取指定班次详情"""
     try:
+        region = request.args.get('region')
         query = """
-            SELECT trip_id, route_id, service_id, trip_headsign,
+            SELECT region, trip_id, route_id, service_id, trip_headsign,
                    trip_short_name, direction_id, block_id, shape_id,
                    wheelchair_accessible, bikes_allowed
             FROM trips
             WHERE trip_id = %s
         """
-        trip = execute_query_one(query, (trip_id,))
+        params = [trip_id]
+        if region:
+            query += " AND region = %s"
+            params.append(region)
+
+        trip = execute_query_one(query, tuple(params))
         if trip:
             return jsonify(success_response(trip))
         return jsonify(error_response("班次不存在", 404)), 404
@@ -417,17 +502,23 @@ def get_trip(trip_id):
 def get_trip_stop_times(trip_id):
     """获取班次的所有站点时刻表"""
     try:
+        region = request.args.get('region')
         query = """
-            SELECT st.trip_id, st.arrival_time, st.departure_time,
+            SELECT st.region, st.trip_id, st.arrival_time, st.departure_time,
                    st.stop_id, st.stop_sequence, st.stop_headsign,
                    st.pickup_type, st.drop_off_type, st.shape_dist_traveled,
                    s.stop_name, s.stop_lat, s.stop_lon
             FROM stop_times st
-            JOIN stops s ON st.stop_id = s.stop_id
+            JOIN stops s ON st.region = s.region AND st.stop_id = s.stop_id
             WHERE st.trip_id = %s
-            ORDER BY st.stop_sequence
         """
-        stop_times = execute_query(query, (trip_id,))
+        params = [trip_id]
+        if region:
+            query += " AND st.region = %s"
+            params.append(region)
+        query += " ORDER BY st.stop_sequence"
+
+        stop_times = execute_query(query, tuple(params))
         return jsonify(success_response(stop_times))
     except Exception as e:
         return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
@@ -438,15 +529,20 @@ def get_route_shapes(route_id):
     """获取指定线路的所有轨迹"""
     try:
         direction_id = request.args.get('direction_id', type=int)
+        region = request.args.get('region')
 
         # 根据trips表获取该线路的所有shape_id
         query = """
             SELECT DISTINCT t.shape_id, d.direction_id
             FROM trips t
-            LEFT JOIN directions d ON t.route_id = d.route_id AND t.direction_id = d.direction_id
+            LEFT JOIN directions d ON t.region = d.region AND t.route_id = d.route_id AND t.direction_id = d.direction_id
             WHERE t.route_id = %s
         """
         params = [route_id]
+
+        if region:
+            query += " AND t.region = %s"
+            params.append(region)
 
         if direction_id is not None:
             query += " AND t.direction_id = %s"
@@ -468,9 +564,14 @@ def get_route_shapes(route_id):
                        shape_pt_sequence, shape_dist_traveled
                 FROM shapes
                 WHERE shape_id = %s
-                ORDER BY shape_pt_sequence
             """
-            shape_points = execute_query(shape_query, (shape_id,))
+            shape_params = [shape_id]
+            if region:
+                shape_query += " AND region = %s"
+                shape_params.append(region)
+            shape_query += " ORDER BY shape_pt_sequence"
+
+            shape_points = execute_query(shape_query, tuple(shape_params))
 
             if shape_points:
                 all_shapes.append({
@@ -488,14 +589,20 @@ def get_route_shapes(route_id):
 def get_shape(shape_id):
     """获取线路轨迹"""
     try:
+        region = request.args.get('region')
         query = """
             SELECT shape_id, shape_pt_lat, shape_pt_lon,
                    shape_pt_sequence, shape_dist_traveled
             FROM shapes
             WHERE shape_id = %s
-            ORDER BY shape_pt_sequence
         """
-        shape_points = execute_query(query, (shape_id,))
+        params = [shape_id]
+        if region:
+            query += " AND region = %s"
+            params.append(region)
+        query += " ORDER BY shape_pt_sequence"
+
+        shape_points = execute_query(query, tuple(params))
         if shape_points:
             return jsonify(success_response(shape_points))
         return jsonify(error_response("轨迹不存在", 404)), 404
@@ -507,15 +614,21 @@ def get_shape(shape_id):
 def get_calendar():
     """获取服务日历"""
     try:
+        region = request.args.get('region')
         query = """
-            SELECT c.service_id, c.monday, c.tuesday, c.wednesday,
+            SELECT c.region, c.service_id, c.monday, c.tuesday, c.wednesday,
                    c.thursday, c.friday, c.saturday, c.sunday,
                    c.start_date, c.end_date, ca.service_description
             FROM calendar c
-            LEFT JOIN calendar_attributes ca ON c.service_id = ca.service_id
-            ORDER BY c.service_id
+            LEFT JOIN calendar_attributes ca ON c.region = ca.region AND c.service_id = ca.service_id
         """
-        calendar = execute_query(query)
+        params = []
+        if region:
+            query += " WHERE c.region = %s"
+            params.append(region)
+        query += " ORDER BY c.service_id"
+
+        calendar = execute_query(query, tuple(params) if params else None)
         return jsonify(success_response(calendar))
     except Exception as e:
         return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
@@ -525,14 +638,26 @@ def get_calendar():
 def get_stats():
     """获取数据统计信息"""
     try:
-        stats = {
-            "agencies": execute_count("SELECT COUNT(*) FROM agency"),
-            "routes": execute_count("SELECT COUNT(*) FROM routes"),
-            "stops": execute_count("SELECT COUNT(*) FROM stops"),
-            "trips": execute_count("SELECT COUNT(*) FROM trips"),
-            "stop_times": execute_count("SELECT COUNT(*) FROM stop_times"),
-            "shapes": execute_count("SELECT COUNT(DISTINCT shape_id) FROM shapes")
-        }
+        region = request.args.get('region')
+
+        if region:
+            stats = {
+                "agencies": execute_count("SELECT COUNT(*) FROM agency WHERE region = %s", (region,)),
+                "routes": execute_count("SELECT COUNT(*) FROM routes WHERE region = %s", (region,)),
+                "stops": execute_count("SELECT COUNT(*) FROM stops WHERE region = %s", (region,)),
+                "trips": execute_count("SELECT COUNT(*) FROM trips WHERE region = %s", (region,)),
+                "stop_times": execute_count("SELECT COUNT(*) FROM stop_times WHERE region = %s", (region,)),
+                "shapes": execute_count("SELECT COUNT(DISTINCT shape_id) FROM shapes WHERE region = %s", (region,))
+            }
+        else:
+            stats = {
+                "agencies": execute_count("SELECT COUNT(*) FROM agency"),
+                "routes": execute_count("SELECT COUNT(*) FROM routes"),
+                "stops": execute_count("SELECT COUNT(*) FROM stops"),
+                "trips": execute_count("SELECT COUNT(*) FROM trips"),
+                "stop_times": execute_count("SELECT COUNT(*) FROM stop_times"),
+                "shapes": execute_count("SELECT COUNT(DISTINCT shape_id) FROM shapes")
+            }
         return jsonify(success_response(stats))
     except Exception as e:
         return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
@@ -544,19 +669,21 @@ def get_stats():
 def get_realtime_vehicles():
     """获取实时车辆位置信息"""
     try:
-        # 获取查询参数
         route_id = request.args.get('route_id')
-        limit = min(int(request.args.get('limit', 100)), 500)  # 最大500条
+        region = request.args.get('region')
+        limit = min(int(request.args.get('limit', 100)), 500)
 
-        # 构建查询语句
         base_query = """
-            SELECT vehicle_id, trip_id, route_id, latitude, longitude,
+            SELECT region, vehicle_id, trip_id, route_id, latitude, longitude,
                    bearing, speed, position_timestamp, current_status, stop_id
             FROM realtime_vehicle_positions
             WHERE position_timestamp >= NOW() - INTERVAL '10 minutes'
         """
 
         params = []
+        if region:
+            base_query += " AND region = %s"
+            params.append(region)
         if route_id:
             base_query += " AND route_id = %s"
             params.append(route_id)
@@ -574,26 +701,28 @@ def get_realtime_vehicles():
 def get_realtime_delays():
     """获取实时延误信息"""
     try:
-        # 获取查询参数
         route_id = request.args.get('route_id')
         stop_id = request.args.get('stop_id')
-        hours = min(int(request.args.get('hours', 2)), 24)  # 最多24小时
+        region = request.args.get('region')
+        hours = min(int(request.args.get('hours', 2)), 24)
         limit = min(int(request.args.get('limit', 200)), 1000)
 
-        # 构建查询语句
         base_query = """
-            SELECT rdr.trip_id, rdr.route_id, rdr.stop_id, rdr.vehicle_id,
+            SELECT rdr.region, rdr.trip_id, rdr.route_id, rdr.stop_id, rdr.vehicle_id,
                    rdr.scheduled_time, rdr.actual_time, rdr.arrival_delay,
                    rdr.departure_delay, rdr.record_timestamp,
                    r.route_short_name, r.route_long_name,
                    s.stop_name
             FROM realtime_delay_records rdr
-            LEFT JOIN routes r ON rdr.route_id = r.route_id
-            LEFT JOIN stops s ON rdr.stop_id = s.stop_id
+            LEFT JOIN routes r ON rdr.region = r.region AND rdr.route_id = r.route_id
+            LEFT JOIN stops s ON rdr.region = s.region AND rdr.stop_id = s.stop_id
             WHERE record_timestamp >= NOW() - INTERVAL '%s hours'
         """ % hours
 
         params = []
+        if region:
+            base_query += " AND rdr.region = %s"
+            params.append(region)
         if route_id:
             base_query += " AND rdr.route_id = %s"
             params.append(route_id)
@@ -614,27 +743,38 @@ def get_realtime_delays():
 def get_realtime_summary():
     """获取实时数据汇总"""
     try:
+        region = request.args.get('region')
+        region_clause = ""
+        params = []
+        if region:
+            region_clause = " AND region = %s"
+            params = [region]
+
         summary = {
-            "active_vehicles": execute_count("""
+            "active_vehicles": execute_count(f"""
                 SELECT COUNT(DISTINCT vehicle_id)
                 FROM realtime_vehicle_positions
                 WHERE position_timestamp >= NOW() - INTERVAL '10 minutes'
-            """),
-            "recent_delays": execute_count("""
+                {region_clause}
+            """, tuple(params) if params else None),
+            "recent_delays": execute_count(f"""
                 SELECT COUNT(*)
                 FROM realtime_delay_records
                 WHERE record_timestamp >= NOW() - INTERVAL '1 hour'
-            """),
-            "routes_with_delays": execute_count("""
+                {region_clause}
+            """, tuple(params) if params else None),
+            "routes_with_delays": execute_count(f"""
                 SELECT COUNT(DISTINCT route_id)
                 FROM realtime_delay_records
                 WHERE record_timestamp >= NOW() - INTERVAL '1 hour'
-            """),
-            "avg_delay_minutes": execute_query_one("""
+                {region_clause}
+            """, tuple(params) if params else None),
+            "avg_delay_minutes": execute_query_one(f"""
                 SELECT COALESCE(AVG(arrival_delay) / 60, 0) as avg_delay
                 FROM realtime_delay_records
                 WHERE record_timestamp >= NOW() - INTERVAL '1 hour'
-            """)['avg_delay']
+                {region_clause}
+            """, tuple(params) if params else None)['avg_delay']
         }
         return jsonify(success_response(summary))
     except Exception as e:
@@ -645,26 +785,28 @@ def get_realtime_summary():
 def get_route_punctuality():
     """获取线路准点率统计"""
     try:
-        # 获取查询参数
         route_id = request.args.get('route_id')
         date = request.args.get('date')
-        days = min(int(request.args.get('days', 7)), 90)  # 最多90天
+        region = request.args.get('region')
+        days = min(int(request.args.get('days', 7)), 90)
         limit = min(int(request.args.get('limit', 20)), 100)
 
-        # 构建查询语句
         if route_id:
-            # 查询特定线路
             query = """
                 SELECT
-                    rdp.route_id, r.route_short_name, r.route_long_name,
+                    rdp.region, rdp.route_id, r.route_short_name, r.route_long_name,
                     rdp.stat_date, rdp.total_trips, rdp.punctuality_rate,
                     rdp.avg_arrival_delay / 60 as avg_delay_minutes,
                     rdp.on_time_trips, rdp.late_trips, rdp.very_late_trips
                 FROM route_daily_punctuality rdp
-                JOIN routes r ON rdp.route_id = r.route_id
+                JOIN routes r ON rdp.region = r.region AND rdp.route_id = r.route_id
                 WHERE rdp.route_id = %s
             """
             params = [route_id]
+
+            if region:
+                query += " AND rdp.region = %s"
+                params.append(region)
 
             if date:
                 query += " AND rdp.stat_date = %s"
@@ -675,7 +817,12 @@ def get_route_punctuality():
             query += " ORDER BY rdp.stat_date DESC"
             results = execute_query(query, params)
         else:
-            # 查询所有线路的汇总
+            region_clause = ""
+            params = []
+            if region:
+                region_clause = " AND rdp.region = %s"
+                params.append(region)
+
             query = """
                 SELECT
                     rdp.route_id, r.route_short_name, r.route_long_name,
@@ -689,12 +836,13 @@ def get_route_punctuality():
                     SUM(rdp.very_late_trips) as very_late_trips,
                     MAX(rdp.stat_date) as last_stat_date
                 FROM route_daily_punctuality rdp
-                JOIN routes r ON rdp.route_id = r.route_id
+                JOIN routes r ON rdp.region = r.region AND rdp.route_id = r.route_id
                 WHERE rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
-            """ % days
+                %s
+            """ % (days, region_clause)
             query += " GROUP BY rdp.route_id, r.route_short_name, r.route_long_name"
             query += " ORDER BY avg_punctuality_rate DESC LIMIT %s"
-            params = [limit]
+            params.append(limit)
             results = execute_query(query, params)
 
         return jsonify(success_response(results))
@@ -706,24 +854,27 @@ def get_route_punctuality():
 def get_stop_punctuality():
     """获取站点准点率统计"""
     try:
-        # 获取查询参数
         stop_id = request.args.get('stop_id')
         date = request.args.get('date')
+        region = request.args.get('region')
         days = min(int(request.args.get('days', 7)), 90)
         limit = min(int(request.args.get('limit', 20)), 100)
 
         if stop_id:
-            # 查询特定站点
             query = """
                 SELECT
-                    sdp.stop_id, s.stop_name, s.stop_lat, s.stop_lon,
+                    sdp.region, sdp.stop_id, s.stop_name, s.stop_lat, s.stop_lon,
                     sdp.stat_date, sdp.total_visits, sdp.punctuality_rate,
                     sdp.avg_arrival_delay / 60 as avg_delay_minutes
                 FROM stop_daily_punctuality sdp
-                JOIN stops s ON sdp.stop_id = s.stop_id
+                JOIN stops s ON sdp.region = s.region AND sdp.stop_id = s.stop_id
                 WHERE sdp.stop_id = %s
             """
             params = [stop_id]
+
+            if region:
+                query += " AND sdp.region = %s"
+                params.append(region)
 
             if date:
                 query += " AND sdp.stat_date = %s"
@@ -734,7 +885,12 @@ def get_stop_punctuality():
             query += " ORDER BY sdp.stat_date DESC"
             results = execute_query(query, params)
         else:
-            # 查询所有站点的汇总
+            region_clause = ""
+            params = []
+            if region:
+                region_clause = " AND sdp.region = %s"
+                params.append(region)
+
             query = """
                 SELECT
                     sdp.stop_id, s.stop_name, s.stop_lat, s.stop_lon,
@@ -748,12 +904,13 @@ def get_stop_punctuality():
                     SUM(sdp.very_late_visits) as very_late_visits,
                     MAX(sdp.stat_date) as last_stat_date
                 FROM stop_daily_punctuality sdp
-                JOIN stops s ON sdp.stop_id = s.stop_id
+                JOIN stops s ON sdp.region = s.region AND sdp.stop_id = s.stop_id
                 WHERE sdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
-            """ % days
+                %s
+            """ % (days, region_clause)
             query += " GROUP BY sdp.stop_id, s.stop_name, s.stop_lat, s.stop_lon"
             query += " ORDER BY avg_punctuality_rate DESC LIMIT %s"
-            params = [limit]
+            params.append(limit)
             results = execute_query(query, params)
 
         return jsonify(success_response(results))
@@ -765,10 +922,15 @@ def get_stop_punctuality():
 def get_system_punctuality_overview():
     """获取系统准点率概览"""
     try:
-        # 获取查询参数
         days = min(int(request.args.get('days', 7)), 90)
+        region = request.args.get('region')
 
-        # 查询系统概览
+        region_clause = ""
+        region_params = []
+        if region:
+            region_clause = " AND rdp.region = %s"
+            region_params = [region]
+
         query = """
             SELECT
                 COUNT(DISTINCT rdp.route_id) as total_routes,
@@ -778,12 +940,12 @@ def get_system_punctuality_overview():
                 MAX(rdp.stat_date) as latest_data_date
             FROM route_daily_punctuality rdp
             WHERE rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
-        """ % days
+            %s
+        """ % (days, region_clause)
 
-        system_stats = execute_query_one(query)
+        system_stats = execute_query_one(query, tuple(region_params) if region_params else None)
 
         if not system_stats or system_stats['total_routes'] == 0:
-            # 如果没有统计数据，返回默认值
             overview = {
                 "total_routes": 0,
                 "total_trips": 0,
@@ -797,19 +959,19 @@ def get_system_punctuality_overview():
             }
             return jsonify(success_response(overview))
 
-        # 获取最佳和最差线路
         best_routes_query = """
             SELECT
                 rdp.route_id, r.route_short_name, r.route_long_name,
                 AVG(rdp.punctuality_rate) as avg_punctuality_rate,
                 SUM(rdp.total_trips) as total_trips
             FROM route_daily_punctuality rdp
-            JOIN routes r ON rdp.route_id = r.route_id
+            JOIN routes r ON rdp.region = r.region AND rdp.route_id = r.route_id
             WHERE rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
+            %s
             GROUP BY rdp.route_id, r.route_short_name, r.route_long_name
             ORDER BY avg_punctuality_rate DESC
             LIMIT 5
-        """ % days
+        """ % (days, region_clause)
 
         worst_routes_query = """
             SELECT
@@ -817,18 +979,18 @@ def get_system_punctuality_overview():
                 AVG(rdp.punctuality_rate) as avg_punctuality_rate,
                 SUM(rdp.total_trips) as total_trips
             FROM route_daily_punctuality rdp
-            JOIN routes r ON rdp.route_id = r.route_id
+            JOIN routes r ON rdp.region = r.region AND rdp.route_id = r.route_id
             WHERE rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
-            AND rdp.total_trips >= 10  -- 至少10个班次
+            AND rdp.total_trips >= 10
+            %s
             GROUP BY rdp.route_id, r.route_short_name, r.route_long_name
             ORDER BY avg_punctuality_rate ASC
             LIMIT 5
-        """ % days
+        """ % (days, region_clause)
 
-        best_routes = execute_query(best_routes_query)
-        worst_routes = execute_query(worst_routes_query)
+        best_routes = execute_query(best_routes_query, tuple(region_params) if region_params else None)
+        worst_routes = execute_query(worst_routes_query, tuple(region_params) if region_params else None)
 
-        # 构建返回结果
         overview = {
             "total_routes": system_stats['total_routes'],
             "total_trips": system_stats['total_trips'],
@@ -850,14 +1012,13 @@ def get_system_punctuality_overview():
 def get_hourly_punctuality():
     """获取时段准点率统计"""
     try:
-        # 获取查询参数
         route_id = request.args.get('route_id')
         date = request.args.get('date')
+        region = request.args.get('region')
 
         if not date:
             date = 'CURRENT_DATE'
 
-        # 构建查询语句
         query = """
             SELECT
                 hour_of_day,
@@ -869,6 +1030,9 @@ def get_hourly_punctuality():
         """ % ('CURRENT_DATE' if date == 'CURRENT_DATE' else f"'{date}'")
 
         params = []
+        if region:
+            query += " AND region = %s"
+            params.append(region)
         if route_id:
             query += " AND route_id = %s"
             params.append(route_id)

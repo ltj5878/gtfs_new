@@ -33,7 +33,13 @@
       "Bash(npm --version:*)",
       "Bash(kill:*)",
       "Bash(PORT=5001 python:*)",
-      "WebFetch(domain:gtfs.org)"
+      "WebFetch(domain:gtfs.org)",
+      "WebFetch(domain:www.mta.info)",
+      "WebFetch(domain:api.mta.info)",
+      "WebFetch(domain:new.mta.info)",
+      "WebFetch(domain:opendata.transport.nsw.gov.au)",
+      "Read(//opt/homebrew/bin/**)",
+      "Read(//usr/local/bin/**)"
     ],
     "deny": [],
     "ask": []

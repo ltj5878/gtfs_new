@@ -41,14 +41,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStopStore } from '@/stores/stopStore'
+import { useRegionStore } from '@/stores/regionStore'
 import SearchBar from '@/components/SearchBar.vue'
 import StopCard from '@/components/StopCard.vue'
 
 const router = useRouter()
 const stopStore = useStopStore()
+const regionStore = useRegionStore()
 
 const searchKeyword = ref('')
 const currentPage = ref(1)
@@ -90,6 +92,12 @@ const handleStopClick = (stop) => {
 }
 
 onMounted(() => {
+  fetchStops()
+})
+
+watch(() => regionStore.selectedRegion, () => {
+  currentPage.value = 1
+  searchKeyword.value = ''
   fetchStops()
 })
 </script>

@@ -133,12 +133,12 @@
       <div class="info-card">
         <div class="info-item">
           <span class="info-label">数据来源</span>
-          <span class="info-value">511 SF Bay API</span>
+          <span class="info-value">{{ regionInfo.source }}</span>
         </div>
         <div class="info-divider"></div>
         <div class="info-item">
           <span class="info-label">覆盖区域</span>
-          <span class="info-value">旧金山湾区</span>
+          <span class="info-value">{{ regionInfo.name }}</span>
         </div>
         <div class="info-divider"></div>
         <div class="info-item">
@@ -156,9 +156,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/appStore'
+import { useRegionStore } from '@/stores/regionStore'
 import {
   Guide,
   Location,
@@ -173,8 +174,20 @@ import {
 
 const router = useRouter()
 const appStore = useAppStore()
+const regionStore = useRegionStore()
 
 const stats = ref({})
+
+// 地区信息映射
+const REGION_INFO = {
+  sf: { name: '旧金山湾区', source: '511 SF Bay API' },
+  nyc: { name: '纽约', source: 'MTA Open Data' },
+  sydney: { name: '悉尼', source: 'TfNSW Open Data' },
+}
+
+const regionInfo = computed(() => {
+  return REGION_INFO[regionStore.selectedRegion] || { name: '旧金山湾区', source: '511 SF Bay API' }
+})
 
 // 统计数据配置
 const statsData = {
@@ -211,6 +224,14 @@ const statsData = {
 }
 
 onMounted(async () => {
+  try {
+    stats.value = await appStore.fetchStats()
+  } catch (error) {
+    console.error('加载统计信息失败:', error)
+  }
+})
+
+watch(() => regionStore.selectedRegion, async () => {
   try {
     stats.value = await appStore.fetchStats()
   } catch (error) {

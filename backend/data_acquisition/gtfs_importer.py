@@ -3,12 +3,12 @@
 GTFS 数据导入工具 for PostgreSQL
 
 此工具将 GTFS (General Transit Feed Specification) 数据从 ZIP 文件
-或目录导入到 PostgreSQL 数据库中。
+或目录导入到 PostgreSQL 数据库中。支持多地区数据隔离。
 
 使用方法:
-    python gtfs_importer.py --zip path/to/gtfs.zip
-    python gtfs_importer.py --dir path/to/gtfs_folder
-    python gtfs_importer.py --zip gtfs.zip --clean --host localhost --database gtfs_db
+    python gtfs_importer.py --zip path/to/gtfs.zip --region sf
+    python gtfs_importer.py --dir path/to/gtfs_folder --region nyc
+    python gtfs_importer.py --zip gtfs.zip --clean --region sydney --host localhost --database gtfs_db
 """
 
 import argparse
@@ -70,13 +70,14 @@ class GTFSImporter:
 
     def __init__(self, host: str = 'localhost', port: int = 5432,
                  database: str = 'gtfs_db', user: Optional[str] = None,
-                 password: Optional[str] = None):
+                 password: Optional[str] = None, region: str = 'sf'):
         """使用数据库连接参数初始化导入器"""
         self.host = host
         self.port = port
         self.database = database
         self.user = user or os.environ.get('USER', 'postgres')
         self.password = password
+        self.region = region
         self.conn = None
         self.cursor = None
 
@@ -95,6 +96,7 @@ class GTFSImporter:
             self.conn = psycopg2.connect(**conn_params)
             self.cursor = self.conn.cursor()
             print(f"Connected to database '{self.database}' at {self.host}:{self.port}")
+            print(f"Region: {self.region}")
         except psycopg2.Error as e:
             print(f"Error connecting to database: {e}")
             sys.exit(1)
@@ -108,19 +110,25 @@ class GTFSImporter:
             print("Database connection closed")
 
     def clean_tables(self, tables: Optional[List[str]] = None):
-        """清空指定表或所有表"""
+        """按 region 清空指定表或所有表"""
         try:
             tables_to_clean = tables if tables else list(reversed(self.TABLE_ORDER))
 
-            print("Cleaning tables...")
+            print(f"Cleaning tables for region '{self.region}'...")
             for table in tables_to_clean:
                 try:
-                    self.cursor.execute(sql.SQL("TRUNCATE TABLE {} CASCADE").format(
-                        sql.Identifier(table)
-                    ))
-                    print(f"  Truncated table: {table}")
+                    # 按 region 删除数据，而不是 TRUNCATE 整个表
+                    self.cursor.execute(
+                        sql.SQL("DELETE FROM {} WHERE region = %s").format(
+                            sql.Identifier(table)
+                        ),
+                        (self.region,)
+                    )
+                    deleted = self.cursor.rowcount
+                    print(f"  Deleted {deleted} rows from {table} (region={self.region})")
                 except psycopg2.Error as e:
-                    print(f"  Warning: Could not truncate {table}: {e}")
+                    print(f"  Warning: Could not clean {table}: {e}")
+                    self.conn.rollback()
 
             self.conn.commit()
             print("Tables cleaned successfully")
@@ -128,13 +136,29 @@ class GTFSImporter:
             self.conn.rollback()
             print(f"Error cleaning tables: {e}")
 
+    def get_table_columns(self, table_name: str) -> List[str]:
+        """查询数据库表的实际列名（排除 region）"""
+        self.cursor.execute(
+            """SELECT column_name FROM information_schema.columns
+               WHERE table_name = %s AND table_schema = 'public' AND column_name != 'region'
+               ORDER BY ordinal_position""",
+            (table_name,)
+        )
+        return [row[0] for row in self.cursor.fetchall()]
+
     def import_file(self, file_path: Path, table_name: str) -> int:
-        """将单个 GTFS txt 文件导入数据库"""
+        """将单个 GTFS txt 文件导入数据库，自动添加 region 列，忽略 CSV 中多余的列"""
         if not file_path.exists():
             print(f"  Skipping {table_name}: file not found")
             return 0
 
         try:
+            # 查询表的实际列（不含 region）
+            db_columns = self.get_table_columns(table_name)
+            if not db_columns:
+                print(f"  Skipping {table_name}: table not found in DB")
+                return 0
+
             with open(file_path, 'r', encoding='utf-8-sig') as f:
                 reader = csv.DictReader(f)
                 rows = list(reader)
@@ -143,28 +167,36 @@ class GTFSImporter:
                     print(f"  Skipping {table_name}: no data")
                     return 0
 
-                # 从第一行获取列名
-                columns = list(rows[0].keys())
+                # 只保留 CSV 中与 DB 列匹配的列
+                csv_columns = list(rows[0].keys())
+                matched_columns = [c for c in db_columns if c in csv_columns]
+                skipped = [c for c in csv_columns if c not in db_columns]
+                if skipped:
+                    print(f"  Skipping unknown columns in {table_name}: {skipped}")
+
+                insert_columns = ['region'] + matched_columns
 
                 # 准备 INSERT 语句
                 insert_query = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
                     sql.Identifier(table_name),
-                    sql.SQL(', ').join(map(sql.Identifier, columns)),
-                    sql.SQL(', ').join(sql.Placeholder() * len(columns))
+                    sql.SQL(', ').join(map(sql.Identifier, insert_columns)),
+                    sql.SQL(', ').join(sql.Placeholder() * len(insert_columns))
                 )
 
                 # 准备批量插入的数据
                 data = []
                 for row in rows:
-                    # 将空字符串转换为 None 以正确处理 NULL
-                    values = tuple(v if v != '' else None for v in row.values())
+                    values = tuple(
+                        [self.region] +
+                        [row.get(c) or None for c in matched_columns]
+                    )
                     data.append(values)
 
                 # 执行批量插入
                 execute_batch(self.cursor, insert_query, data, page_size=1000)
                 self.conn.commit()
 
-                print(f"  Imported {len(rows):,} rows into {table_name}")
+                print(f"  Imported {len(rows):,} rows into {table_name} (region={self.region})")
                 return len(rows)
 
         except Exception as e:
@@ -174,7 +206,7 @@ class GTFSImporter:
 
     def import_from_directory(self, directory: Path, tables: Optional[List[str]] = None):
         """从目录导入所有 GTFS 文件"""
-        print(f"\nImporting GTFS data from: {directory}")
+        print(f"\nImporting GTFS data from: {directory} (region={self.region})")
 
         total_rows = 0
         tables_to_import = tables if tables else self.TABLE_ORDER
@@ -223,14 +255,17 @@ class GTFSImporter:
     def verify_import(self):
         """通过显示行数验证导入的数据"""
         print("\n" + "="*60)
-        print("Import Verification - Row Counts")
+        print(f"Import Verification - Row Counts (region={self.region})")
         print("="*60)
 
         for table in self.TABLE_ORDER:
             try:
-                self.cursor.execute(sql.SQL("SELECT COUNT(*) FROM {}").format(
-                    sql.Identifier(table)
-                ))
+                self.cursor.execute(
+                    sql.SQL("SELECT COUNT(*) FROM {} WHERE region = %s").format(
+                        sql.Identifier(table)
+                    ),
+                    (self.region,)
+                )
                 count = self.cursor.fetchone()[0]
                 print(f"  {table:25} {count:>10,} rows")
             except psycopg2.Error:
@@ -246,10 +281,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s --zip gtfs_data/gtfs_SF.zip
-  %(prog)s --dir gtfs_data/gtfs_SF
-  %(prog)s --zip gtfs.zip --clean --database gtfs_db
-  %(prog)s --zip gtfs.zip --tables routes stops trips
+  %(prog)s --zip gtfs_data/gtfs_SF.zip --region sf
+  %(prog)s --dir gtfs_data/gtfs_SF --region sf
+  %(prog)s --zip gtfs.zip --clean --region nyc --database gtfs_db
+  %(prog)s --zip gtfs.zip --region sydney --tables routes stops trips
         """
     )
 
@@ -257,6 +292,10 @@ Examples:
     source_group = parser.add_mutually_exclusive_group(required=True)
     source_group.add_argument('--zip', type=str, help='Path to GTFS ZIP file')
     source_group.add_argument('--dir', type=str, help='Path to GTFS directory')
+
+    # 地区参数
+    parser.add_argument('--region', type=str, default='sf',
+                       help='Region identifier (default: sf). Must match regions table.')
 
     # 数据库连接参数
     parser.add_argument('--host', type=str, default='localhost',
@@ -272,7 +311,7 @@ Examples:
 
     # 导入选项
     parser.add_argument('--clean', action='store_true',
-                       help='Clean (truncate) tables before importing')
+                       help='Clean tables for this region before importing')
     parser.add_argument('--tables', nargs='+',
                        help='Specific tables to import (default: all)')
     parser.add_argument('--no-verify', action='store_true',
@@ -286,7 +325,8 @@ Examples:
         port=args.port,
         database=args.database,
         user=args.user,
-        password=args.password
+        password=args.password,
+        region=args.region
     )
 
     try:

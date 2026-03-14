@@ -49,3 +49,11 @@ export const getCalendar = () => {
 export const getStats = () => {
   return apiClient.get('/stats')
 }
+
+/**
+ * 获取所有可用地区列表
+ * @returns {Promise}
+ */
+export const getRegions = () => {
+  return apiClient.get('/regions')
+}

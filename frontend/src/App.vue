@@ -16,10 +16,13 @@
           <el-menu-item index="/routes">线路</el-menu-item>
           <el-menu-item index="/stops">站点</el-menu-item>
         </el-menu>
-        <div class="header-user" v-if="authStore.isLoggedIn">
-          <el-icon><User /></el-icon>
-          <span>{{ authStore.username }}</span>
-          <el-button link type="primary" @click="handleLogout">退出</el-button>
+        <div class="header-right">
+          <RegionSelector />
+          <div class="header-user" v-if="authStore.isLoggedIn">
+            <el-icon><User /></el-icon>
+            <span>{{ authStore.username }}</span>
+            <el-button link type="primary" @click="handleLogout">退出</el-button>
+          </div>
         </div>
       </div>
     </el-header>
@@ -35,7 +38,7 @@
     <el-footer class="app-footer">
       <div class="footer-content">
         <p>&copy; 2025 GTFS 公交数据分析系统</p>
-        <p>数据来源: 511 SF Bay API</p>
+        <p>数据来源: {{ currentRegionName }} GTFS 数据</p>
       </div>
     </el-footer>
   </el-container>
@@ -46,16 +49,24 @@ import { computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { TrendCharts, User } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/authStore.js'
+import { useRegionStore } from '@/stores/regionStore.js'
+import RegionSelector from '@/components/RegionSelector.vue'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const regionStore = useRegionStore()
 
 const activeMenu = computed(() => {
   const path = route.path
   if (path.startsWith('/routes')) return '/routes'
   if (path.startsWith('/stops')) return '/stops'
   return '/'
+})
+
+const currentRegionName = computed(() => {
+  const r = regionStore.currentRegion()
+  return r ? r.region_name : '旧金山湾区'
 })
 
 const handleMenuSelect = (index) => {
@@ -155,6 +166,12 @@ html, body, #app {
   font-size: 14px;
   color: #606266;
   white-space: nowrap;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .fade-enter-active,

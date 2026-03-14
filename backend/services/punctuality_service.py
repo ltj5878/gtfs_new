@@ -13,6 +13,8 @@ from psycopg2.extras import execute_batch, execute_values
 import schedule
 
 from data_acquisition.gtfs_data_fetcher import GTFSDataFetcher
+from data_acquisition.mta_data_fetcher import MTADataFetcher
+from data_acquisition.tfnsw_data_fetcher import TfNSWDataFetcher
 from business_logic.punctuality_calculator import PunctualityCalculator, DelayRecord, PunctualityThresholds
 from core.db import Database, execute_query, execute_query_one, execute_count
 
@@ -34,22 +36,66 @@ logger = logging.getLogger(__name__)
 class PunctualityDataService:
     """准点率数据收集和存储服务"""
 
-    def __init__(self, api_key: str):
+    # 地区到 Fetcher 的映射配置
+    REGION_FETCHER_CONFIG = {
+        'sf': {
+            'type': 'sf_511',
+            'operator_id': 'SF',
+            'vehicle_feed': 'vehiclepositions',
+            'trip_feed': 'tripupdates',
+        },
+        'nyc': {
+            'type': 'mta',
+            'vehicle_feed': 'subway_feed',
+            'trip_feed': 'subway_feed',
+        },
+        'sydney': {
+            'type': 'tfnsw',
+            'vehicle_feed': 'vehicles_buses',
+            'trip_feed': 'tripupdates_buses',
+        },
+    }
+
+    def __init__(self, api_key: str, region: str = 'sf',
+                 mta_api_key: Optional[str] = None,
+                 tfnsw_api_key: Optional[str] = None):
         """
         初始化服务
 
         Args:
             api_key: 511 SF Bay API Key
+            region: 地区标识（sf, nyc, sydney）
+            mta_api_key: MTA API Key（纽约实时数据需要）
+            tfnsw_api_key: TfNSW API Key（悉尼数据需要）
         """
         self.api_key = api_key
-        self.data_fetcher = GTFSDataFetcher(api_key)
+        self.region = region
         self.punctuality_calculator = PunctualityCalculator()
         self.is_running = False
         self.last_collection_time = None
 
+        # 根据 region 初始化对应的 Fetcher
+        self.data_fetcher = self._create_fetcher(region, api_key, mta_api_key, tfnsw_api_key)
+
         # 从数据库加载配置
         self.config = self._load_config()
-        logger.info(f"初始化完成，配置: {self.config}")
+        logger.info(f"初始化完成，region={region}，配置: {self.config}")
+
+    def _create_fetcher(self, region: str, sf_key: str,
+                        mta_key: Optional[str], tfnsw_key: Optional[str]):
+        """根据地区创建对应的数据获取器"""
+        if region == 'sf':
+            return GTFSDataFetcher(sf_key)
+        elif region == 'nyc':
+            return MTADataFetcher(mta_key)
+        elif region == 'sydney':
+            if not tfnsw_key:
+                logger.warning("悉尼地区需要 TfNSW API Key")
+                return None
+            return TfNSWDataFetcher(tfnsw_key)
+        else:
+            logger.warning(f"不支持的地区: {region}")
+            return None
 
     def _load_config(self) -> Dict[str, Any]:
         """从数据库加载配置"""
@@ -90,24 +136,36 @@ class PunctualityDataService:
             bool: 收集是否成功
         """
         try:
-            logger.info("开始收集实时数据...")
+            logger.info(f"开始收集实时数据 (region={self.region})...")
             start_time = datetime.now()
 
-            # 获取车辆位置数据
-            vehicle_positions_feed = self.data_fetcher.fetch_gtfs_realtime(
-                operator_id="SF",
-                feed_type="vehiclepositions"
-            )
+            if not self.data_fetcher:
+                logger.warning(f"地区 {self.region} 的数据获取器未初始化")
+                return False
+
+            region_config = self.REGION_FETCHER_CONFIG.get(self.region, {})
+
+            # 根据地区类型获取数据
+            if region_config.get('type') == 'sf_511':
+                vehicle_positions_feed = self.data_fetcher.fetch_gtfs_realtime(
+                    operator_id=region_config.get('operator_id', 'SF'),
+                    feed_type=region_config.get('vehicle_feed', 'vehiclepositions')
+                )
+                trip_updates_feed = self.data_fetcher.fetch_gtfs_realtime(
+                    operator_id=region_config.get('operator_id', 'SF'),
+                    feed_type=region_config.get('trip_feed', 'tripupdates')
+                )
+            else:
+                vehicle_positions_feed = self.data_fetcher.fetch_gtfs_realtime(
+                    feed_type=region_config.get('vehicle_feed')
+                )
+                trip_updates_feed = self.data_fetcher.fetch_gtfs_realtime(
+                    feed_type=region_config.get('trip_feed')
+                )
 
             if not vehicle_positions_feed:
                 logger.warning("无法获取车辆位置数据")
                 return False
-
-            # 获取行程更新数据（包含延误信息）
-            trip_updates_feed = self.data_fetcher.fetch_gtfs_realtime(
-                operator_id="SF",
-                feed_type="tripupdates"
-            )
 
             if not trip_updates_feed:
                 logger.warning("无法获取行程更新数据")
@@ -157,6 +215,7 @@ class PunctualityDataService:
 
             for position in vehicle_positions:
                 insert_data.append((
+                    self.region,
                     position.get('vehicle_id'),
                     position.get('trip_id'),
                     position.get('route_id'),
@@ -173,16 +232,16 @@ class PunctualityDataService:
             # 使用批量插入提高性能
             query = """
                 INSERT INTO realtime_vehicle_positions
-                (vehicle_id, trip_id, route_id, latitude, longitude,
+                (region, vehicle_id, trip_id, route_id, latitude, longitude,
                  bearing, speed, position_timestamp, record_timestamp,
                  current_status, stop_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
 
             execute_batch(cursor, query, insert_data)
             conn.commit()
 
-            logger.info(f"成功存储 {len(insert_data)} 条车辆位置记录")
+            logger.info(f"成功存储 {len(insert_data)} 条车辆位置记录 (region={self.region})")
 
         except Exception as e:
             logger.error(f"存储车辆位置数据时发生错误: {e}")
@@ -242,6 +301,7 @@ class PunctualityDataService:
             insert_data = []
             for record in delay_records:
                 insert_data.append((
+                    self.region,
                     record.trip_id,
                     record.route_id,
                     record.stop_id,
@@ -259,16 +319,16 @@ class PunctualityDataService:
             # 使用批量插入
             query = """
                 INSERT INTO realtime_delay_records
-                (trip_id, route_id, stop_id, stop_sequence, vehicle_id,
+                (region, trip_id, route_id, stop_id, stop_sequence, vehicle_id,
                  scheduled_time, actual_time, record_timestamp,
                  arrival_delay, departure_delay, data_source, processed)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
 
             execute_batch(cursor, query, insert_data)
             conn.commit()
 
-            logger.info(f"成功存储 {len(insert_data)} 条延误记录")
+            logger.info(f"成功存储 {len(insert_data)} 条延误记录 (region={self.region})")
 
         except Exception as e:
             logger.error(f"存储延误记录时发生错误: {e}")
@@ -315,10 +375,11 @@ class PunctualityDataService:
             # 更新或插入线路日统计
             query = """
                 INSERT INTO route_daily_punctuality
-                (route_id, stat_date, total_trips, on_time_trips, early_trips,
+                (region, route_id, stat_date, total_trips, on_time_trips, early_trips,
                  late_trips, very_late_trips, avg_arrival_delay, max_arrival_delay,
                  min_arrival_delay, punctuality_rate, early_rate, late_rate, very_late_rate)
                 SELECT
+                    region,
                     route_id,
                     DATE(record_timestamp) as stat_date,
                     COUNT(*) as total_trips,
@@ -336,8 +397,9 @@ class PunctualityDataService:
                 FROM realtime_delay_records
                 WHERE DATE(record_timestamp) = CURRENT_DATE
                   AND processed = false
-                GROUP BY route_id, DATE(record_timestamp)
-                ON CONFLICT (route_id, stat_date) DO UPDATE SET
+                  AND region = %s
+                GROUP BY region, route_id, DATE(record_timestamp)
+                ON CONFLICT (region, route_id, stat_date) DO UPDATE SET
                     total_trips = EXCLUDED.total_trips,
                     on_time_trips = EXCLUDED.on_time_trips,
                     early_trips = EXCLUDED.early_trips,
@@ -355,7 +417,7 @@ class PunctualityDataService:
 
             params = [on_time_threshold, on_time_threshold, very_late_threshold,
                      very_late_threshold, on_time_threshold, on_time_threshold,
-                     very_late_threshold, very_late_threshold]
+                     very_late_threshold, very_late_threshold, self.region]
 
             cursor.execute(query, params)
 
@@ -365,7 +427,8 @@ class PunctualityDataService:
                 SET processed = true
                 WHERE DATE(record_timestamp) = CURRENT_DATE
                   AND processed = false
-            """)
+                  AND region = %s
+            """, (self.region,))
 
             conn.commit()
             logger.info("线路日统计更新完成")
@@ -390,10 +453,11 @@ class PunctualityDataService:
 
             query = """
                 INSERT INTO stop_daily_punctuality
-                (stop_id, stat_date, total_visits, on_time_visits, early_visits,
+                (region, stop_id, stat_date, total_visits, on_time_visits, early_visits,
                  late_visits, very_late_visits, avg_arrival_delay, max_arrival_delay,
                  min_arrival_delay, punctuality_rate)
                 SELECT
+                    region,
                     stop_id,
                     DATE(record_timestamp) as stat_date,
                     COUNT(*) as total_visits,
@@ -408,8 +472,9 @@ class PunctualityDataService:
                 FROM realtime_delay_records
                 WHERE DATE(record_timestamp) = CURRENT_DATE
                   AND processed = true
-                GROUP BY stop_id, DATE(record_timestamp)
-                ON CONFLICT (stop_id, stat_date) DO UPDATE SET
+                  AND region = %s
+                GROUP BY region, stop_id, DATE(record_timestamp)
+                ON CONFLICT (region, stop_id, stat_date) DO UPDATE SET
                     total_visits = EXCLUDED.total_visits,
                     on_time_visits = EXCLUDED.on_time_visits,
                     early_visits = EXCLUDED.early_visits,
@@ -422,7 +487,7 @@ class PunctualityDataService:
                     updated_at = CURRENT_TIMESTAMP
             """
 
-            cursor.execute(query, [on_time_threshold, on_time_threshold, on_time_threshold])
+            cursor.execute(query, [on_time_threshold, on_time_threshold, on_time_threshold, self.region])
             conn.commit()
 
             logger.info("站点日统计更新完成")
@@ -447,9 +512,10 @@ class PunctualityDataService:
 
             query = """
                 INSERT INTO hourly_punctuality_stats
-                (route_id, stop_id, hour_of_day, stat_date, total_trips,
+                (region, route_id, stop_id, hour_of_day, stat_date, total_trips,
                  on_time_trips, avg_arrival_delay, max_arrival_delay, punctuality_rate)
                 SELECT
+                    region,
                     route_id,
                     stop_id,
                     EXTRACT(HOUR FROM scheduled_time) as hour_of_day,
@@ -462,8 +528,9 @@ class PunctualityDataService:
                 FROM realtime_delay_records
                 WHERE DATE(scheduled_time) = CURRENT_DATE
                   AND processed = true
-                GROUP BY route_id, stop_id, EXTRACT(HOUR FROM scheduled_time), DATE(scheduled_time)
-                ON CONFLICT (route_id, stop_id, hour_of_day, stat_date) DO UPDATE SET
+                  AND region = %s
+                GROUP BY region, route_id, stop_id, EXTRACT(HOUR FROM scheduled_time), DATE(scheduled_time)
+                ON CONFLICT (region, route_id, stop_id, hour_of_day, stat_date) DO UPDATE SET
                     total_trips = EXCLUDED.total_trips,
                     on_time_trips = EXCLUDED.on_time_trips,
                     avg_arrival_delay = EXCLUDED.avg_arrival_delay,
@@ -472,7 +539,7 @@ class PunctualityDataService:
                     updated_at = CURRENT_TIMESTAMP
             """
 
-            cursor.execute(query, [on_time_threshold, on_time_threshold])
+            cursor.execute(query, [on_time_threshold, on_time_threshold, self.region])
             conn.commit()
 
             logger.info("时段统计更新完成")
@@ -499,6 +566,7 @@ class PunctualityDataService:
                 FROM hourly_punctuality_stats
                 WHERE stat_date = CURRENT_DATE
                   AND hour_of_day BETWEEN 7 AND 9
+                  AND region = %s
             """
 
             evening_peak_query = """
@@ -506,6 +574,7 @@ class PunctualityDataService:
                 FROM hourly_punctuality_stats
                 WHERE stat_date = CURRENT_DATE
                   AND hour_of_day BETWEEN 17 AND 19
+                  AND region = %s
             """
 
             off_peak_query = """
@@ -513,18 +582,20 @@ class PunctualityDataService:
                 FROM hourly_punctuality_stats
                 WHERE stat_date = CURRENT_DATE
                   AND NOT (hour_of_day BETWEEN 7 AND 9 OR hour_of_day BETWEEN 17 AND 19)
+                  AND region = %s
             """
 
-            morning_result = execute_query_one(morning_peak_query)
-            evening_result = execute_query_one(evening_peak_query)
-            off_peak_result = execute_query_one(off_peak_query)
+            morning_result = execute_query_one(morning_peak_query, (self.region,))
+            evening_result = execute_query_one(evening_peak_query, (self.region,))
+            off_peak_result = execute_query_one(off_peak_query, (self.region,))
 
             # 更新系统概览
             query = """
                 INSERT INTO system_punctuality_overview
-                (stat_date, total_routes, total_trips, system_punctuality_rate,
+                (region, stat_date, total_routes, total_trips, system_punctuality_rate,
                  system_avg_delay_minutes, morning_peak_rate, evening_peak_rate, off_peak_rate)
                 SELECT
+                    %s as region,
                     CURRENT_DATE as stat_date,
                     COUNT(DISTINCT route_id) as total_routes,
                     SUM(total_trips) as total_trips,
@@ -535,7 +606,8 @@ class PunctualityDataService:
                     %s as off_peak_rate
                 FROM route_daily_punctuality
                 WHERE stat_date = CURRENT_DATE
-                ON CONFLICT (stat_date) DO UPDATE SET
+                  AND region = %s
+                ON CONFLICT (region, stat_date) DO UPDATE SET
                     total_routes = EXCLUDED.total_routes,
                     total_trips = EXCLUDED.total_trips,
                     system_punctuality_rate = EXCLUDED.system_punctuality_rate,
@@ -547,9 +619,11 @@ class PunctualityDataService:
             """
 
             params = [
+                self.region,
                 morning_result['morning_peak_rate'] or 0,
                 evening_result['evening_peak_rate'] or 0,
-                off_peak_result['off_peak_rate'] or 0
+                off_peak_result['off_peak_rate'] or 0,
+                self.region
             ]
 
             cursor.execute(query, params)

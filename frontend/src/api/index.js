@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { useRegionStore } from '@/stores/regionStore'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001/api'
 
@@ -15,6 +16,16 @@ apiClient.interceptors.request.use(
     const token = localStorage.getItem('auth_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    }
+    // 自动附加当前选中的地区参数（排除 /regions 和 /health 接口）
+    const skipRegionPaths = ['/regions', '/health', '/auth']
+    const shouldSkip = skipRegionPaths.some(p => config.url?.startsWith(p))
+    if (!shouldSkip) {
+      const regionStore = useRegionStore()
+      const region = regionStore.selectedRegion
+      if (region) {
+        config.params = { ...config.params, region }
+      }
     }
     return config
   },

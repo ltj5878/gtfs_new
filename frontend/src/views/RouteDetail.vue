@@ -282,11 +282,11 @@ watch(() => routeStore.stops, () => {
 
 onMounted(async () => {
   try {
+    // 先清空旧数据，避免残留上一个地区的内容
+    routeStore.clearCurrentRoute()
+
     await routeStore.fetchRouteById(route.params.id)
     await routeStore.fetchRouteDirections(route.params.id)
-
-    // 初始化地图
-    initMap()
 
     if (routeStore.directions.length > 0) {
       selectedDirection.value = routeStore.directions[0].direction_id
@@ -295,11 +295,13 @@ onMounted(async () => {
       await loadRouteStops()
     }
 
-    // 等待地图初始化完成后绘制线路
-    await nextTick()
-    if (routeStore.stops.length > 0) {
-      drawRouteOnMap()
-    }
+    // 等地图 setTimeout(100ms) 初始化完成后再绘制
+    initMap()
+    setTimeout(() => {
+      if (routeStore.stops.length > 0) {
+        drawRouteOnMap()
+      }
+    }, 200)
   } catch (error) {
     console.error('加载线路详情失败:', error)
   }

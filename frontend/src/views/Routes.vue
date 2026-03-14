@@ -55,14 +55,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRouteStore } from '@/stores/routeStore'
+import { useRegionStore } from '@/stores/regionStore'
 import SearchBar from '@/components/SearchBar.vue'
 import RouteCard from '@/components/RouteCard.vue'
 
 const router = useRouter()
 const routeStore = useRouteStore()
+const regionStore = useRegionStore()
 
 const searchKeyword = ref('')
 const selectedRouteType = ref(null)
@@ -114,6 +116,13 @@ const handleRouteClick = (route) => {
 }
 
 onMounted(() => {
+  fetchRoutes()
+})
+
+watch(() => regionStore.selectedRegion, () => {
+  currentPage.value = 1
+  searchKeyword.value = ''
+  selectedRouteType.value = null
   fetchRoutes()
 })
 </script>

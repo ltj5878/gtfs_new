@@ -45,16 +45,14 @@ export const useRouteStore = defineStore('route', () => {
   }
 
   const fetchRouteDirections = async (routeId) => {
-    loading.value = true
     try {
       const data = await getRouteDirections(routeId)
-      directions.value = data
-      return data
+      directions.value = Array.isArray(data) ? data : []
+      return directions.value
     } catch (error) {
       console.error('获取线路方向失败:', error)
-      throw error
-    } finally {
-      loading.value = false
+      directions.value = []
+      return []
     }
   }
 
@@ -62,10 +60,11 @@ export const useRouteStore = defineStore('route', () => {
     loading.value = true
     try {
       const data = await getRouteStops(routeId, directionId)
-      stops.value = data
-      return data
+      stops.value = Array.isArray(data) ? data : []
+      return stops.value
     } catch (error) {
       console.error('获取线路站点失败:', error)
+      stops.value = []
       throw error
     } finally {
       loading.value = false
