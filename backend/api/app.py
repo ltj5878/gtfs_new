@@ -770,7 +770,7 @@ def get_realtime_summary():
                 {region_clause}
             """, tuple(params) if params else None),
             "avg_delay_minutes": execute_query_one(f"""
-                SELECT COALESCE(AVG(arrival_delay) / 60, 0) as avg_delay
+                SELECT COALESCE(AVG(ABS(arrival_delay)) / 60, 0) as avg_delay
                 FROM realtime_delay_records
                 WHERE record_timestamp >= NOW() - INTERVAL '1 hour'
                 {region_clause}
@@ -936,7 +936,7 @@ def get_system_punctuality_overview():
                 COUNT(DISTINCT rdp.route_id) as total_routes,
                 SUM(rdp.total_trips) as total_trips,
                 AVG(rdp.punctuality_rate) as system_punctuality_rate,
-                AVG(rdp.avg_arrival_delay) / 60 as system_avg_delay_minutes,
+                AVG(ABS(rdp.avg_arrival_delay)) / 60 as system_avg_delay_minutes,
                 MAX(rdp.stat_date) as latest_data_date
             FROM route_daily_punctuality rdp
             WHERE rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
@@ -1109,6 +1109,45 @@ def punctuality_config():
 
     except Exception as e:
         return jsonify(error_response(f"操作失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/punctuality/collect', methods=['POST'])
+def trigger_punctuality_collection():
+    """触发一次实时准点率数据收集"""
+    import time
+    region = request.args.get('region', 'sf')
+
+    # 从环境变量读取 API Keys
+    api_keys = {
+        'sf':     os.getenv('SF_511_API_KEY', ''),
+        'nyc':    os.getenv('MTA_API_KEY', ''),
+        'sydney': os.getenv('TFNSW_API_KEY', ''),
+    }
+    api_key = api_keys.get(region, '')
+
+    if not api_key:
+        return jsonify(error_response(
+            f"未设置 {region.upper()} 的 API Key 环境变量（SF_511_API_KEY / MTA_API_KEY / TFNSW_API_KEY）",
+            400
+        )), 400
+
+    try:
+        # 动态导入，避免循环依赖
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from services.punctuality_service import PunctualityDataService
+
+        start_time = time.time()
+        service = PunctualityDataService(api_key=api_key, region=region)
+        records = service.collect_realtime_data()
+        duration = round(time.time() - start_time, 2)
+
+        return jsonify(success_response({
+            "region": region,
+            "records_collected": records if isinstance(records, int) else 0,
+            "duration_seconds": duration
+        }))
+    except Exception as e:
+        return jsonify(error_response(f"数据收集失败: {str(e)}", 500)), 500
 
 
 @app.errorhandler(404)

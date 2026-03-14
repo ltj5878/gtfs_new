@@ -3,6 +3,7 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-content">
+        <el-button :icon="ArrowLeft" @click="() => { window.location.href = '/' }" style="margin-bottom:8px">返回首页</el-button>
         <h1>准点率分析系统</h1>
         <p>实时监控公交准点率，提供全面的数据分析和可视化</p>
       </div>
@@ -51,10 +52,10 @@
 
         <div class="stat-card">
           <div class="stat-icon">
-            <el-icon><Bus /></el-icon>
+            <el-icon><Van /></el-icon>
           </div>
           <div class="stat-content">
-            <div class="stat-value">{{ systemStats.totalTrips.toLocaleString() }}</div>
+            <div class="stat-value">{{ (systemStats.totalTrips || 0).toLocaleString() }}</div>
             <div class="stat-label">总班次</div>
           </div>
         </div>
@@ -74,7 +75,7 @@
             <el-icon><Timer /></el-icon>
           </div>
           <div class="stat-content">
-            <div class="stat-value">{{ systemStats.systemAvgDelay.toFixed(1) }}分钟</div>
+            <div class="stat-value">{{ (systemStats.systemAvgDelay || 0).toFixed(1) }}分钟</div>
             <div class="stat-label">平均延误</div>
           </div>
         </div>
@@ -96,7 +97,7 @@
 
         <div class="realtime-card">
           <h3>平均延误</h3>
-          <div class="realtime-value">{{ (realtimeSummary.avg_delay_minutes || 0).toFixed(1) }}</div>
+          <div class="realtime-value">{{ Math.abs(parseFloat(realtimeSummary.avg_delay_minutes) || 0).toFixed(1) }}</div>
           <div class="realtime-label">分钟</div>
         </div>
       </div>
@@ -221,16 +222,20 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { usePunctualityStore } from '../stores/punctualityStore'
+import { useRegionStore } from '@/stores/regionStore'
 import {
-  Refresh, Download, TrendCharts, Bus, CircleCheck,
-  Timer, InfoFilled, Clock, Calendar
+  Refresh, Download, TrendCharts, Van, CircleCheck,
+  Timer, InfoFilled, Clock, Calendar, ArrowLeft
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 // Store
+const router = useRouter()
 const punctualityStore = usePunctualityStore()
+const regionStore = useRegionStore()
 
 // 响应式数据
 const rankingType = ref('best')
@@ -249,12 +254,17 @@ const hourlyData = computed(() => punctualityStore.hourlyPunctuality)
 
 const currentRanking = computed(() => {
   const overview = punctualityOverview.value
-  return rankingType.value === 'best' ? overview.best_routes : overview.worst_routes
+  return rankingType.value === 'best' ? (overview.best_routes || []) : (overview.worst_routes || [])
 })
 
 const lastUpdateTime = computed(() => {
-  if (!punctualityOverview.value.latest_data_date) return '暂无数据'
-  return new Date(punctualityOverview.value.latest_data_date).toLocaleString('zh-CN')
+  const d = punctualityOverview.value.latest_data_date
+  if (!d) return '暂无数据'
+  try {
+    return new Date(d).toLocaleString('zh-CN')
+  } catch {
+    return '暂无数据'
+  }
 })
 
 // 方法
@@ -309,7 +319,7 @@ const clearError = () => {
 }
 
 const formatPunctualityRate = (rate) => {
-  return `${(rate || 0).toFixed(1)}%`
+  return `${(parseFloat(rate) || 0).toFixed(1)}%`
 }
 
 const getBarColor = (rate) => {
@@ -349,6 +359,14 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopAutoRefresh()
+})
+
+// 切换地区时重新加载
+watch(() => regionStore.selectedRegion, async () => {
+  stopAutoRefresh()
+  await fetchOverviewData()
+  await fetchHourlyData()
+  startAutoRefresh()
 })
 </script>
 

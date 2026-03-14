@@ -18,6 +18,9 @@ from data_acquisition.tfnsw_data_fetcher import TfNSWDataFetcher
 from business_logic.punctuality_calculator import PunctualityCalculator, DelayRecord, PunctualityThresholds
 from core.db import Database, execute_query, execute_query_one, execute_count
 
+def get_connection():
+    return Database.get_connection()
+
 import os as _os
 _log_path = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), '..', 'punctuality_service.log')
 
@@ -259,22 +262,31 @@ class PunctualityDataService:
 
         for update in trip_updates:
             try:
+                arrival_delay = update.get('arrival_delay')
+                if arrival_delay is None:
+                    continue
+
+                # 过滤异常延误值（超过 ±2小时视为无效数据）
+                if abs(int(arrival_delay)) > 7200:
+                    continue
+
+                now = datetime.now(timezone.utc)
+                # 用当前时间作为实际到达时间，反推计划时间
+                actual_time = now
+                scheduled_time = now - timedelta(seconds=int(arrival_delay))
+
                 # 创建延误记录
                 delay_record = DelayRecord(
                     trip_id=update.get('trip_id', ''),
                     route_id=update.get('route_id', ''),
                     stop_id=update.get('stop_id', ''),
                     stop_sequence=update.get('stop_sequence', 0),
-                    scheduled_time=datetime.fromtimestamp(
-                        update.get('scheduled_time', 0), timezone.utc
-                    ),
-                    actual_time=datetime.fromtimestamp(
-                        update.get('actual_time', 0), timezone.utc
-                    ),
-                    arrival_delay=update.get('arrival_delay', 0),
-                    departure_delay=update.get('departure_delay', 0),
+                    scheduled_time=scheduled_time,
+                    actual_time=actual_time,
+                    arrival_delay=int(arrival_delay),
+                    departure_delay=update.get('departure_delay') or 0,
                     vehicle_id=update.get('vehicle_id'),
-                    timestamp=datetime.now(timezone.utc)
+                    timestamp=now
                 )
 
                 delay_records.append(delay_record)

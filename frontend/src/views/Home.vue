@@ -79,7 +79,7 @@
               <span class="feature-title">准点率分析</span>
             </div>
             <div class="feature-content">
-              <div class="feature-item" @click="$router.push('/punctuality')">
+              <div class="feature-item" @click="navigate('/punctuality')">
                 <div class="feature-item-icon" style="background-color: #fef0e6;">
                   <el-icon :size="20" color="#e6a23c"><TrendCharts /></el-icon>
                 </div>
@@ -90,7 +90,7 @@
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
 
-              <div class="feature-item" @click="$router.push('/punctuality/routes')">
+              <div class="feature-item" @click="navigate('/punctuality/routes')">
                 <div class="feature-item-icon" style="background-color: #e3f2fd;">
                   <el-icon :size="20" color="#409eff"><Guide /></el-icon>
                 </div>
@@ -101,7 +101,7 @@
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
 
-              <div class="feature-item" @click="$router.push('/punctuality/stops')">
+              <div class="feature-item" @click="navigate('/punctuality/stops')">
                 <div class="feature-item-icon" style="background-color: #e8f5e9;">
                   <el-icon :size="20" color="#67c23a"><Location /></el-icon>
                 </div>
@@ -112,7 +112,7 @@
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
 
-              <div class="feature-item" @click="$router.push('/punctuality/realtime')">
+              <div class="feature-item" @click="navigate('/punctuality/realtime')">
                 <div class="feature-item-icon" style="background-color: #fee;">
                   <el-icon :size="20" color="#f56c6c"><Monitor /></el-icon>
                 </div>
@@ -175,6 +175,8 @@ import {
 const router = useRouter()
 const appStore = useAppStore()
 const regionStore = useRegionStore()
+
+const navigate = (path) => { window.location.href = path }
 
 const stats = ref({})
 

@@ -3,6 +3,7 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-content">
+        <el-button :icon="ArrowLeft" @click="goHome" style="margin-bottom:8px">返回首页</el-button>
         <h1>实时监控</h1>
         <p>实时监控公交车辆位置和准点情况</p>
       </div>
@@ -279,14 +280,18 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { usePunctualityStore } from '../stores/punctualityStore'
+import { useRegionStore } from '@/stores/regionStore'
 import {
   Refresh, Location, Clock, Warning, Timer, RefreshRight,
-  MapLocation, Van
+  MapLocation, Van, ArrowLeft
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 // Store
 const punctualityStore = usePunctualityStore()
+const regionStore = useRegionStore()
+
+const goHome = () => { window.location.href = '/' }
 
 // 响应式数据
 const loading = computed(() => punctualityStore.loading)
@@ -550,6 +555,13 @@ onMounted(async () => {
 
 onUnmounted(() => {
   stopAutoRefresh()
+})
+
+// 切换地区时重新加载
+watch(() => regionStore.selectedRegion, async () => {
+  stopAutoRefresh()
+  await fetchData()
+  if (autoRefresh.value) startAutoRefresh()
 })
 
 // 监听筛选条件变化

@@ -27,11 +27,10 @@ CREATE TABLE IF NOT EXISTS realtime_delay_records (
     processed BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
-    -- 外键约束
+    -- 外键约束（trip_id 不加外键，实时数据中 trip_id 可能不在静态数据里）
     FOREIGN KEY (region) REFERENCES regions(region_id),
     FOREIGN KEY (region, route_id) REFERENCES routes(region, route_id),
-    FOREIGN KEY (region, stop_id) REFERENCES stops(region, stop_id),
-    FOREIGN KEY (region, trip_id) REFERENCES trips(region, trip_id)
+    FOREIGN KEY (region, stop_id) REFERENCES stops(region, stop_id)
 );
 
 -- 线路准点率日统计表

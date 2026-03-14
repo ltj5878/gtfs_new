@@ -64,6 +64,11 @@ start() {
   echo -e "${GREEN}项目已启动:${NC}"
   echo -e "  前端: http://localhost:$FRONTEND_PORT"
   echo -e "  后端: http://localhost:$BACKEND_PORT"
+  echo ""
+  echo -e "${YELLOW}可选：启动准点率数据收集服务（需设置对应 API Key 环境变量）${NC}"
+  echo -e "  SF_511_API_KEY=xxx python3 backend/scripts/start_punctuality_service.py --region sf &"
+  echo -e "  MTA_API_KEY=xxx python3 backend/scripts/start_punctuality_service.py --region nyc &"
+  echo -e "  TFNSW_API_KEY=xxx python3 backend/scripts/start_punctuality_service.py --region sydney &"
 }
 
 stop() {

@@ -3,6 +3,7 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-content">
+        <el-button :icon="ArrowLeft" @click="goHome" style="margin-bottom:8px">返回首页</el-button>
         <h1>站点准点率分析</h1>
         <p>分析各个公交站点的准点率情况和延误分布</p>
       </div>
@@ -329,14 +330,20 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { usePunctualityStore } from '../stores/punctualityStore'
+import { useRegionStore } from '@/stores/regionStore'
 import {
-  Refresh, Download, Search, Clock, Location, MapLocation
+  Refresh, Download, Search, Clock, Location, MapLocation, ArrowLeft
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
 // Store
+const router = useRouter()
 const punctualityStore = usePunctualityStore()
+const regionStore = useRegionStore()
+
+const goHome = () => { window.location.href = '/' }
 
 // 响应式数据
 const loading = computed(() => punctualityStore.loading)
@@ -528,6 +535,11 @@ const getDelayClass = (delay) => {
 
 // 生命周期
 onMounted(() => {
+  fetchData()
+})
+
+// 切换地区时重新加载
+watch(() => regionStore.selectedRegion, () => {
   fetchData()
 })
 

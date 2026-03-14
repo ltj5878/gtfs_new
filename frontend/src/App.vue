@@ -2,7 +2,7 @@
   <el-container class="app-container">
     <el-header class="app-header">
       <div class="header-content">
-        <div class="logo" @click="$router.push('/')">
+        <div class="logo" @click="window.location.href = '/'">
           <el-icon :size="28"><TrendCharts /></el-icon>
           <span>GTFS 公交数据分析系统</span>
         </div>
@@ -15,6 +15,13 @@
           <el-menu-item index="/">首页</el-menu-item>
           <el-menu-item index="/routes">线路</el-menu-item>
           <el-menu-item index="/stops">站点</el-menu-item>
+          <el-sub-menu index="/punctuality">
+            <template #title>准点率</template>
+            <el-menu-item index="/punctuality">准点率概览</el-menu-item>
+            <el-menu-item index="/punctuality/routes">线路准点率</el-menu-item>
+            <el-menu-item index="/punctuality/stops">站点准点率</el-menu-item>
+            <el-menu-item index="/punctuality/realtime">实时监控</el-menu-item>
+          </el-sub-menu>
         </el-menu>
         <div class="header-right">
           <RegionSelector />
@@ -28,11 +35,7 @@
     </el-header>
 
     <el-main class="app-main">
-      <router-view v-slot="{ Component }">
-        <transition name="fade" mode="out-in">
-          <component :is="Component" />
-        </transition>
-      </router-view>
+      <router-view :key="$route.fullPath" />
     </el-main>
 
     <el-footer class="app-footer">
@@ -59,6 +62,7 @@ const regionStore = useRegionStore()
 
 const activeMenu = computed(() => {
   const path = route.path
+  if (path.startsWith('/punctuality')) return path
   if (path.startsWith('/routes')) return '/routes'
   if (path.startsWith('/stops')) return '/stops'
   return '/'
@@ -70,7 +74,7 @@ const currentRegionName = computed(() => {
 })
 
 const handleMenuSelect = (index) => {
-  router.push(index)
+  window.location.href = index
 }
 
 const handleLogout = async () => {

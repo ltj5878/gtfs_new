@@ -9,7 +9,7 @@ import {
   getStopPunctuality,
   getHourlyPunctuality,
   getPunctualityConfig,
-  updatePunctualityConfig
+  updatePunctualityConfig as updatePunctualityConfigApi
 } from '../api/punctuality'
 
 export const usePunctualityStore = defineStore('punctuality', () => {
@@ -45,8 +45,8 @@ export const usePunctualityStore = defineStore('punctuality', () => {
     return {
       totalRoutes: overview.total_routes || 0,
       totalTrips: overview.total_trips || 0,
-      systemPunctualityRate: overview.system_punctuality_rate || 0,
-      systemAvgDelay: overview.system_avg_delay_minutes || 0,
+      systemPunctualityRate: parseFloat(overview.system_punctuality_rate) || 0,
+      systemAvgDelay: Math.abs(parseFloat(overview.system_avg_delay_minutes) || 0),
       dataAvailable: overview.data_available || false
     }
   })
@@ -56,7 +56,7 @@ export const usePunctualityStore = defineStore('punctuality', () => {
     try {
       loading.value = true
       const response = await getRealtimeVehicles(params)
-      realtimeVehicles.value = response.data || []
+      realtimeVehicles.value = response || []
       return realtimeVehicles.value
     } catch (err) {
       console.error('获取实时车辆数据失败:', err)
@@ -71,7 +71,7 @@ export const usePunctualityStore = defineStore('punctuality', () => {
     try {
       loading.value = true
       const response = await getRealtimeDelays(params)
-      realtimeDelays.value = response.data || []
+      realtimeDelays.value = response || []
       return realtimeDelays.value
     } catch (err) {
       console.error('获取实时延误数据失败:', err)
@@ -86,7 +86,7 @@ export const usePunctualityStore = defineStore('punctuality', () => {
     try {
       loading.value = true
       const response = await getRealtimeSummary()
-      realtimeSummary.value = response.data || {}
+      realtimeSummary.value = response || {}
       return realtimeSummary.value
     } catch (err) {
       console.error('获取实时数据汇总失败:', err)
@@ -102,7 +102,7 @@ export const usePunctualityStore = defineStore('punctuality', () => {
     try {
       loading.value = true
       const response = await getPunctualityOverview(params)
-      punctualityOverview.value = response.data || {}
+      punctualityOverview.value = response || {}
       return punctualityOverview.value
     } catch (err) {
       console.error('获取准点率概览失败:', err)
@@ -117,7 +117,7 @@ export const usePunctualityStore = defineStore('punctuality', () => {
     try {
       loading.value = true
       const response = await getRoutePunctuality(params)
-      routePunctuality.value = response.data || []
+      routePunctuality.value = response || []
       return routePunctuality.value
     } catch (err) {
       console.error('获取线路准点率失败:', err)
@@ -132,7 +132,7 @@ export const usePunctualityStore = defineStore('punctuality', () => {
     try {
       loading.value = true
       const response = await getStopPunctuality(params)
-      stopPunctuality.value = response.data || []
+      stopPunctuality.value = response || []
       return stopPunctuality.value
     } catch (err) {
       console.error('获取站点准点率失败:', err)
@@ -147,7 +147,7 @@ export const usePunctualityStore = defineStore('punctuality', () => {
     try {
       loading.value = true
       const response = await getHourlyPunctuality(params)
-      hourlyPunctuality.value = response.data || []
+      hourlyPunctuality.value = response || []
       return hourlyPunctuality.value
     } catch (err) {
       console.error('获取时段准点率失败:', err)
@@ -163,7 +163,7 @@ export const usePunctualityStore = defineStore('punctuality', () => {
     try {
       loading.value = true
       const response = await getPunctualityConfig()
-      punctualityConfig.value = response.data || {}
+      punctualityConfig.value = response || {}
       return punctualityConfig.value
     } catch (err) {
       console.error('获取准点率配置失败:', err)
@@ -177,7 +177,7 @@ export const usePunctualityStore = defineStore('punctuality', () => {
   const updatePunctualityConfig = async (configData) => {
     try {
       loading.value = true
-      const response = await updatePunctualityConfig(configData)
+      const response = await updatePunctualityConfigApi(configData)
       // 更新本地配置
       punctualityConfig.value = { ...punctualityConfig.value, ...configData }
       return response.data
