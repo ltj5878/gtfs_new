@@ -4,7 +4,7 @@
       <div class="header-content">
         <div class="logo" @click="window.location.href = '/'">
           <el-icon :size="28"><TrendCharts /></el-icon>
-          <span>GTFS 公交数据分析系统</span>
+          <span>公交准点率分析系统</span>
         </div>
         <el-menu
           :default-active="activeMenu"
@@ -40,7 +40,7 @@
 
     <el-footer class="app-footer">
       <div class="footer-content">
-        <p>&copy; 2025 GTFS 公交数据分析系统</p>
+        <p>&copy; 2025 公交准点率分析系统</p>
         <p>数据来源: {{ currentRegionName }} GTFS 数据</p>
       </div>
     </el-footer>

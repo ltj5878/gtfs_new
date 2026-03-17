@@ -2,7 +2,7 @@
   <div class="home">
     <!-- 欢迎区域 -->
     <div class="welcome-section">
-      <h1 class="welcome-title">GTFS 公交数据分析系统</h1>
+      <h1 class="welcome-title">公交准点率分析系统</h1>
       <p class="welcome-subtitle">公交数据实时监控与分析平台</p>
     </div>
 
