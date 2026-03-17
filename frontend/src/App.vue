@@ -40,8 +40,8 @@
 
     <el-footer class="app-footer">
       <div class="footer-content">
-        <p>&copy; 2025 公交准点率分析系统</p>
-        <p>数据来源: {{ currentRegionName }} GTFS 数据</p>
+        <p>&copy; 2026 公交准点率分析系统</p>
+        <p>数据来源: {{ currentRegionName }} GTFS + GTFS Realtim数据</p>
       </div>
     </el-footer>
   </el-container>
