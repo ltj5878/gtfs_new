@@ -1,118 +1,114 @@
 <template>
-  <div class="login-page">
-    <div class="login-bg">
-      <div class="bg-circle bg-circle-1"></div>
-      <div class="bg-circle bg-circle-2"></div>
-      <div class="bg-circle bg-circle-3"></div>
-    </div>
-
-    <div class="login-container">
-      <!-- 左侧品牌区 -->
-      <div class="login-brand">
-        <div class="brand-icon">
-          <el-icon :size="48" color="#fff"><TrendCharts /></el-icon>
+  <div class="auth-page">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="logo">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
         </div>
-        <h1 class="brand-title">公交准点率分析系统</h1>
-        <p class="brand-desc">实时监控 · 数据分析 · 智能预测</p>
-        <div class="brand-features">
-          <div class="brand-feature-item">
-            <el-icon color="rgba(255,255,255,0.8)"><Guide /></el-icon>
-            <span>多城市线路覆盖</span>
-          </div>
-          <div class="brand-feature-item">
-            <el-icon color="rgba(255,255,255,0.8)"><TrendCharts /></el-icon>
-            <span>准点率实时统计</span>
-          </div>
-          <div class="brand-feature-item">
-            <el-icon color="rgba(255,255,255,0.8)"><Monitor /></el-icon>
-            <span>车辆位置实时追踪</span>
-          </div>
-        </div>
+        <h1>公交准点率分析系统</h1>
       </div>
 
-      <!-- 右侧表单区 -->
-      <div class="login-form-area">
-        <div class="form-header">
-          <h2>{{ isRegister ? '创建账号' : '欢迎回来' }}</h2>
-          <p>{{ isRegister ? '填写信息完成注册' : '登录以访问完整功能' }}</p>
-        </div>
+      <!-- 登录/注册切换 -->
+      <div class="tab-bar">
+        <button :class="{ active: !isRegister }" @click="switchMode(false)">登录</button>
+        <button :class="{ active: isRegister }" @click="switchMode(true)">注册</button>
+      </div>
 
-        <!-- 登录表单 -->
-        <el-form v-if="!isRegister" :model="form" :rules="loginRules" ref="loginFormRef" @submit.prevent="handleLogin">
-          <el-form-item prop="username">
-            <el-input
-              v-model="form.username"
-              placeholder="用户名"
-              size="large"
-              :prefix-icon="User"
-              autocomplete="username"
-            />
-          </el-form-item>
-          <el-form-item prop="password">
-            <el-input
+      <!-- 登录表单 -->
+      <form v-if="!isRegister" @submit.prevent="handleLogin" class="auth-form">
+        <div class="field">
+          <label for="login-user">用户名</label>
+          <input
+            id="login-user"
+            v-model="form.username"
+            type="text"
+            autocomplete="username"
+            placeholder="请输入用户名"
+            required
+          />
+        </div>
+        <div class="field">
+          <label for="login-pwd">密码</label>
+          <div class="pwd-wrap">
+            <input
+              id="login-pwd"
               v-model="form.password"
-              type="password"
-              placeholder="密码"
-              size="large"
-              :prefix-icon="Lock"
-              show-password
+              :type="showPwd ? 'text' : 'password'"
               autocomplete="current-password"
-              @keyup.enter="handleLogin"
+              placeholder="请输入密码"
+              required
             />
-          </el-form-item>
-          <el-alert v-if="errorMsg" :title="errorMsg" type="error" show-icon :closable="false" style="margin-bottom: 16px" />
-          <el-alert v-if="successMsg" :title="successMsg" type="success" show-icon :closable="false" style="margin-bottom: 16px" />
-          <el-button type="primary" size="large" class="submit-btn" :loading="loading" @click="handleLogin">
-            登录
-          </el-button>
-          <div class="switch-link">
-            没有账号？<el-link type="primary" @click="switchMode(true)">立即注册</el-link>
+            <button type="button" class="eye-btn" @click="showPwd = !showPwd" tabindex="-1">
+              <svg v-if="showPwd" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
           </div>
-        </el-form>
+        </div>
+        <p v-if="errorMsg" class="msg msg-error">{{ errorMsg }}</p>
+        <p v-if="successMsg" class="msg msg-ok">{{ successMsg }}</p>
+        <button type="submit" class="submit-btn" :disabled="loading">
+          {{ loading ? '登录中...' : '登录' }}
+        </button>
+      </form>
 
-        <!-- 注册表单 -->
-        <el-form v-else :model="regForm" :rules="registerRules" ref="regFormRef" @submit.prevent="handleRegister">
-          <el-form-item prop="username">
-            <el-input
-              v-model="regForm.username"
-              placeholder="用户名（4-20 个字符）"
-              size="large"
-              :prefix-icon="User"
-              autocomplete="username"
-            />
-          </el-form-item>
-          <el-form-item prop="password">
-            <el-input
+      <!-- 注册表单 -->
+      <form v-else @submit.prevent="handleRegister" class="auth-form">
+        <div class="field">
+          <label for="reg-user">用户名</label>
+          <input
+            id="reg-user"
+            v-model="regForm.username"
+            type="text"
+            autocomplete="username"
+            placeholder="4-20 个字符"
+            required
+            minlength="4"
+            maxlength="20"
+          />
+        </div>
+        <div class="field">
+          <label for="reg-pwd">密码</label>
+          <div class="pwd-wrap">
+            <input
+              id="reg-pwd"
               v-model="regForm.password"
-              type="password"
-              placeholder="密码（至少 6 位）"
-              size="large"
-              :prefix-icon="Lock"
-              show-password
+              :type="showPwd ? 'text' : 'password'"
               autocomplete="new-password"
+              placeholder="至少 6 位"
+              required
+              minlength="6"
             />
-          </el-form-item>
-          <el-form-item prop="confirmPassword">
-            <el-input
-              v-model="regForm.confirmPassword"
-              type="password"
-              placeholder="确认密码"
-              size="large"
-              :prefix-icon="Lock"
-              show-password
-              autocomplete="new-password"
-              @keyup.enter="handleRegister"
-            />
-          </el-form-item>
-          <el-alert v-if="errorMsg" :title="errorMsg" type="error" show-icon :closable="false" style="margin-bottom: 16px" />
-          <el-button type="primary" size="large" class="submit-btn" :loading="loading" @click="handleRegister">
-            注册
-          </el-button>
-          <div class="switch-link">
-            已有账号？<el-link type="primary" @click="switchMode(false)">返回登录</el-link>
+            <button type="button" class="eye-btn" @click="showPwd = !showPwd" tabindex="-1">
+              <svg v-if="showPwd" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
           </div>
-        </el-form>
-      </div>
+        </div>
+        <div class="field">
+          <label for="reg-pwd2">确认密码</label>
+          <div class="pwd-wrap">
+            <input
+              id="reg-pwd2"
+              v-model="regForm.confirmPassword"
+              :type="showPwd2 ? 'text' : 'password'"
+              autocomplete="new-password"
+              placeholder="再次输入密码"
+              required
+            />
+            <button type="button" class="eye-btn" @click="showPwd2 = !showPwd2" tabindex="-1">
+              <svg v-if="showPwd2" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+        </div>
+        <p v-if="errorMsg" class="msg msg-error">{{ errorMsg }}</p>
+        <button type="submit" class="submit-btn" :disabled="loading">
+          {{ loading ? '注册中...' : '注册' }}
+        </button>
+      </form>
     </div>
   </div>
 </template>
@@ -120,7 +116,6 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { TrendCharts, User, Lock, Guide, Monitor } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/authStore.js'
 import { register } from '@/api/auth.js'
 
@@ -128,40 +123,14 @@ const router = useRouter()
 const authStore = useAuthStore()
 
 const isRegister = ref(false)
-const loginFormRef = ref(null)
-const regFormRef = ref(null)
 const loading = ref(false)
 const errorMsg = ref('')
 const successMsg = ref('')
+const showPwd = ref(false)
+const showPwd2 = ref(false)
 
 const form = reactive({ username: '', password: '' })
 const regForm = reactive({ username: '', password: '', confirmPassword: '' })
-
-const loginRules = {
-  username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
-  password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
-}
-
-const registerRules = {
-  username: [
-    { required: true, message: '请输入用户名', trigger: 'blur' },
-    { min: 4, max: 20, message: '用户名长度须在 4-20 个字符之间', trigger: 'blur' }
-  ],
-  password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于 6 位', trigger: 'blur' }
-  ],
-  confirmPassword: [
-    { required: true, message: '请确认密码', trigger: 'blur' },
-    {
-      validator: (rule, value, callback) => {
-        if (value !== regForm.password) callback(new Error('两次输入的密码不一致'))
-        else callback()
-      },
-      trigger: 'blur'
-    }
-  ]
-}
 
 function switchMode(toRegister) {
   isRegister.value = toRegister
@@ -172,9 +141,10 @@ function switchMode(toRegister) {
 async function handleLogin() {
   errorMsg.value = ''
   successMsg.value = ''
-  const valid = await loginFormRef.value?.validate().catch(() => false)
-  if (!valid) return
-
+  if (!form.username || !form.password) {
+    errorMsg.value = '请填写用户名和密码'
+    return
+  }
   loading.value = true
   try {
     await authStore.login(form.username, form.password)
@@ -188,9 +158,22 @@ async function handleLogin() {
 
 async function handleRegister() {
   errorMsg.value = ''
-  const valid = await regFormRef.value?.validate().catch(() => false)
-  if (!valid) return
-
+  if (!regForm.username || !regForm.password || !regForm.confirmPassword) {
+    errorMsg.value = '请填写所有字段'
+    return
+  }
+  if (regForm.username.length < 4 || regForm.username.length > 20) {
+    errorMsg.value = '用户名长度须在 4-20 个字符之间'
+    return
+  }
+  if (regForm.password.length < 6) {
+    errorMsg.value = '密码长度不能少于 6 位'
+    return
+  }
+  if (regForm.password !== regForm.confirmPassword) {
+    errorMsg.value = '两次输入的密码不一致'
+    return
+  }
   loading.value = true
   try {
     await register(regForm.username, regForm.password)
@@ -206,185 +189,195 @@ async function handleRegister() {
 </script>
 
 <style scoped>
-.login-page {
+.auth-page {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f0f4ff;
-  position: relative;
-  overflow: hidden;
+  background: #f5f6f8;
+  padding: 20px;
 }
 
-/* 背景装饰圆 */
-.login-bg {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.bg-circle {
-  position: absolute;
-  border-radius: 50%;
-  opacity: 0.12;
-}
-
-.bg-circle-1 {
-  width: 500px;
-  height: 500px;
-  background: #409eff;
-  top: -150px;
-  left: -100px;
-}
-
-.bg-circle-2 {
-  width: 350px;
-  height: 350px;
-  background: #67c23a;
-  bottom: -80px;
-  right: -60px;
-}
-
-.bg-circle-3 {
-  width: 200px;
-  height: 200px;
-  background: #e6a23c;
-  top: 40%;
-  right: 20%;
-}
-
-/* 主容器 */
-.login-container {
-  display: flex;
-  width: 860px;
-  min-height: 520px;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.12);
-  position: relative;
-  z-index: 1;
-}
-
-/* 左侧品牌区 */
-.login-brand {
-  width: 340px;
-  flex-shrink: 0;
-  background: linear-gradient(145deg, #2563eb 0%, #1d4ed8 50%, #1e40af 100%);
-  padding: 48px 36px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  color: #fff;
-}
-
-.brand-icon {
-  width: 80px;
-  height: 80px;
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 28px;
-  backdrop-filter: blur(4px);
-}
-
-.brand-title {
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: 10px;
-  line-height: 1.4;
-  letter-spacing: 0.5px;
-}
-
-.brand-desc {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 40px;
-  letter-spacing: 1px;
-}
-
-.brand-features {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.brand-feature-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.85);
-}
-
-/* 右侧表单区 */
-.login-form-area {
-  flex: 1;
+.auth-card {
+  width: 100%;
+  max-width: 400px;
   background: #fff;
-  padding: 48px 44px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
+  border-radius: 12px;
+  padding: 40px 32px 36px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
-.form-header {
+/* 头部 */
+.auth-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 32px;
 }
 
-.form-header h2 {
-  font-size: 26px;
-  font-weight: 700;
+.logo {
+  width: 44px;
+  height: 44px;
+  background: #1a1a2e;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.auth-header h1 {
+  font-size: 18px;
+  font-weight: 600;
   color: #1a1a2e;
-  margin-bottom: 8px;
+  margin: 0;
+  line-height: 1.3;
 }
 
-.form-header p {
+/* Tab 切换 */
+.tab-bar {
+  display: flex;
+  background: #f5f6f8;
+  border-radius: 8px;
+  padding: 3px;
+  margin-bottom: 28px;
+}
+
+.tab-bar button {
+  flex: 1;
+  padding: 8px 0;
+  border: none;
+  background: transparent;
   font-size: 14px;
-  color: #909399;
+  color: #888;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+  font-weight: 500;
 }
 
+.tab-bar button.active {
+  background: #fff;
+  color: #1a1a2e;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* 表单 */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #444;
+}
+
+.field input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1a1a2e;
+  background: #fff;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.field input::placeholder {
+  color: #bbb;
+}
+
+.field input:focus {
+  border-color: #1a1a2e;
+}
+
+/* 密码输入框 */
+.pwd-wrap {
+  position: relative;
+}
+
+.pwd-wrap input {
+  padding-right: 40px;
+}
+
+.eye-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #999;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+}
+
+.eye-btn:hover {
+  color: #555;
+}
+
+/* 提示信息 */
+.msg {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.msg-error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.msg-ok {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+/* 提交按钮 */
 .submit-btn {
   width: 100%;
-  height: 44px;
-  font-size: 15px;
-  font-weight: 600;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  height: 42px;
   border: none;
-  letter-spacing: 1px;
-}
-
-.submit-btn:hover {
-  background: linear-gradient(135deg, #1d4ed8, #1e40af);
-}
-
-.switch-link {
-  text-align: center;
-  margin-top: 20px;
+  border-radius: 8px;
+  background: #1a1a2e;
+  color: #fff;
   font-size: 14px;
-  color: #606266;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 4px;
 }
 
-/* 响应式 */
-@media (max-width: 768px) {
-  .login-container {
-    flex-direction: column;
-    width: 92vw;
-    min-height: unset;
-  }
+.submit-btn:hover:not(:disabled) {
+  background: #2d2d44;
+}
 
-  .login-brand {
-    width: 100%;
-    padding: 32px 28px;
-  }
+.submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
 
-  .brand-features {
-    display: none;
-  }
-
-  .login-form-area {
-    padding: 32px 28px;
+/* 移动端适配 */
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 32px 24px 28px;
   }
 }
 </style>
