@@ -102,7 +102,23 @@ export const usePunctualityStore = defineStore('punctuality', () => {
     try {
       loading.value = true
       const response = await getPunctualityOverview(params)
-      punctualityOverview.value = response || {}
+      const data = response || {}
+      // 转换概览中的数值字段
+      const convertRouteList = (list) => (list || []).map(r => ({
+        ...r,
+        avg_punctuality_rate: parseFloat(r.avg_punctuality_rate) || 0,
+        avg_delay_minutes: parseFloat(r.avg_delay_minutes) || 0,
+        total_trips: parseInt(r.total_trips) || 0,
+      }))
+      punctualityOverview.value = {
+        ...data,
+        system_punctuality_rate: parseFloat(data.system_punctuality_rate) || 0,
+        system_avg_delay_minutes: parseFloat(data.system_avg_delay_minutes) || 0,
+        total_routes: parseInt(data.total_routes) || 0,
+        total_trips: parseInt(data.total_trips) || 0,
+        best_routes: convertRouteList(data.best_routes),
+        worst_routes: convertRouteList(data.worst_routes),
+      }
       return punctualityOverview.value
     } catch (err) {
       console.error('获取准点率概览失败:', err)
@@ -117,7 +133,18 @@ export const usePunctualityStore = defineStore('punctuality', () => {
     try {
       loading.value = true
       const response = await getRoutePunctuality(params)
-      routePunctuality.value = response || []
+      // 转换数值字段（后端返回字符串类型）
+      routePunctuality.value = (response || []).map(route => ({
+        ...route,
+        avg_punctuality_rate: parseFloat(route.avg_punctuality_rate) || 0,
+        avg_delay_minutes: parseFloat(route.avg_delay_minutes) || 0,
+        max_delay_minutes: parseFloat(route.max_delay_minutes) || 0,
+        total_trips: parseInt(route.total_trips) || 0,
+        on_time_trips: parseInt(route.on_time_trips) || 0,
+        late_trips: parseInt(route.late_trips) || 0,
+        very_late_trips: parseInt(route.very_late_trips) || 0,
+        early_trips: parseInt(route.early_trips) || 0,
+      }))
       return routePunctuality.value
     } catch (err) {
       console.error('获取线路准点率失败:', err)
@@ -132,7 +159,18 @@ export const usePunctualityStore = defineStore('punctuality', () => {
     try {
       loading.value = true
       const response = await getStopPunctuality(params)
-      stopPunctuality.value = response || []
+      // 转换数值字段（后端返回字符串类型）
+      stopPunctuality.value = (response || []).map(stop => ({
+        ...stop,
+        avg_punctuality_rate: parseFloat(stop.avg_punctuality_rate) || 0,
+        avg_delay_minutes: parseFloat(stop.avg_delay_minutes) || 0,
+        max_delay_minutes: parseFloat(stop.max_delay_minutes) || 0,
+        total_trips: parseInt(stop.total_trips) || 0,
+        on_time_trips: parseInt(stop.on_time_trips) || 0,
+        late_trips: parseInt(stop.late_trips) || 0,
+        very_late_trips: parseInt(stop.very_late_trips) || 0,
+        early_trips: parseInt(stop.early_trips) || 0,
+      }))
       return stopPunctuality.value
     } catch (err) {
       console.error('获取站点准点率失败:', err)
@@ -147,7 +185,15 @@ export const usePunctualityStore = defineStore('punctuality', () => {
     try {
       loading.value = true
       const response = await getHourlyPunctuality(params)
-      hourlyPunctuality.value = response || []
+      // 转换数值字段（后端返回字符串类型）
+      hourlyPunctuality.value = (response || []).map(item => ({
+        ...item,
+        punctuality_rate: parseFloat(item.punctuality_rate) || 0,
+        avg_delay_minutes: parseFloat(item.avg_delay_minutes) || 0,
+        total_trips: parseInt(item.total_trips) || 0,
+        on_time_trips: parseInt(item.on_time_trips) || 0,
+        late_trips: parseInt(item.late_trips) || 0,
+      }))
       return hourlyPunctuality.value
     } catch (err) {
       console.error('获取时段准点率失败:', err)

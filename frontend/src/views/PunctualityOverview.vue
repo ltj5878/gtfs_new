@@ -3,7 +3,7 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-content">
-        <el-button :icon="ArrowLeft" @click="() => { window.location.href = '/' }" style="margin-bottom:8px">返回首页</el-button>
+        <el-button :icon="ArrowLeft" @click="goHome" style="margin-bottom:8px">返回首页</el-button>
         <h1>准点率分析系统</h1>
         <p>实时监控公交准点率，提供全面的数据分析和可视化</p>
       </div>
@@ -234,6 +234,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 
 // Store
 const router = useRouter()
+const goHome = () => router.push('/')
 const punctualityStore = usePunctualityStore()
 const regionStore = useRegionStore()
 

@@ -39,7 +39,10 @@
       "WebFetch(domain:new.mta.info)",
       "WebFetch(domain:opendata.transport.nsw.gov.au)",
       "Read(//opt/homebrew/bin/**)",
-      "Read(//usr/local/bin/**)"
+      "Read(//usr/local/bin/**)",
+      "Bash(textutil:*)",
+      "Bash(wc -l /Users/lvtongjie/Documents/code/bs/gtfs_new/backend/business_logic/*.py)",
+      "Bash(wc -l /Users/lvtongjie/Documents/code/bs/gtfs_new/backend/services/*.py)"
     ],
     "deny": [],
     "ask": []
