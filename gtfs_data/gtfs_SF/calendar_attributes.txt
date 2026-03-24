@@ -1,4 +1,0 @@
-service_id,service_description
-79535,WEEKDAY
-79536,SATURDAY
-78967,SUNDAY
