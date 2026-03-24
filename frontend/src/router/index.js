@@ -68,6 +68,12 @@ const router = createRouter({
       name: 'realtime-monitor',
       component: () => import('@/views/RealtimeMonitor.vue'),
       meta: { requiresAuth: true, title: '实时监控', icon: 'Monitor' }
+    },
+    {
+      path: '/favorites',
+      name: 'favorites',
+      component: () => import('@/views/Favorites.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

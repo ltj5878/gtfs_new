@@ -6,6 +6,16 @@
         <h3>{{ stop.stop_name }}</h3>
         <p v-if="stop.stop_code" class="stop-code">站点编号: {{ stop.stop_code }}</p>
       </div>
+      <!-- 收藏按钮 -->
+      <el-icon
+        class="favorite-btn"
+        :class="{ 'is-favorited': favorited }"
+        :size="20"
+        @click.stop="handleFavorite"
+        :title="favorited ? '取消收藏' : '收藏'"
+      >
+        <Star />
+      </el-icon>
     </div>
     <div class="stop-location">
       <span class="location-text">
@@ -18,19 +28,51 @@
 </template>
 
 <script setup>
-import { Location, Position } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import { Location, Position, Star } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { useFavoriteStore } from '@/stores/favoriteStore.js'
+import { useAuthStore } from '@/stores/authStore.js'
 
 const props = defineProps({
   stop: {
     type: Object,
     required: true
+  },
+  region: {
+    type: String,
+    default: ''
   }
 })
 
 const emit = defineEmits(['click'])
 
+const favoriteStore = useFavoriteStore()
+const authStore = useAuthStore()
+
+const favorited = computed(() =>
+  favoriteStore.isFavorite(props.region, 'stop', props.stop.stop_id)
+)
+
 const handleClick = () => {
   emit('click', props.stop)
+}
+
+const handleFavorite = async () => {
+  if (!authStore.isLoggedIn) {
+    ElMessage.warning('请先登录后再收藏')
+    return
+  }
+  try {
+    await favoriteStore.toggleFavorite({
+      region: props.region,
+      item_type: 'stop',
+      item_id: props.stop.stop_id,
+      item_name: props.stop.stop_name || props.stop.stop_id
+    })
+  } catch (e) {
+    ElMessage.error('操作失败，请重试')
+  }
 }
 </script>
 
@@ -96,5 +138,22 @@ const handleClick = () => {
   font-size: 13px;
   color: #606266;
   line-height: 1.5;
+}
+
+/* 收藏按钮 */
+.favorite-btn {
+  flex-shrink: 0;
+  color: #c0c4cc;
+  cursor: pointer;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.favorite-btn:hover {
+  color: #f0a020;
+  transform: scale(1.2);
+}
+
+.favorite-btn.is-favorited {
+  color: #f0a020;
 }
 </style>

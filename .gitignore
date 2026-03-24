@@ -8,6 +8,10 @@ __pycache__/
 .Python
 build/
 develop-eggs/
+
+# IDE
+.idea/
+.vscode/
 dist/
 downloads/
 eggs/

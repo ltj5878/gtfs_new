@@ -67,6 +67,17 @@
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
+
+              <div class="feature-item" @click="$router.push('/favorites')">
+                <div class="feature-item-icon" style="background-color: #fff8e1;">
+                  <el-icon :size="20" color="#f0a020"><Star /></el-icon>
+                </div>
+                <div class="feature-item-text">
+                  <div class="feature-item-title">我的收藏</div>
+                  <div class="feature-item-desc">查看已收藏的线路和站点</div>
+                </div>
+                <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
+              </div>
             </div>
           </div>
         </el-col>
@@ -169,7 +180,8 @@ import {
   Timer,
   DataLine,
   Monitor,
-  ArrowRight
+  ArrowRight,
+  Star
 } from '@element-plus/icons-vue'
 
 const router = useRouter()

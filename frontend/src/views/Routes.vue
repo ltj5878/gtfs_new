@@ -49,6 +49,7 @@
           v-for="route in routeStore.routes"
           :key="route.route_id"
           :route="route"
+          :region="regionStore.selectedRegion"
           @click="handleRouteClick"
         />
       </div>

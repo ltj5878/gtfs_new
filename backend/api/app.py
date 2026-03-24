@@ -6,7 +6,7 @@ GTFS 数据 RESTful API 服务
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from core.db import Database, execute_query, execute_query_one, execute_count
+from core.db import Database, execute_query, execute_query_one, execute_count, execute_write
 from core.route_mappings import enrich_route_attributes
 from typing import Dict, Any, List
 import os
@@ -16,7 +16,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from auth.routes import auth_bp
-from auth.models import init_default_user
+from auth.models import init_default_user, verify_token
 
 app = Flask(__name__)
 CORS(app)
@@ -1197,6 +1197,76 @@ def trigger_punctuality_collection():
         }))
     except Exception as e:
         return jsonify(error_response(f"数据收集失败: {str(e)}", 500)), 500
+
+
+# ==================== 收藏相关接口 ====================
+
+def _get_current_user():
+    """从请求头提取当前登录用户信息，未登录返回 None"""
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        return None
+    token = auth_header[7:]
+    return verify_token(token)
+
+
+@app.route('/api/favorites', methods=['GET'])
+def get_favorites():
+    """获取当前用户的所有收藏"""
+    user = _get_current_user()
+    if not user:
+        return jsonify(error_response("请先登录", 401)), 401
+    rows = execute_query(
+        "SELECT id, region, item_type, item_id, item_name, created_at FROM user_favorites WHERE user_id = %s ORDER BY created_at DESC",
+        (user['user_id'],)
+    )
+    return jsonify(success_response(rows))
+
+
+@app.route('/api/favorites', methods=['POST'])
+def add_favorite():
+    """添加收藏"""
+    user = _get_current_user()
+    if not user:
+        return jsonify(error_response("请先登录", 401)), 401
+    data = request.get_json() or {}
+    region = data.get('region', '').strip()
+    item_type = data.get('item_type', '').strip()
+    item_id = data.get('item_id', '').strip()
+    item_name = data.get('item_name', '').strip()
+    if not region or not item_type or not item_id:
+        return jsonify(error_response("缺少必要参数", 400)), 400
+    if item_type not in ('route', 'stop'):
+        return jsonify(error_response("item_type 必须为 route 或 stop", 400)), 400
+    try:
+        row = execute_write(
+            """INSERT INTO user_favorites (user_id, region, item_type, item_id, item_name)
+               VALUES (%s, %s, %s, %s, %s)
+               ON CONFLICT (user_id, region, item_type, item_id) DO NOTHING
+               RETURNING id""",
+            (user['user_id'], region, item_type, item_id, item_name)
+        )
+        return jsonify(success_response({"id": row['id'] if row else None, "message": "收藏成功"}))
+    except Exception as e:
+        return jsonify(error_response(f"收藏失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/favorites', methods=['DELETE'])
+def remove_favorite():
+    """取消收藏"""
+    user = _get_current_user()
+    if not user:
+        return jsonify(error_response("请先登录", 401)), 401
+    region = request.args.get('region', '').strip()
+    item_type = request.args.get('item_type', '').strip()
+    item_id = request.args.get('item_id', '').strip()
+    if not region or not item_type or not item_id:
+        return jsonify(error_response("缺少必要参数", 400)), 400
+    execute_write(
+        "DELETE FROM user_favorites WHERE user_id = %s AND region = %s AND item_type = %s AND item_id = %s",
+        (user['user_id'], region, item_type, item_id)
+    )
+    return jsonify(success_response({"message": "已取消收藏"}))
 
 
 @app.errorhandler(404)

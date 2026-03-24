@@ -117,6 +117,38 @@ def execute_query_one(query: str, params: tuple = None) -> Optional[Dict[str, An
             Database.return_connection(conn)
 
 
+def execute_write(query: str, params: tuple = None) -> Optional[Dict[str, Any]]:
+    """
+    执行写操作（INSERT/UPDATE/DELETE）并提交事务
+
+    Args:
+        query: SQL 语句（支持 RETURNING 子句）
+        params: 查询参数
+
+    Returns:
+        RETURNING 子句返回的第一行字典，无 RETURNING 则返回 None
+    """
+    conn = None
+    try:
+        conn = Database.get_connection()
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(query, params)
+            conn.commit()
+            try:
+                result = cursor.fetchone()
+                return dict(result) if result else None
+            except Exception:
+                return None
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        print(f"写操作执行失败: {e}")
+        raise
+    finally:
+        if conn:
+            Database.return_connection(conn)
+
+
 def execute_count(query: str, params: tuple = None) -> int:
     """
     执行计数查询

@@ -36,6 +36,7 @@
           v-for="stop in stopStore.stops"
           :key="stop.stop_id"
           :stop="stop"
+          :region="regionStore.selectedRegion"
           @click="handleStopClick"
         />
       </div>

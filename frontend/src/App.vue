@@ -22,6 +22,7 @@
             <el-menu-item index="/punctuality/stops">站点准点率</el-menu-item>
             <el-menu-item index="/punctuality/realtime">实时监控</el-menu-item>
           </el-sub-menu>
+          <el-menu-item index="/favorites">我的收藏</el-menu-item>
         </el-menu>
         <div class="header-right">
           <RegionSelector />
@@ -48,23 +49,33 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { TrendCharts, User } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/authStore.js'
 import { useRegionStore } from '@/stores/regionStore.js'
+import { useFavoriteStore } from '@/stores/favoriteStore.js'
 import RegionSelector from '@/components/RegionSelector.vue'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const regionStore = useRegionStore()
+const favoriteStore = useFavoriteStore()
+
+// 页面刷新后若已登录，自动拉取收藏列表
+onMounted(() => {
+  if (authStore.isLoggedIn) {
+    favoriteStore.fetchFavorites()
+  }
+})
 
 const activeMenu = computed(() => {
   const path = route.path
   if (path.startsWith('/punctuality')) return path
   if (path.startsWith('/routes')) return '/routes'
   if (path.startsWith('/stops')) return '/stops'
+  if (path.startsWith('/favorites')) return '/favorites'
   return '/'
 })
 
