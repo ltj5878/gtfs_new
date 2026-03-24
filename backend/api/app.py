@@ -303,45 +303,81 @@ def get_stops():
         lon = request.args.get('lon', type=float)
         radius = request.args.get('radius', 1.0, type=float)
         region = request.args.get('region', type=str)
+        agency_id = request.args.get('agency_id', type=str)
 
         offset = (page - 1) * page_size
 
-        where_clauses = []
-        params = []
+        # 按运营机构筛选时需要 JOIN
+        if agency_id:
+            where_clauses = ["r.agency_id = %s"]
+            params = [agency_id]
+            if region:
+                where_clauses.append("s.region = %s")
+                params.append(region)
+            if search:
+                where_clauses.append("s.stop_name ILIKE %s")
+                params.append(f"%{search}%")
+            where_sql = " AND ".join(where_clauses)
 
-        if region:
-            where_clauses.append("region = %s")
-            params.append(region)
+            count_query = f"""
+                SELECT COUNT(DISTINCT s.stop_id) FROM stops s
+                JOIN stop_times st ON s.region = st.region AND s.stop_id = st.stop_id
+                JOIN trips t ON st.region = t.region AND st.trip_id = t.trip_id
+                JOIN routes r ON t.region = r.region AND t.route_id = r.route_id
+                WHERE {where_sql}
+            """
+            total = execute_count(count_query, tuple(params))
 
-        if search:
-            where_clauses.append("stop_name ILIKE %s")
-            params.append(f"%{search}%")
+            query = f"""
+                SELECT DISTINCT s.region, s.stop_id, s.stop_code, s.stop_name, s.stop_lat, s.stop_lon,
+                       s.zone_id, s.stop_desc, s.stop_url, s.location_type,
+                       s.parent_station, s.stop_timezone, s.wheelchair_boarding, s.platform_code
+                FROM stops s
+                JOIN stop_times st ON s.region = st.region AND s.stop_id = st.stop_id
+                JOIN trips t ON st.region = t.region AND st.trip_id = t.trip_id
+                JOIN routes r ON t.region = r.region AND t.route_id = r.route_id
+                WHERE {where_sql}
+                ORDER BY s.stop_name
+                LIMIT %s OFFSET %s
+            """
+            params.extend([page_size, offset])
+        else:
+            where_clauses = []
+            params = []
 
-        if lat is not None and lon is not None:
-            where_clauses.append("""
-                (6371 * acos(
-                    cos(radians(%s)) * cos(radians(stop_lat)) *
-                    cos(radians(stop_lon) - radians(%s)) +
-                    sin(radians(%s)) * sin(radians(stop_lat))
-                )) <= %s
-            """)
-            params.extend([lat, lon, lat, radius])
+            if region:
+                where_clauses.append("region = %s")
+                params.append(region)
 
-        where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+            if search:
+                where_clauses.append("stop_name ILIKE %s")
+                params.append(f"%{search}%")
 
-        count_query = f"SELECT COUNT(*) FROM stops WHERE {where_sql}"
-        total = execute_count(count_query, tuple(params))
+            if lat is not None and lon is not None:
+                where_clauses.append("""
+                    (6371 * acos(
+                        cos(radians(%s)) * cos(radians(stop_lat)) *
+                        cos(radians(stop_lon) - radians(%s)) +
+                        sin(radians(%s)) * sin(radians(stop_lat))
+                    )) <= %s
+                """)
+                params.extend([lat, lon, lat, radius])
 
-        query = f"""
-            SELECT region, stop_id, stop_code, stop_name, stop_lat, stop_lon,
-                   zone_id, stop_desc, stop_url, location_type,
-                   parent_station, stop_timezone, wheelchair_boarding, platform_code
-            FROM stops
-            WHERE {where_sql}
-            ORDER BY stop_name
-            LIMIT %s OFFSET %s
-        """
-        params.extend([page_size, offset])
+            where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+
+            count_query = f"SELECT COUNT(*) FROM stops WHERE {where_sql}"
+            total = execute_count(count_query, tuple(params))
+
+            query = f"""
+                SELECT region, stop_id, stop_code, stop_name, stop_lat, stop_lon,
+                       zone_id, stop_desc, stop_url, location_type,
+                       parent_station, stop_timezone, wheelchair_boarding, platform_code
+                FROM stops
+                WHERE {where_sql}
+                ORDER BY stop_name
+                LIMIT %s OFFSET %s
+            """
+            params.extend([page_size, offset])
 
         stops = execute_query(query, tuple(params))
 

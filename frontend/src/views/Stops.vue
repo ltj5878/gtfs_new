@@ -2,12 +2,27 @@
   <div class="stops-page">
     <div class="page-header">
       <h1>站点列表</h1>
-      <div class="search-section">
+      <div class="toolbar">
         <SearchBar
           v-model="searchKeyword"
           placeholder="搜索站点名称..."
           @search="handleSearch"
+          class="toolbar-search"
         />
+        <el-select
+          v-model="selectedAgency"
+          placeholder="运营机构"
+          clearable
+          @change="handleFilter"
+          style="width: 160px"
+        >
+          <el-option
+            v-for="a in agencies"
+            :key="a.agency_id"
+            :label="a.agency_name"
+            :value="a.agency_id"
+          />
+        </el-select>
       </div>
     </div>
 
@@ -45,6 +60,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useStopStore } from '@/stores/stopStore'
 import { useRegionStore } from '@/stores/regionStore'
+import { getAgencies } from '@/api/common'
 import SearchBar from '@/components/SearchBar.vue'
 import StopCard from '@/components/StopCard.vue'
 
@@ -53,8 +69,19 @@ const stopStore = useStopStore()
 const regionStore = useRegionStore()
 
 const searchKeyword = ref('')
+const selectedAgency = ref(null)
+const agencies = ref([])
 const currentPage = ref(1)
 const pageSize = ref(20)
+
+const fetchAgencies = async () => {
+  try {
+    const data = await getAgencies()
+    agencies.value = data
+  } catch (e) {
+    console.error('加载运营机构失败:', e)
+  }
+}
 
 const fetchStops = async () => {
   const params = {
@@ -66,6 +93,10 @@ const fetchStops = async () => {
     params.search = searchKeyword.value
   }
 
+  if (selectedAgency.value) {
+    params.agency_id = selectedAgency.value
+  }
+
   try {
     await stopStore.fetchStops(params)
   } catch (error) {
@@ -74,6 +105,11 @@ const fetchStops = async () => {
 }
 
 const handleSearch = () => {
+  currentPage.value = 1
+  fetchStops()
+}
+
+const handleFilter = () => {
   currentPage.value = 1
   fetchStops()
 }
@@ -92,12 +128,15 @@ const handleStopClick = (stop) => {
 }
 
 onMounted(() => {
+  fetchAgencies()
   fetchStops()
 })
 
 watch(() => regionStore.selectedRegion, () => {
   currentPage.value = 1
   searchKeyword.value = ''
+  selectedAgency.value = null
+  fetchAgencies()
   fetchStops()
 })
 </script>
@@ -108,13 +147,22 @@ watch(() => regionStore.selectedRegion, () => {
 }
 
 .page-header h1 {
-  margin: 0 0 20px;
+  margin: 0 0 16px;
   font-size: 28px;
   font-weight: 600;
 }
 
-.search-section {
-  margin-bottom: 16px;
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.toolbar-search {
+  flex: 1;
+  min-width: 200px;
 }
 
 .stops-content {
@@ -135,6 +183,13 @@ watch(() => regionStore.selectedRegion, () => {
 }
 
 @media (max-width: 768px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .toolbar-search {
+    min-width: unset;
+  }
   .stops-grid {
     grid-template-columns: 1fr;
   }

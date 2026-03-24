@@ -2,19 +2,33 @@
   <div class="routes-page">
     <div class="page-header">
       <h1>线路列表</h1>
-      <div class="search-section">
+      <div class="toolbar">
         <SearchBar
           v-model="searchKeyword"
           placeholder="搜索线路名称..."
           @search="handleSearch"
+          class="toolbar-search"
         />
-      </div>
-      <div class="filter-section">
+        <el-select
+          v-model="selectedAgency"
+          placeholder="运营机构"
+          clearable
+          @change="handleFilter"
+          style="width: 160px"
+        >
+          <el-option
+            v-for="a in agencies"
+            :key="a.agency_id"
+            :label="a.agency_name"
+            :value="a.agency_id"
+          />
+        </el-select>
         <el-select
           v-model="selectedRouteType"
           placeholder="线路类型"
           clearable
           @change="handleFilter"
+          style="width: 130px"
         >
           <el-option label="全部类型" :value="null" />
           <el-option label="公交" :value="3" />
@@ -59,6 +73,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useRouteStore } from '@/stores/routeStore'
 import { useRegionStore } from '@/stores/regionStore'
+import { getAgencies } from '@/api/common'
 import SearchBar from '@/components/SearchBar.vue'
 import RouteCard from '@/components/RouteCard.vue'
 
@@ -68,8 +83,19 @@ const regionStore = useRegionStore()
 
 const searchKeyword = ref('')
 const selectedRouteType = ref(null)
+const selectedAgency = ref(null)
+const agencies = ref([])
 const currentPage = ref(1)
 const pageSize = ref(20)
+
+const fetchAgencies = async () => {
+  try {
+    const data = await getAgencies()
+    agencies.value = data
+  } catch (e) {
+    console.error('加载运营机构失败:', e)
+  }
+}
 
 const fetchRoutes = async () => {
   const params = {
@@ -83,6 +109,10 @@ const fetchRoutes = async () => {
 
   if (selectedRouteType.value !== null) {
     params.route_type = selectedRouteType.value
+  }
+
+  if (selectedAgency.value) {
+    params.agency_id = selectedAgency.value
   }
 
   try {
@@ -116,6 +146,7 @@ const handleRouteClick = (route) => {
 }
 
 onMounted(() => {
+  fetchAgencies()
   fetchRoutes()
 })
 
@@ -123,6 +154,8 @@ watch(() => regionStore.selectedRegion, () => {
   currentPage.value = 1
   searchKeyword.value = ''
   selectedRouteType.value = null
+  selectedAgency.value = null
+  fetchAgencies()
   fetchRoutes()
 })
 </script>
@@ -133,19 +166,22 @@ watch(() => regionStore.selectedRegion, () => {
 }
 
 .page-header h1 {
-  margin: 0 0 20px;
+  margin: 0 0 16px;
   font-size: 28px;
   font-weight: 600;
 }
 
-.search-section {
-  margin-bottom: 16px;
-}
-
-.filter-section {
+.toolbar {
   display: flex;
+  align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.toolbar-search {
+  flex: 1;
+  min-width: 200px;
 }
 
 .routes-content {
@@ -166,6 +202,13 @@ watch(() => regionStore.selectedRegion, () => {
 }
 
 @media (max-width: 768px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .toolbar-search {
+    min-width: unset;
+  }
   .routes-grid {
     grid-template-columns: 1fr;
   }

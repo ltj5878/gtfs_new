@@ -176,8 +176,8 @@ class GTFSImporter:
 
                 insert_columns = ['region'] + matched_columns
 
-                # 准备 INSERT 语句
-                insert_query = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
+                # 准备 INSERT 语句（冲突时跳过，支持多运营机构同 region 导入）
+                insert_query = sql.SQL("INSERT INTO {} ({}) VALUES ({}) ON CONFLICT DO NOTHING").format(
                     sql.Identifier(table_name),
                     sql.SQL(', ').join(map(sql.Identifier, insert_columns)),
                     sql.SQL(', ').join(sql.Placeholder() * len(insert_columns))
@@ -188,7 +188,7 @@ class GTFSImporter:
                 for row in rows:
                     values = tuple(
                         [self.region] +
-                        [row.get(c) or None for c in matched_columns]
+                        [v.strip() if (v := row.get(c)) and v.strip() else None for c in matched_columns]
                     )
                     data.append(values)
 
