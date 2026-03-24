@@ -17,6 +17,8 @@ from data_acquisition.mta_data_fetcher import MTADataFetcher
 from data_acquisition.tfnsw_data_fetcher import TfNSWDataFetcher
 from business_logic.punctuality_calculator import PunctualityCalculator, DelayRecord, PunctualityThresholds
 from core.db import Database, execute_query, execute_query_one, execute_count
+from core.config import get_config
+from services.mock_data_generator import MockDataGenerator
 
 def get_connection():
     return Database.get_connection()
@@ -59,30 +61,51 @@ class PunctualityDataService:
         },
     }
 
-    def __init__(self, api_key: str, region: str = 'sf',
+    def __init__(self, api_key: str = None, region: str = 'sf',
                  mta_api_key: Optional[str] = None,
                  tfnsw_api_key: Optional[str] = None):
         """
         初始化服务
 
         Args:
-            api_key: 511 SF Bay API Key
+            api_key: 511 SF Bay API Key（可选，优先从配置文件读取）
             region: 地区标识（sf, nyc, sydney）
             mta_api_key: MTA API Key（纽约实时数据需要）
             tfnsw_api_key: TfNSW API Key（悉尼数据需要）
         """
-        self.api_key = api_key
         self.region = region
         self.punctuality_calculator = PunctualityCalculator()
         self.is_running = False
         self.last_collection_time = None
+
+        # 加载配置
+        config = get_config()
+        punctuality_config = config.get_punctuality_config()
+
+        # 从配置文件读取 API Key（如果未提供）
+        if not api_key:
+            api_key = config.get_api_key(region)
+        if not mta_api_key and region == 'nyc':
+            mta_api_key = config.get_api_key('nyc')
+        if not tfnsw_api_key and region == 'sydney':
+            tfnsw_api_key = config.get_api_key('sydney')
+
+        self.api_key = api_key
+
+        # 存储配置
+        self.fallback_to_mock = punctuality_config.get('fallback_to_mock', True)
+        self.retry_attempts = punctuality_config.get('retry_attempts', 3)
+        self.retry_delay = punctuality_config.get('retry_delay_seconds', 5)
+
+        # 初始化模拟数据生成器
+        self.mock_generator = MockDataGenerator(region)
 
         # 根据 region 初始化对应的 Fetcher
         self.data_fetcher = self._create_fetcher(region, api_key, mta_api_key, tfnsw_api_key)
 
         # 从数据库加载配置
         self.config = self._load_config()
-        logger.info(f"初始化完成，region={region}，配置: {self.config}")
+        logger.info(f"初始化完成，region={region}，fallback_to_mock={self.fallback_to_mock}，retry_attempts={self.retry_attempts}")
 
     def _create_fetcher(self, region: str, sf_key: str,
                         mta_key: Optional[str], tfnsw_key: Optional[str]):
@@ -134,18 +157,60 @@ class PunctualityDataService:
     def collect_realtime_data(self) -> bool:
         """
         收集实时数据并计算准点率
+        支持重试机制和降级到模拟数据
 
         Returns:
             bool: 收集是否成功
         """
+        logger.info(f"开始收集实时数据 (region={self.region})...")
+        start_time = datetime.now()
+
+        # 如果没有数据获取器，直接降级
+        if not self.data_fetcher:
+            logger.warning(f"地区 {self.region} 的数据获取器未初始化")
+            if self.fallback_to_mock:
+                return self._fallback_to_mock_data()
+            return False
+
+        # 尝试获取真实数据（带重试）
+        for attempt in range(1, self.retry_attempts + 1):
+            try:
+                logger.info(f"尝试获取真实数据 (第 {attempt}/{self.retry_attempts} 次)")
+
+                success = self._fetch_and_process_real_data()
+
+                if success:
+                    duration = (datetime.now() - start_time).total_seconds()
+                    logger.info(f"真实数据收集成功，耗时 {duration:.2f} 秒")
+                    return True
+
+                # 如果失败且还有重试次数，等待后重试
+                if attempt < self.retry_attempts:
+                    logger.warning(f"获取失败，{self.retry_delay} 秒后重试...")
+                    time.sleep(self.retry_delay)
+
+            except Exception as e:
+                logger.error(f"第 {attempt} 次尝试失败: {e}")
+                if attempt < self.retry_attempts:
+                    logger.warning(f"{self.retry_delay} 秒后重试...")
+                    time.sleep(self.retry_delay)
+
+        # 所有重试都失败，降级到模拟数据
+        logger.warning(f"真实数据获取失败（已重试 {self.retry_attempts} 次）")
+        if self.fallback_to_mock:
+            logger.info("降级到模拟数据模式")
+            return self._fallback_to_mock_data()
+
+        return False
+
+    def _fetch_and_process_real_data(self) -> bool:
+        """
+        获取并处理真实数据
+
+        Returns:
+            bool: 是否成功
+        """
         try:
-            logger.info(f"开始收集实时数据 (region={self.region})...")
-            start_time = datetime.now()
-
-            if not self.data_fetcher:
-                logger.warning(f"地区 {self.region} 的数据获取器未初始化")
-                return False
-
             region_config = self.REGION_FETCHER_CONFIG.get(self.region, {})
 
             # 根据地区类型获取数据
@@ -194,13 +259,42 @@ class PunctualityDataService:
             self._update_punctuality_statistics()
 
             self.last_collection_time = datetime.now()
-            duration = (self.last_collection_time - start_time).total_seconds()
-            logger.info(f"数据收集完成，耗时: {duration:.2f}秒")
-
             return True
 
         except Exception as e:
-            logger.error(f"收集实时数据时发生错误: {e}")
+            logger.error(f"处理真实数据时发生错误: {e}")
+            return False
+
+    def _fallback_to_mock_data(self) -> bool:
+        """
+        降级到模拟数据模式
+        生成并插入模拟的准点率数据
+
+        Returns:
+            bool: 是否成功
+        """
+        try:
+            logger.info(f"使用模拟数据模式 (region={self.region})")
+
+            # 生成并插入模拟数据
+            delay_count, vehicle_count = self.mock_generator.generate_and_insert(
+                delay_count=5,
+                vehicle_count=3
+            )
+
+            if delay_count > 0 or vehicle_count > 0:
+                # 更新准点率统计
+                self._update_punctuality_statistics()
+
+                self.last_collection_time = datetime.now()
+                logger.info(f"模拟数据生成成功: {delay_count} 条延误记录, {vehicle_count} 条车辆位置")
+                return True
+            else:
+                logger.warning("模拟数据生成失败")
+                return False
+
+        except Exception as e:
+            logger.error(f"生成模拟数据时发生错误: {e}")
             return False
 
     def _store_vehicle_positions(self, vehicle_positions: List[Dict[str, Any]]) -> None:
@@ -217,6 +311,10 @@ class PunctualityDataService:
             current_time = datetime.now(timezone.utc)
 
             for position in vehicle_positions:
+                # 过滤掉缺少经纬度的无效数据
+                if position.get('latitude') is None or position.get('longitude') is None:
+                    continue
+
                 insert_data.append((
                     self.region,
                     position.get('vehicle_id'),
@@ -309,9 +407,21 @@ class PunctualityDataService:
             conn = get_connection()
             cursor = conn.cursor()
 
-            # 准备插入数据
+            # 查询当前地区有效的 route_id，过滤掉静态数据中不存在的线路
+            cursor.execute(
+                "SELECT route_id FROM routes WHERE region = %s",
+                (self.region,)
+            )
+            valid_route_ids = {row[0] for row in cursor.fetchall()}
+
+            # 准备插入数据（过滤无效 route_id）
             insert_data = []
+            skipped = 0
             for record in delay_records:
+                if record.route_id not in valid_route_ids:
+                    skipped += 1
+                    continue
+
                 insert_data.append((
                     self.region,
                     record.trip_id,
@@ -327,6 +437,13 @@ class PunctualityDataService:
                     'GTFS_Realtime',
                     False  # processed
                 ))
+
+            if skipped > 0:
+                logger.info(f"跳过 {skipped} 条无效 route_id 的延误记录")
+
+            if not insert_data:
+                logger.warning("没有有效的延误记录可存储")
+                return
 
             # 使用批量插入
             query = """

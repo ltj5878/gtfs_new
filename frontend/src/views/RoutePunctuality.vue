@@ -47,7 +47,6 @@
             <el-option label="最近7天" value="7" />
             <el-option label="最近30天" value="30" />
             <el-option label="最近90天" value="90" />
-            <el-option label="自定义" value="custom" />
           </el-select>
         </el-col>
         <el-col :span="6" v-if="filters.timeRange === 'custom'">
@@ -124,11 +123,14 @@
         stripe
         @sort-change="handleTableSort"
       >
-        <el-table-column prop="route_short_name" label="线路" width="120" sortable>
+        <template #empty>
+          <el-empty description="暂无准点率数据，请确认数据收集服务已启动" />
+        </template>
+        <el-table-column prop="route_short_name" label="线路" min-width="200" sortable>
           <template #default="{ row }">
             <div class="route-name">
               <div class="route-short">{{ row.route_short_name || row.route_id }}</div>
-              <div class="route-long">{{ truncateText(row.route_long_name, 20) }}</div>
+              <div class="route-long">{{ truncateText(row.route_long_name, 40) }}</div>
             </div>
           </template>
         </el-table-column>
@@ -170,7 +172,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="准点分布" width="200">
+        <el-table-column label="准点分布" min-width="200">
           <template #default="{ row }">
             <div class="punctuality-distribution">
               <div class="dist-item" :title="`准点: ${row.on_time_trips || 0}班`">
@@ -473,7 +475,43 @@ const viewRouteDetail = (route) => {
 }
 
 const exportData = () => {
-  ElMessage.info('导出功能开发中...')
+  const routes = filteredRoutes.value
+  if (!routes.length) {
+    ElMessage.warning('没有可导出的数据')
+    return
+  }
+
+  // CSV 表头
+  const headers = ['线路ID', '线路简称', '线路全称', '准点率(%)', '总班次', '准点班次', '提前班次', '延误班次', '严重延误班次', '平均延误(分钟)', '最大延误(分钟)', '最后统计日期']
+  const rows = routes.map(r => [
+    r.route_id,
+    r.route_short_name || '',
+    r.route_long_name || '',
+    (r.avg_punctuality_rate || 0).toFixed(1),
+    r.total_trips || 0,
+    r.on_time_trips || 0,
+    r.early_trips || 0,
+    r.late_trips || 0,
+    r.very_late_trips || 0,
+    (r.avg_delay_minutes || 0).toFixed(2),
+    (r.max_delay_minutes || 0).toFixed(2),
+    r.last_stat_date || ''
+  ])
+
+  // 生成 CSV 内容（带 BOM 以支持中文 Excel 打开）
+  const csvContent = '\uFEFF' + [headers, ...rows].map(row =>
+    row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+  ).join('\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `线路准点率_${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+
+  ElMessage.success(`已导出 ${routes.length} 条线路数据`)
 }
 
 // 工具方法

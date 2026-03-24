@@ -1,0 +1,13 @@
+{
+  "api_keys": {
+    "sf": "",
+    "nyc": "",
+    "sydney": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJiT1pUTzVrUFlGRUltV25mNHUtbzJYNFBucEx2UXZyb3h3eHJmMC12eWIwIiwiaWF0IjoxNzczNDE5MjcxfQ.4bXRaCjrCWHYmJk3xaDMu6-GPH_pQzOOykQ8_ePqGPM"
+  },
+  "punctuality": {
+    "fallback_to_mock": true,
+    "collection_interval_minutes": 2,
+    "retry_attempts": 3,
+    "retry_delay_seconds": 5
+  }
+}

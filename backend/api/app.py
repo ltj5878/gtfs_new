@@ -788,6 +788,8 @@ def get_route_punctuality():
         route_id = request.args.get('route_id')
         date = request.args.get('date')
         region = request.args.get('region')
+        start_date = request.args.get('startDate')
+        end_date = request.args.get('endDate')
         days = min(int(request.args.get('days', 7)), 90)
         limit = min(int(request.args.get('limit', 20)), 100)
 
@@ -811,14 +813,25 @@ def get_route_punctuality():
             if date:
                 query += " AND rdp.stat_date = %s"
                 params.append(date)
+            elif start_date and end_date:
+                query += " AND rdp.stat_date >= %s AND rdp.stat_date <= %s"
+                params.extend([start_date, end_date])
             else:
                 query += " AND rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'" % days
 
             query += " ORDER BY rdp.stat_date DESC"
             results = execute_query(query, params)
         else:
-            region_clause = ""
+            # 构建日期过滤条件
+            date_clause = ""
             params = []
+            if start_date and end_date:
+                date_clause = "rdp.stat_date >= %s AND rdp.stat_date <= %s"
+                params.extend([start_date, end_date])
+            else:
+                date_clause = "rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'" % days
+
+            region_clause = ""
             if region:
                 region_clause = " AND rdp.region = %s"
                 params.append(region)
@@ -837,9 +850,9 @@ def get_route_punctuality():
                     MAX(rdp.stat_date) as last_stat_date
                 FROM route_daily_punctuality rdp
                 JOIN routes r ON rdp.region = r.region AND rdp.route_id = r.route_id
-                WHERE rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
+                WHERE %s
                 %s
-            """ % (days, region_clause)
+            """ % (date_clause, region_clause)
             query += " GROUP BY rdp.route_id, r.route_short_name, r.route_long_name"
             query += " ORDER BY avg_punctuality_rate DESC LIMIT %s"
             params.append(limit)
