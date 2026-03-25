@@ -16,7 +16,7 @@ from data_acquisition.gtfs_data_fetcher import GTFSDataFetcher
 from data_acquisition.mta_data_fetcher import MTADataFetcher
 from data_acquisition.tfnsw_data_fetcher import TfNSWDataFetcher
 from business_logic.punctuality_calculator import PunctualityCalculator, DelayRecord, PunctualityThresholds
-from core.db import Database, execute_query, execute_query_one, execute_count
+from core.db import Database, execute_query, execute_query_one, execute_count, execute_write
 from core.config import get_config
 from services.mock_data_generator import MockDataGenerator
 
@@ -123,6 +123,17 @@ class PunctualityDataService:
             logger.warning(f"不支持的地区: {region}")
             return None
 
+    def _log_api_call(self, api_name: str, endpoint: str, latency_ms: int,
+                      status_code: int, error_msg: str = None) -> None:
+        """记录第三方 API 调用日志到数据库（零干扰，异常不影响主流程）"""
+        try:
+            execute_write(
+                "INSERT INTO api_call_logs (region, api_name, endpoint, latency_ms, status_code, error_msg) VALUES (%s, %s, %s, %s, %s, %s)",
+                (self.region, api_name, endpoint, latency_ms, status_code, error_msg)
+            )
+        except Exception as e:
+            logger.debug(f"API 日志写入失败（不影响主流程）: {e}")
+
     def _load_config(self) -> Dict[str, Any]:
         """从数据库加载配置"""
         try:
@@ -213,23 +224,51 @@ class PunctualityDataService:
         try:
             region_config = self.REGION_FETCHER_CONFIG.get(self.region, {})
 
-            # 根据地区类型获取数据
-            if region_config.get('type') == 'sf_511':
-                vehicle_positions_feed = self.data_fetcher.fetch_gtfs_realtime(
-                    operator_id=region_config.get('operator_id', 'SF'),
-                    feed_type=region_config.get('vehicle_feed', 'vehiclepositions')
-                )
-                trip_updates_feed = self.data_fetcher.fetch_gtfs_realtime(
-                    operator_id=region_config.get('operator_id', 'SF'),
-                    feed_type=region_config.get('trip_feed', 'tripupdates')
-                )
-            else:
-                vehicle_positions_feed = self.data_fetcher.fetch_gtfs_realtime(
-                    feed_type=region_config.get('vehicle_feed')
-                )
-                trip_updates_feed = self.data_fetcher.fetch_gtfs_realtime(
-                    feed_type=region_config.get('trip_feed')
-                )
+            # 根据地区类型获取数据（带计时和日志记录）
+            API_NAME_MAP = {'sf_511': '511_SF_BAY', 'mta': 'MTA_NYC', 'tfnsw': 'TFNSW_SYDNEY'}
+            api_name = API_NAME_MAP.get(region_config.get('type', ''), region_config.get('type', 'UNKNOWN'))
+
+            # 获取车辆位置数据
+            _t0 = time.time()
+            try:
+                if region_config.get('type') == 'sf_511':
+                    vehicle_positions_feed = self.data_fetcher.fetch_gtfs_realtime(
+                        operator_id=region_config.get('operator_id', 'SF'),
+                        feed_type=region_config.get('vehicle_feed', 'vehiclepositions')
+                    )
+                else:
+                    vehicle_positions_feed = self.data_fetcher.fetch_gtfs_realtime(
+                        feed_type=region_config.get('vehicle_feed')
+                    )
+                _latency = int((time.time() - _t0) * 1000)
+                _code = 200 if vehicle_positions_feed else 500
+                self._log_api_call(api_name, region_config.get('vehicle_feed', 'vehiclepositions'), _latency, _code,
+                                   None if vehicle_positions_feed else '返回数据为空')
+            except Exception as _e:
+                _latency = int((time.time() - _t0) * 1000)
+                self._log_api_call(api_name, region_config.get('vehicle_feed', 'vehiclepositions'), _latency, 500, str(_e))
+                raise
+
+            # 获取行程更新数据
+            _t0 = time.time()
+            try:
+                if region_config.get('type') == 'sf_511':
+                    trip_updates_feed = self.data_fetcher.fetch_gtfs_realtime(
+                        operator_id=region_config.get('operator_id', 'SF'),
+                        feed_type=region_config.get('trip_feed', 'tripupdates')
+                    )
+                else:
+                    trip_updates_feed = self.data_fetcher.fetch_gtfs_realtime(
+                        feed_type=region_config.get('trip_feed')
+                    )
+                _latency = int((time.time() - _t0) * 1000)
+                _code = 200 if trip_updates_feed else 500
+                self._log_api_call(api_name, region_config.get('trip_feed', 'tripupdates'), _latency, _code,
+                                   None if trip_updates_feed else '返回数据为空')
+            except Exception as _e:
+                _latency = int((time.time() - _t0) * 1000)
+                self._log_api_call(api_name, region_config.get('trip_feed', 'tripupdates'), _latency, 500, str(_e))
+                raise
 
             if not vehicle_positions_feed:
                 logger.warning("无法获取车辆位置数据")

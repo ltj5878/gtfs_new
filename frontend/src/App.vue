@@ -15,6 +15,7 @@
           <el-menu-item index="/">首页</el-menu-item>
           <el-menu-item index="/routes">线路</el-menu-item>
           <el-menu-item index="/stops">站点</el-menu-item>
+          <el-menu-item index="/favorites">我的收藏</el-menu-item>
           <el-sub-menu index="/punctuality">
             <template #title>准点率</template>
             <el-menu-item index="/punctuality">准点率概览</el-menu-item>
@@ -22,7 +23,7 @@
             <el-menu-item index="/punctuality/stops">站点准点率</el-menu-item>
             <el-menu-item index="/punctuality/realtime">实时监控</el-menu-item>
           </el-sub-menu>
-          <el-menu-item index="/favorites">我的收藏</el-menu-item>
+          <el-menu-item index="/admin">运维看板</el-menu-item>
         </el-menu>
         <div class="header-right">
           <RegionSelector />
@@ -76,6 +77,7 @@ const activeMenu = computed(() => {
   if (path.startsWith('/routes')) return '/routes'
   if (path.startsWith('/stops')) return '/stops'
   if (path.startsWith('/favorites')) return '/favorites'
+  if (path.startsWith('/admin')) return '/admin'
   return '/'
 })
 

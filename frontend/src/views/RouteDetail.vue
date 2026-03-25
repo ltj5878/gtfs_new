@@ -11,6 +11,16 @@
                 </span>
               </div>
               <span>{{ routeStore.currentRoute.route_long_name }}</span>
+              <!-- 收藏按钮 -->
+              <el-icon
+                class="favorite-btn"
+                :class="{ 'is-favorited': routeFavorited }"
+                :size="22"
+                @click.stop="handleFavorite"
+                :title="routeFavorited ? '取消收藏' : '收藏此线路'"
+              >
+                <Star />
+              </el-icon>
             </div>
           </template>
         </el-page-header>
@@ -106,16 +116,47 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useRouteStore } from '@/stores/routeStore'
+import { useRegionStore } from '@/stores/regionStore'
+import { useFavoriteStore } from '@/stores/favoriteStore.js'
+import { useAuthStore } from '@/stores/authStore.js'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { Loading } from '@element-plus/icons-vue'
+import { Loading, Star } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 const router = useRouter()
 const routeStore = useRouteStore()
+const regionStore = useRegionStore()
+const favoriteStore = useFavoriteStore()
+const authStore = useAuthStore()
+
+const routeFavorited = computed(() =>
+  routeStore.currentRoute
+    ? favoriteStore.isFavorite(regionStore.selectedRegion, 'route', routeStore.currentRoute.route_id)
+    : false
+)
+
+const handleFavorite = async () => {
+  if (!authStore.isLoggedIn) {
+    ElMessage.warning('请先登录后再收藏')
+    return
+  }
+  if (!routeStore.currentRoute) return
+  try {
+    await favoriteStore.toggleFavorite({
+      region: regionStore.selectedRegion,
+      item_type: 'route',
+      item_id: routeStore.currentRoute.route_id,
+      item_name: routeStore.currentRoute.route_long_name || routeStore.currentRoute.route_short_name || routeStore.currentRoute.route_id
+    })
+  } catch (e) {
+    ElMessage.error('操作失败，请重试')
+  }
+}
 
 const selectedDirection = ref(null)
 const loadingStops = ref(false)
@@ -326,6 +367,22 @@ onUnmounted(() => {
   gap: 12px;
   font-size: 20px;
   font-weight: 600;
+}
+
+.favorite-btn {
+  color: #c0c4cc;
+  cursor: pointer;
+  transition: color 0.2s, transform 0.2s;
+  flex-shrink: 0;
+}
+
+.favorite-btn:hover {
+  color: #f0a020;
+  transform: scale(1.2);
+}
+
+.favorite-btn.is-favorited {
+  color: #f0a020;
 }
 
 .route-badge {

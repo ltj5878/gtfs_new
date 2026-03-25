@@ -7,6 +7,16 @@
             <div class="stop-title">
               <el-icon :size="24"><Location /></el-icon>
               <span>{{ stopStore.currentStop.stop_name }}</span>
+              <!-- 收藏按钮 -->
+              <el-icon
+                class="favorite-btn"
+                :class="{ 'is-favorited': stopFavorited }"
+                :size="22"
+                @click.stop="handleFavorite"
+                :title="stopFavorited ? '取消收藏' : '收藏此站点'"
+              >
+                <Star />
+              </el-icon>
             </div>
           </template>
         </el-page-header>
@@ -90,21 +100,50 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useStopStore } from '@/stores/stopStore'
-import { Location, MapLocation } from '@element-plus/icons-vue'
+import { useRegionStore } from '@/stores/regionStore'
+import { useFavoriteStore } from '@/stores/favoriteStore.js'
+import { useAuthStore } from '@/stores/authStore.js'
+import { Location, MapLocation, Star } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
 const route = useRoute()
 const router = useRouter()
 const stopStore = useStopStore()
+const regionStore = useRegionStore()
+const favoriteStore = useFavoriteStore()
+const authStore = useAuthStore()
 
 const loadingRoutes = ref(false)
-
-// 地图相关变量
 const map = ref(null)
+
+const stopFavorited = computed(() =>
+  stopStore.currentStop
+    ? favoriteStore.isFavorite(regionStore.selectedRegion, 'stop', stopStore.currentStop.stop_id)
+    : false
+)
+
+const handleFavorite = async () => {
+  if (!authStore.isLoggedIn) {
+    ElMessage.warning('请先登录后再收藏')
+    return
+  }
+  if (!stopStore.currentStop) return
+  try {
+    await favoriteStore.toggleFavorite({
+      region: regionStore.selectedRegion,
+      item_type: 'stop',
+      item_id: stopStore.currentStop.stop_id,
+      item_name: stopStore.currentStop.stop_name || stopStore.currentStop.stop_id
+    })
+  } catch (e) {
+    ElMessage.error('操作失败，请重试')
+  }
+}
 
 // 修复Leaflet默认图标问题
 delete L.Icon.Default.prototype._getIconUrl
@@ -239,6 +278,22 @@ onUnmounted(() => {
   gap: 12px;
   font-size: 20px;
   font-weight: 600;
+}
+
+.favorite-btn {
+  color: #c0c4cc;
+  cursor: pointer;
+  transition: color 0.2s, transform 0.2s;
+  flex-shrink: 0;
+}
+
+.favorite-btn:hover {
+  color: #f0a020;
+  transform: scale(1.2);
+}
+
+.favorite-btn.is-favorited {
+  color: #f0a020;
 }
 
 .map-header {

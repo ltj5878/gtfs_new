@@ -74,6 +74,12 @@ const router = createRouter({
       name: 'favorites',
       component: () => import('@/views/Favorites.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/admin',
+      name: 'admin',
+      component: () => import('@/views/AdminDashboard.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

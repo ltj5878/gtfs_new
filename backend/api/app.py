@@ -1269,6 +1269,173 @@ def remove_favorite():
     return jsonify(success_response({"message": "已取消收藏"}))
 
 
+# ==================== 运维监控接口 ====================
+
+import time as _time
+
+# 数据库统计缓存（15分钟有效期）
+_db_stats_cache: Dict[str, Any] = {}
+_DB_STATS_CACHE_TTL = 900  # 15分钟
+
+
+@app.route('/api/admin/db-stats', methods=['GET'])
+def admin_db_stats():
+    """获取数据库各表存储统计（带15分钟缓存）"""
+    user = _get_current_user()
+    if not user:
+        return jsonify(error_response("请先登录", 401)), 401
+
+    now = _time.time()
+    if _db_stats_cache.get('data') and now - _db_stats_cache.get('ts', 0) < _DB_STATS_CACHE_TTL:
+        return jsonify(success_response(_db_stats_cache['data']))
+
+    try:
+        # 各表物理大小和行数估算
+        table_stats = execute_query("""
+            SELECT
+                t.relname AS table_name,
+                pg_total_relation_size(t.oid) AS total_bytes,
+                pg_size_pretty(pg_total_relation_size(t.oid)) AS total_size,
+                COALESCE(s.n_live_tup, 0) AS row_estimate
+            FROM pg_class t
+            JOIN pg_namespace n ON n.oid = t.relnamespace
+            LEFT JOIN pg_stat_user_tables s ON s.relname = t.relname
+            WHERE n.nspname = 'public' AND t.relkind = 'r'
+            ORDER BY total_bytes DESC
+            LIMIT 20
+        """)
+
+        # 数据库总大小
+        db_size = execute_query_one("SELECT pg_size_pretty(pg_database_size(current_database())) AS db_size, pg_database_size(current_database()) AS db_bytes")
+
+        # 连接数
+        conn_info = execute_query_one("SELECT count(*) AS active_connections FROM pg_stat_activity WHERE state = 'active'")
+
+        result = {
+            'db_size': db_size['db_size'] if db_size else 'N/A',
+            'db_bytes': db_size['db_bytes'] if db_size else 0,
+            'active_connections': conn_info['active_connections'] if conn_info else 0,
+            'tables': [dict(r) for r in table_stats]
+        }
+        _db_stats_cache['data'] = result
+        _db_stats_cache['ts'] = now
+        return jsonify(success_response(result))
+    except Exception as e:
+        return jsonify(error_response(f"获取数据库统计失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/admin/api-health', methods=['GET'])
+def admin_api_health():
+    """获取过去24小时第三方 API 调用健康度统计"""
+    user = _get_current_user()
+    if not user:
+        return jsonify(error_response("请先登录", 401)), 401
+
+    try:
+        # 各 region+api_name 的调用统计
+        stats = execute_query("""
+            SELECT
+                region,
+                api_name,
+                COUNT(*) AS total_calls,
+                ROUND(AVG(latency_ms)) AS avg_latency_ms,
+                SUM(CASE WHEN status_code >= 200 AND status_code < 300 THEN 1 ELSE 0 END) AS success_count,
+                SUM(CASE WHEN status_code >= 400 THEN 1 ELSE 0 END) AS error_count,
+                MAX(latency_ms) AS max_latency_ms,
+                MIN(latency_ms) AS min_latency_ms
+            FROM api_call_logs
+            WHERE created_at >= NOW() - INTERVAL '24 hours'
+            GROUP BY region, api_name
+            ORDER BY region, api_name
+        """)
+
+        # 最近10条错误记录
+        recent_errors = execute_query("""
+            SELECT region, api_name, endpoint, status_code, error_msg, created_at
+            FROM api_call_logs
+            WHERE status_code >= 400 AND created_at >= NOW() - INTERVAL '24 hours'
+            ORDER BY created_at DESC
+            LIMIT 10
+        """)
+
+        # 总调用次数
+        total = execute_query_one("SELECT COUNT(*) AS cnt FROM api_call_logs WHERE created_at >= NOW() - INTERVAL '24 hours'")
+        error_total = execute_query_one("SELECT COUNT(*) AS cnt FROM api_call_logs WHERE status_code >= 400 AND created_at >= NOW() - INTERVAL '24 hours'")
+
+        result = {
+            'total_calls_24h': total['cnt'] if total else 0,
+            'error_calls_24h': error_total['cnt'] if error_total else 0,
+            'stats': [dict(r) for r in stats],
+            'recent_errors': [dict(r) for r in recent_errors]
+        }
+        return jsonify(success_response(result))
+    except Exception as e:
+        return jsonify(error_response(f"获取API健康度失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/admin/data-freshness', methods=['GET'])
+def admin_data_freshness():
+    """获取各地区 GTFS 数据时效性信息"""
+    user = _get_current_user()
+    if not user:
+        return jsonify(error_response("请先登录", 401)), 401
+
+    try:
+        regions = ['sf', 'nyc', 'sydney']
+        freshness = []
+        for region in regions:
+            # 各地区主表记录数
+            routes_count = execute_query_one("SELECT COUNT(*) AS cnt FROM routes WHERE region = %s", (region,))
+            stops_count = execute_query_one("SELECT COUNT(*) AS cnt FROM stops WHERE region = %s", (region,))
+            trips_count = execute_query_one("SELECT COUNT(*) AS cnt FROM trips WHERE region = %s", (region,))
+
+            # 最新导入记录
+            last_import = execute_query_one(
+                "SELECT file_version, records_imported, duration_ms, status, created_at FROM data_update_logs WHERE region = %s ORDER BY created_at DESC LIMIT 1",
+                (region,)
+            )
+
+            freshness.append({
+                'region': region,
+                'routes_count': routes_count['cnt'] if routes_count else 0,
+                'stops_count': stops_count['cnt'] if stops_count else 0,
+                'trips_count': trips_count['cnt'] if trips_count else 0,
+                'last_import': dict(last_import) if last_import else None
+            })
+
+        return jsonify(success_response(freshness))
+    except Exception as e:
+        return jsonify(error_response(f"获取数据时效性失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/admin/log-api-call', methods=['POST'])
+def admin_log_api_call():
+    """记录一次第三方 API 调用日志（内部接口）"""
+    user = _get_current_user()
+    if not user:
+        return jsonify(error_response("请先登录", 401)), 401
+
+    data = request.get_json() or {}
+    region = data.get('region', '').strip()
+    api_name = data.get('api_name', '').strip()
+    endpoint = data.get('endpoint', '').strip()
+    latency_ms = data.get('latency_ms', 0)
+    status_code = data.get('status_code', 0)
+    error_msg = data.get('error_msg', None)
+
+    if not region or not api_name or not endpoint:
+        return jsonify(error_response("缺少必要参数", 400)), 400
+
+    try:
+        execute_write(
+            "INSERT INTO api_call_logs (region, api_name, endpoint, latency_ms, status_code, error_msg) VALUES (%s, %s, %s, %s, %s, %s)",
+            (region, api_name, endpoint, int(latency_ms), int(status_code), error_msg)
+        )
+        return jsonify(success_response({"message": "记录成功"}))
+    except Exception as e:
+        return jsonify(error_response(f"记录失败: {str(e)}", 500)), 500
+
+
 @app.errorhandler(404)
 def not_found(error):
     """404 错误处理"""
