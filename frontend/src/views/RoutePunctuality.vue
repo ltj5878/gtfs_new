@@ -139,12 +139,12 @@
           <template #default="{ row }">
             <div class="punctuality-cell">
               <el-progress
-                :percentage="row.avg_punctuality_rate || 0"
-                :color="getProgressColor(row.avg_punctuality_rate || 0)"
+                :percentage="getDistribution(row).onTime"
+                :color="getProgressColor(getDistribution(row).onTime)"
                 :stroke-width="8"
                 :show-text="false"
               />
-              <span class="rate-text">{{ formatPunctualityRate(row.avg_punctuality_rate) }}</span>
+              <span class="rate-text">{{ getDistribution(row).onTime }}%</span>
             </div>
           </template>
         </el-table-column>
@@ -369,9 +369,9 @@ const filteredRoutes = computed(() => {
   routes.sort((a, b) => {
     switch (filters.value.sortBy) {
       case 'punctuality_desc':
-        return (b.avg_punctuality_rate || 0) - (a.avg_punctuality_rate || 0)
+        return getDistribution(b).onTime - getDistribution(a).onTime
       case 'punctuality_asc':
-        return (a.avg_punctuality_rate || 0) - (b.avg_punctuality_rate || 0)
+        return getDistribution(a).onTime - getDistribution(b).onTime
       case 'trips_desc':
         return (b.total_trips || 0) - (a.total_trips || 0)
       case 'trips_asc':
@@ -396,7 +396,7 @@ const paginatedRoutes = computed(() => {
 
 const averagePunctualityRate = computed(() => {
   if (filteredRoutes.value.length === 0) return 0
-  const total = filteredRoutes.value.reduce((sum, route) => sum + (route.avg_punctuality_rate || 0), 0)
+  const total = filteredRoutes.value.reduce((sum, route) => sum + getDistribution(route).onTime, 0)
   return total / filteredRoutes.value.length
 })
 
