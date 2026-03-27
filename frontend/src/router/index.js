@@ -79,17 +79,29 @@ const router = createRouter({
       path: '/admin',
       name: 'admin',
       component: () => import('@/views/AdminDashboard.vue'),
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/users',
+      name: 'users',
+      component: () => import('@/views/UserManagement.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
     }
   ]
 })
 
 router.beforeEach((to, _from) => {
   const token = localStorage.getItem('auth_token')
+  const role = localStorage.getItem('auth_role')
+
   if (to.meta.requiresAuth && !token) {
     return { name: 'login' }
   }
   if (to.name === 'login' && token) {
+    return { name: 'home' }
+  }
+  // 管理员专属页面，非管理员重定向到首页
+  if (to.meta.requiresAdmin && role !== 'admin') {
     return { name: 'home' }
   }
 })

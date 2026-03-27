@@ -23,13 +23,15 @@
             <el-menu-item index="/punctuality/stops">站点准点率</el-menu-item>
             <el-menu-item index="/punctuality/realtime">实时监控</el-menu-item>
           </el-sub-menu>
-          <el-menu-item index="/admin">运维看板</el-menu-item>
+          <el-menu-item v-if="authStore.isAdmin" index="/admin">运维看板</el-menu-item>
+          <el-menu-item v-if="authStore.isAdmin" index="/users">用户管理</el-menu-item>
         </el-menu>
         <div class="header-right">
           <RegionSelector />
           <div class="header-user" v-if="authStore.isLoggedIn">
             <el-icon><User /></el-icon>
             <span>{{ authStore.username }}</span>
+            <el-tag v-if="authStore.isAdmin" type="danger" size="small" style="margin-left:4px">管理员</el-tag>
             <el-button link type="primary" @click="handleLogout">退出</el-button>
           </div>
         </div>
@@ -78,6 +80,7 @@ const activeMenu = computed(() => {
   if (path.startsWith('/stops')) return '/stops'
   if (path.startsWith('/favorites')) return '/favorites'
   if (path.startsWith('/admin')) return '/admin'
+  if (path.startsWith('/users')) return '/users'
   return '/'
 })
 

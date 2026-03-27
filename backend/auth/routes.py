@@ -19,7 +19,7 @@ def _err(msg, code=400):
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    """用户登录，返回 token"""
+    """用户登录，返回 token 和角色信息"""
     body = request.get_json(silent=True) or {}
     username = body.get('username', '').strip()
     password = body.get('password', '')
@@ -32,14 +32,17 @@ def login():
         return _err("账号不存在", 404)
     if not verify_password(password, user['password_hash']):
         return _err("密码错误", 401)
+    if not user.get('is_active', True):
+        return _err("账号已停用，请联系管理员", 403)
 
-    token = generate_token(user['id'], user['username'])
-    return _ok({"token": token, "username": user['username']})
+    role = user.get('role', 'user')
+    token = generate_token(user['id'], user['username'], role)
+    return _ok({"token": token, "username": user['username'], "role": role})
 
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
-    """用户注册"""
+    """用户注册（普通用户）"""
     body = request.get_json(silent=True) or {}
     username = body.get('username', '').strip()
     password = body.get('password', '')
@@ -54,7 +57,7 @@ def register():
     if get_user_by_username(username):
         return _err("用户名已存在", 409)
 
-    create_user(username, password)
+    create_user(username, password, role='user')
     return _ok({"message": "注册成功"})
 
 
@@ -70,7 +73,7 @@ def logout():
 
 @auth_bp.route('/me', methods=['GET'])
 def me():
-    """获取当前登录用户信息"""
+    """获取当前登录用户信息（含角色）"""
     auth_header = request.headers.get('Authorization', '')
     if not auth_header.startswith('Bearer '):
         return _err("未登录", 401)
@@ -80,4 +83,8 @@ def me():
     if not user_info:
         return _err("token 无效或已过期", 401)
 
-    return _ok({"user_id": user_info['user_id'], "username": user_info['username']})
+    return _ok({
+        "user_id": user_info['user_id'],
+        "username": user_info['username'],
+        "role": user_info.get('role', 'user')
+    })

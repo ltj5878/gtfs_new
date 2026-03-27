@@ -1210,6 +1210,16 @@ def _get_current_user():
     return verify_token(token)
 
 
+def _require_admin():
+    """校验当前用户是否为管理员，返回 (user, error_response)"""
+    user = _get_current_user()
+    if not user:
+        return None, (jsonify(error_response("请先登录", 401)), 401)
+    if user.get('role') != 'admin':
+        return None, (jsonify(error_response("权限不足，仅管理员可访问", 403)), 403)
+    return user, None
+
+
 @app.route('/api/favorites', methods=['GET'])
 def get_favorites():
     """获取当前用户的所有收藏"""
@@ -1281,22 +1291,22 @@ _DB_STATS_CACHE_TTL = 900  # 15分钟
 @app.route('/api/admin/db-stats', methods=['GET'])
 def admin_db_stats():
     """获取数据库各表存储统计（带15分钟缓存）"""
-    user = _get_current_user()
-    if not user:
-        return jsonify(error_response("请先登录", 401)), 401
+    user, err = _require_admin()
+    if err:
+        return err
 
     now = _time.time()
     if _db_stats_cache.get('data') and now - _db_stats_cache.get('ts', 0) < _DB_STATS_CACHE_TTL:
         return jsonify(success_response(_db_stats_cache['data']))
 
     try:
-        # 各表物理大小和行数估算
+        # 各表物理大小和行数（优先用统计信息，小表用精确 COUNT）
         table_stats = execute_query("""
             SELECT
                 t.relname AS table_name,
                 pg_total_relation_size(t.oid) AS total_bytes,
                 pg_size_pretty(pg_total_relation_size(t.oid)) AS total_size,
-                COALESCE(s.n_live_tup, 0) AS row_estimate
+                GREATEST(COALESCE(s.n_live_tup, 0), GREATEST(t.reltuples::bigint, 0)) AS row_estimate
             FROM pg_class t
             JOIN pg_namespace n ON n.oid = t.relnamespace
             LEFT JOIN pg_stat_user_tables s ON s.relname = t.relname
@@ -1327,9 +1337,9 @@ def admin_db_stats():
 @app.route('/api/admin/api-health', methods=['GET'])
 def admin_api_health():
     """获取过去24小时第三方 API 调用健康度统计"""
-    user = _get_current_user()
-    if not user:
-        return jsonify(error_response("请先登录", 401)), 401
+    user, err = _require_admin()
+    if err:
+        return err
 
     try:
         # 各 region+api_name 的调用统计
@@ -1376,9 +1386,9 @@ def admin_api_health():
 @app.route('/api/admin/data-freshness', methods=['GET'])
 def admin_data_freshness():
     """获取各地区 GTFS 数据时效性信息"""
-    user = _get_current_user()
-    if not user:
-        return jsonify(error_response("请先登录", 401)), 401
+    user, err = _require_admin()
+    if err:
+        return err
 
     try:
         regions = ['sf', 'nyc', 'sydney']
@@ -1411,9 +1421,9 @@ def admin_data_freshness():
 @app.route('/api/admin/log-api-call', methods=['POST'])
 def admin_log_api_call():
     """记录一次第三方 API 调用日志（内部接口）"""
-    user = _get_current_user()
-    if not user:
-        return jsonify(error_response("请先登录", 401)), 401
+    user, err = _require_admin()
+    if err:
+        return err
 
     data = request.get_json() or {}
     region = data.get('region', '').strip()
@@ -1434,6 +1444,132 @@ def admin_log_api_call():
         return jsonify(success_response({"message": "记录成功"}))
     except Exception as e:
         return jsonify(error_response(f"记录失败: {str(e)}", 500)), 500
+
+
+# ==================== 用户管理接口（仅管理员）====================
+
+from auth.models import create_user as _create_user, hash_password as _hash_password, get_user_by_username as _get_user_by_username
+
+
+@app.route('/api/users', methods=['GET'])
+def list_users():
+    """获取所有用户列表"""
+    _, err = _require_admin()
+    if err:
+        return err
+    try:
+        users = execute_query(
+            "SELECT id, username, role, is_active, created_at FROM users ORDER BY id"
+        )
+        return jsonify(success_response([dict(u) for u in users]))
+    except Exception as e:
+        return jsonify(error_response(f"获取用户列表失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/users', methods=['POST'])
+def create_user_api():
+    """创建新普通用户"""
+    _, err = _require_admin()
+    if err:
+        return err
+    data = request.get_json() or {}
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+    if not username or not password:
+        return jsonify(error_response("用户名和密码不能为空", 400)), 400
+    if not (4 <= len(username) <= 20):
+        return jsonify(error_response("用户名长度须在 4-20 个字符之间", 400)), 400
+    if len(password) < 6:
+        return jsonify(error_response("密码长度不能少于 6 位", 400)), 400
+    if _get_user_by_username(username):
+        return jsonify(error_response("用户名已存在", 409)), 409
+    try:
+        new_id = _create_user(username, password, role='user')
+        return jsonify(success_response({"id": new_id, "username": username, "role": "user"}))
+    except Exception as e:
+        return jsonify(error_response(f"创建用户失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/users/<int:user_id>', methods=['PATCH'])
+def update_user_api(user_id: int):
+    """更新用户状态（启用/停用）"""
+    admin_user, err = _require_admin()
+    if err:
+        return err
+    if admin_user['user_id'] == user_id:
+        return jsonify(error_response("不能修改自己的状态", 400)), 400
+    data = request.get_json() or {}
+    is_active = data.get('is_active')
+    if is_active is None:
+        return jsonify(error_response("缺少 is_active 参数", 400)), 400
+    try:
+        execute_write(
+            "UPDATE users SET is_active = %s WHERE id = %s",
+            (bool(is_active), user_id)
+        )
+        return jsonify(success_response({"message": "更新成功"}))
+    except Exception as e:
+        return jsonify(error_response(f"更新失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+def delete_user_api(user_id: int):
+    """删除用户（不能删除自己）"""
+    admin_user, err = _require_admin()
+    if err:
+        return err
+    if admin_user['user_id'] == user_id:
+        return jsonify(error_response("不能删除自己", 400)), 400
+    try:
+        execute_write("DELETE FROM users WHERE id = %s", (user_id,))
+        return jsonify(success_response({"message": "删除成功"}))
+    except Exception as e:
+        return jsonify(error_response(f"删除失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/users/<int:user_id>/password', methods=['GET'])
+def get_user_password(user_id: int):
+    """查看用户密码（管理员专用，返回明文密码哈希前缀用于展示，实际返回重置后的临时密码）"""
+    _, err = _require_admin()
+    if err:
+        return err
+    try:
+        user = execute_query_one("SELECT id, username, role FROM users WHERE id = %s", (user_id,))
+        if not user:
+            return jsonify(error_response("用户不存在", 404)), 404
+        if user['role'] == 'admin':
+            return jsonify(error_response("不能查看管理员密码", 403)), 403
+        # 生成临时密码并更新
+        import secrets as _secrets
+        temp_password = _secrets.token_urlsafe(8)
+        from auth.models import hash_password as _hp
+        execute_write("UPDATE users SET password_hash = %s WHERE id = %s", (_hp(temp_password), user_id))
+        return jsonify(success_response({"temp_password": temp_password, "username": user['username']}))
+    except Exception as e:
+        return jsonify(error_response(f"操作失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/users/<int:user_id>/password', methods=['PUT'])
+def update_user_password(user_id: int):
+    """修改用户密码（管理员专用）"""
+    _, err = _require_admin()
+    if err:
+        return err
+    data = request.get_json() or {}
+    new_password = data.get('password', '')
+    if len(new_password) < 6:
+        return jsonify(error_response("密码长度不能少于 6 位", 400)), 400
+    try:
+        user = execute_query_one("SELECT id, role FROM users WHERE id = %s", (user_id,))
+        if not user:
+            return jsonify(error_response("用户不存在", 404)), 404
+        if user['role'] == 'admin':
+            return jsonify(error_response("不能修改管理员密码", 403)), 403
+        from auth.models import hash_password as _hp
+        execute_write("UPDATE users SET password_hash = %s WHERE id = %s", (_hp(new_password), user_id))
+        return jsonify(success_response({"message": "密码修改成功"}))
+    except Exception as e:
+        return jsonify(error_response(f"修改失败: {str(e)}", 500)), 500
 
 
 @app.errorhandler(404)

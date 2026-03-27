@@ -6,15 +6,19 @@ import { useFavoriteStore } from '@/stores/favoriteStore.js'
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('auth_token') || '')
   const username = ref(localStorage.getItem('auth_username') || '')
+  const role = ref(localStorage.getItem('auth_role') || 'user')
 
   const isLoggedIn = computed(() => !!token.value)
+  const isAdmin = computed(() => role.value === 'admin')
 
   async function login(usernameVal, password) {
     const data = await apiLogin(usernameVal, password)
     token.value = data.token
     username.value = data.username
+    role.value = data.role || 'user'
     localStorage.setItem('auth_token', data.token)
     localStorage.setItem('auth_username', data.username)
+    localStorage.setItem('auth_role', data.role || 'user')
     // 登录成功后拉取收藏列表
     const favoriteStore = useFavoriteStore()
     favoriteStore.fetchFavorites()
@@ -28,12 +32,14 @@ export const useAuthStore = defineStore('auth', () => {
     }
     token.value = ''
     username.value = ''
+    role.value = 'user'
     localStorage.removeItem('auth_token')
     localStorage.removeItem('auth_username')
+    localStorage.removeItem('auth_role')
     // 登出时清空收藏
     const favoriteStore = useFavoriteStore()
     favoriteStore.clearFavorites()
   }
 
-  return { token, username, isLoggedIn, login, logout }
+  return { token, username, role, isLoggedIn, isAdmin, login, logout }
 })
