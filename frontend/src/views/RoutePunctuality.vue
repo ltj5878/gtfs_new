@@ -155,43 +155,51 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="avg_delay_minutes" label="平均延误" width="120" sortable="custom">
+        <el-table-column prop="avg_delay_minutes" label="平均延误" width="150" sortable="custom">
           <template #default="{ row }">
             <div class="delay-cell">
               <el-icon class="delay-icon" :class="getDelayClass(row.avg_delay_minutes || 0)">
                 <Clock />
               </el-icon>
-              <span>{{ formatDelay(row.avg_delay_minutes || 0) }}</span>
+              <span style="white-space: nowrap;">{{ formatDelay(row.avg_delay_minutes || 0) }}</span>
             </div>
           </template>
         </el-table-column>
 
-        <el-table-column prop="max_delay_minutes" label="最大延误" width="120" sortable="custom">
+        <el-table-column prop="max_delay_minutes" label="最大延误" width="150" sortable="custom">
           <template #default="{ row }">
-            <span class="max-delay">{{ formatDelay(row.max_delay_minutes || 0) }}</span>
+            <span class="max-delay" style="white-space: nowrap;">{{ formatDelay(row.max_delay_minutes || 0) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="准点分布" min-width="200">
+        <el-table-column label="准点分布" min-width="260">
           <template #default="{ row }">
             <div class="punctuality-distribution">
               <div class="dist-item" :title="`准点: ${row.on_time_trips || 0}班`">
-                <div class="dist-bar on-time" :style="{ width: getPercentage(row.on_time_trips, row.total_trips) + '%' }"></div>
-                <span class="dist-label">{{ getPercentage(row.on_time_trips, row.total_trips) }}%</span>
+                <span class="dist-name on-time-text">准点</span>
+                <div class="dist-bar on-time" :style="{ width: getDistribution(row).onTime + '%' }"></div>
+                <span class="dist-label">{{ getDistribution(row).onTime }}%</span>
               </div>
               <div class="dist-item" :title="`延误: ${row.late_trips || 0}班`">
-                <div class="dist-bar late" :style="{ width: getPercentage(row.late_trips, row.total_trips) + '%' }"></div>
-                <span class="dist-label">{{ getPercentage(row.late_trips, row.total_trips) }}%</span>
+                <span class="dist-name late-text">延误</span>
+                <div class="dist-bar late" :style="{ width: getDistribution(row).late + '%' }"></div>
+                <span class="dist-label">{{ getDistribution(row).late }}%</span>
               </div>
               <div class="dist-item" :title="`严重延误: ${row.very_late_trips || 0}班`">
-                <div class="dist-bar very-late" :style="{ width: getPercentage(row.very_late_trips, row.total_trips) + '%' }"></div>
-                <span class="dist-label">{{ getPercentage(row.very_late_trips, row.total_trips) }}%</span>
+                <span class="dist-name very-late-text">严重延误</span>
+                <div class="dist-bar very-late" :style="{ width: getDistribution(row).veryLate + '%' }"></div>
+                <span class="dist-label">{{ getDistribution(row).veryLate }}%</span>
+              </div>
+              <div class="dist-item" :title="`提前: ${row.early_trips || 0}班`">
+                <span class="dist-name early-text">提前</span>
+                <div class="dist-bar early" :style="{ width: getDistribution(row).early + '%' }"></div>
+                <span class="dist-label">{{ getDistribution(row).early }}%</span>
               </div>
             </div>
           </template>
         </el-table-column>
 
-        <el-table-column prop="last_stat_date" label="最后统计" width="120">
+        <el-table-column prop="last_stat_date" label="统计时间" width="120">
           <template #default="{ row }">
             <span class="stat-date">{{ formatDate(row.last_stat_date) }}</span>
           </template>
@@ -274,30 +282,30 @@
             <div class="chart-bar">
               <div class="bar-label">准点</div>
               <div class="bar-container">
-                <div class="bar-fill on-time" :style="{ width: getPercentage(selectedRoute.on_time_trips, selectedRoute.total_trips) + '%' }"></div>
+                <div class="bar-fill on-time" :style="{ width: getDistribution(selectedRoute).onTime + '%' }"></div>
               </div>
-              <div class="bar-value">{{ getPercentage(selectedRoute.on_time_trips, selectedRoute.total_trips) }}%</div>
+              <div class="bar-value">{{ getDistribution(selectedRoute).onTime }}%</div>
             </div>
             <div class="chart-bar">
               <div class="bar-label">延误</div>
               <div class="bar-container">
-                <div class="bar-fill late" :style="{ width: getPercentage(selectedRoute.late_trips, selectedRoute.total_trips) + '%' }"></div>
+                <div class="bar-fill late" :style="{ width: getDistribution(selectedRoute).late + '%' }"></div>
               </div>
-              <div class="bar-value">{{ getPercentage(selectedRoute.late_trips, selectedRoute.total_trips) }}%</div>
+              <div class="bar-value">{{ getDistribution(selectedRoute).late }}%</div>
             </div>
             <div class="chart-bar">
               <div class="bar-label">严重延误</div>
               <div class="bar-container">
-                <div class="bar-fill very-late" :style="{ width: getPercentage(selectedRoute.very_late_trips, selectedRoute.total_trips) + '%' }"></div>
+                <div class="bar-fill very-late" :style="{ width: getDistribution(selectedRoute).veryLate + '%' }"></div>
               </div>
-              <div class="bar-value">{{ getPercentage(selectedRoute.very_late_trips, selectedRoute.total_trips) }}%</div>
+              <div class="bar-value">{{ getDistribution(selectedRoute).veryLate }}%</div>
             </div>
             <div class="chart-bar">
               <div class="bar-label">提前</div>
               <div class="bar-container">
-                <div class="bar-fill early" :style="{ width: getPercentage(selectedRoute.early_trips, selectedRoute.total_trips) + '%' }"></div>
+                <div class="bar-fill early" :style="{ width: getDistribution(selectedRoute).early + '%' }"></div>
               </div>
-              <div class="bar-value">{{ getPercentage(selectedRoute.early_trips, selectedRoute.total_trips) }}%</div>
+              <div class="bar-value">{{ getDistribution(selectedRoute).early }}%</div>
             </div>
           </div>
         </div>
@@ -520,8 +528,9 @@ const formatPunctualityRate = (rate) => {
 }
 
 const formatDelay = (minutes) => {
-  if (!minutes) return '0分钟'
-  return `${minutes.toFixed(1)}分钟`
+  if (!minutes || minutes === 0) return '准点'
+  if (minutes < 0) return `提前 ${Math.abs(minutes).toFixed(1)} 分钟`
+  return `延误 ${minutes.toFixed(1)} 分钟`
 }
 
 const formatDate = (dateStr) => {
@@ -539,6 +548,31 @@ const getPercentage = (value, total) => {
   return Math.round((value || 0) / total * 100)
 }
 
+// 计算四项分布，用最大余数法保证总和精确为 100%
+const getDistribution = (route) => {
+  if (!route) return { onTime: 0, late: 0, veryLate: 0, early: 0 }
+  const onTime = route.on_time_trips || 0
+  const late = route.late_trips || 0
+  const veryLate = route.very_late_trips || 0
+  const early = route.early_trips || 0
+  const actualTotal = onTime + late + veryLate + early
+  if (actualTotal === 0) return { onTime: 0, late: 0, veryLate: 0, early: 0 }
+  const values = [
+    { key: 'onTime', raw: onTime / actualTotal * 100 },
+    { key: 'late', raw: late / actualTotal * 100 },
+    { key: 'veryLate', raw: veryLate / actualTotal * 100 },
+    { key: 'early', raw: early / actualTotal * 100 },
+  ]
+  values.forEach(v => { v.floor = Math.floor(v.raw); v.remainder = v.raw - v.floor })
+  let sum = values.reduce((s, v) => s + v.floor, 0)
+  const remaining = 100 - sum
+  values.sort((a, b) => b.remainder - a.remainder)
+  for (let i = 0; i < remaining; i++) values[i].floor += 1
+  const result = {}
+  values.forEach(v => { result[v.key] = v.floor })
+  return result
+}
+
 const getProgressColor = (rate) => {
   if (rate >= 90) return '#67C23A'  // 绿色
   if (rate >= 75) return '#409EFF'  // 蓝色
@@ -547,6 +581,7 @@ const getProgressColor = (rate) => {
 }
 
 const getDelayClass = (delay) => {
+  if (delay < 0) return 'delay-good'   // 早到，绿色
   if (delay <= 2) return 'delay-good'
   if (delay <= 5) return 'delay-warning'
   return 'delay-bad'
@@ -728,9 +763,22 @@ watch(() => filters.value.sortBy, () => {
 .dist-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   height: 16px;
 }
+
+.dist-name {
+  font-size: 11px;
+  font-weight: 500;
+  min-width: 48px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.dist-name.on-time-text { color: #10b981; }
+.dist-name.late-text { color: #f59e0b; }
+.dist-name.very-late-text { color: #ef4444; }
+.dist-name.early-text { color: #3b82f6; }
 
 .dist-bar {
   height: 100%;
@@ -748,6 +796,10 @@ watch(() => filters.value.sortBy, () => {
 
 .dist-bar.very-late {
   background-color: #ef4444;
+}
+
+.dist-bar.early {
+  background-color: #3b82f6;
 }
 
 .dist-label {

@@ -501,8 +501,9 @@ const formatPunctualityRate = (rate) => {
 }
 
 const formatDelay = (minutes) => {
-  if (!minutes) return '0分钟'
-  return `${minutes.toFixed(1)}分钟`
+  if (!minutes || minutes === 0) return '准点'
+  if (minutes < 0) return `提前 ${Math.abs(minutes).toFixed(1)} 分钟`
+  return `延误 ${minutes.toFixed(1)} 分钟`
 }
 
 const formatDate = (dateStr) => {
@@ -528,6 +529,7 @@ const getProgressColor = (rate) => {
 }
 
 const getDelayClass = (delay) => {
+  if (delay < 0) return 'delay-good'
   if (delay <= 2) return 'delay-good'
   if (delay <= 5) return 'delay-warning'
   return 'delay-bad'
