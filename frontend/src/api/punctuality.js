@@ -48,3 +48,18 @@ export const getPunctualityConfig = () => {
 export const updatePunctualityConfig = (configData) => {
   return apiClient.put('/punctuality/config', configData)
 }
+
+// 刷新准点率数据（生成当天新数据）
+export const refreshPunctualityData = () => {
+  return apiClient.post('/punctuality/refresh')
+}
+
+// 获取线路时刻表（含模拟实际到站时间）
+export const getRouteTimetable = (routeId, params = {}) => {
+  return apiClient.get(`/punctuality/routes/${routeId}/timetable`, { params })
+}
+
+// 获取站点时刻表（含模拟实际到站时间）
+export const getStopTimetable = (stopId, params = {}) => {
+  return apiClient.get(`/punctuality/stops/${stopId}/timetable`, { params })
+}

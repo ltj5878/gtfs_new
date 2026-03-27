@@ -44,7 +44,8 @@
       "Bash(wc -l /Users/lvtongjie/Documents/code/bs/gtfs_new/backend/business_logic/*.py)",
       "Bash(wc -l /Users/lvtongjie/Documents/code/bs/gtfs_new/backend/services/*.py)",
       "mcp__filesystem__list_directory",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(./start.sh status:*)"
     ],
     "deny": [],
     "ask": []

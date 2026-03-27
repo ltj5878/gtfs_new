@@ -58,10 +58,22 @@ const router = createRouter({
       meta: { requiresAuth: true, title: '线路准点率', icon: 'Bus' }
     },
     {
+      path: '/punctuality/routes/:routeId',
+      name: 'route-punctuality-detail',
+      component: () => import('@/views/RoutePunctualityDetail.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/punctuality/stops',
       name: 'stop-punctuality',
       component: () => import('@/views/StopPunctuality.vue'),
       meta: { requiresAuth: true, title: '站点准点率', icon: 'MapLocation' }
+    },
+    {
+      path: '/punctuality/stops/:stopId',
+      name: 'stop-punctuality-detail',
+      component: () => import('@/views/StopPunctualityDetail.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/punctuality/realtime',

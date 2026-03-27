@@ -25,7 +25,7 @@ def generate_sample_routes(region):
         cursor = conn.cursor()
 
         # 获取现有线路
-        routes_query = "SELECT route_id, route_short_name, route_long_name FROM routes WHERE region = %s LIMIT 20"
+        routes_query = "SELECT route_id, route_short_name, route_long_name FROM routes WHERE region = %s"
         routes = execute_query(routes_query, (region,))
 
         if not routes:
@@ -34,23 +34,23 @@ def generate_sample_routes(region):
 
         # 清空现有的示例数据
         cursor.execute(
-            "DELETE FROM route_daily_punctuality WHERE region = %s AND stat_date >= CURRENT_DATE - INTERVAL '7 days'",
+            "DELETE FROM route_daily_punctuality WHERE region = %s AND stat_date >= CURRENT_DATE - INTERVAL '30 days'",
             (region,)
         )
 
-        # 为每条线路生成过去7天的数据
+        # 为每条线路生成过去30天的数据
         for route in routes:
             route_id = route['route_id']
 
-            for days_ago in range(7, 0, -1):
+            for days_ago in range(30, 0, -1):
                 stat_date = datetime.now().date() - timedelta(days=days_ago)
 
                 base_punctuality_rate = random.uniform(70, 95)
 
-                if 'Rapid' in route.get('route_long_name', '') or route.get('route_short_name', '').startswith('R'):
+                if 'Rapid' in (route.get('route_long_name') or '') or (route.get('route_short_name') or '').startswith('R'):
                     base_punctuality_rate += random.uniform(-5, 10)
 
-                if 'Express' in route.get('route_long_name', '') or 'X' in route.get('route_short_name', ''):
+                if 'Express' in (route.get('route_long_name') or '') or 'X' in (route.get('route_short_name') or ''):
                     base_punctuality_rate += random.uniform(-3, 8)
 
                 punctuality_rate = min(98, max(60, base_punctuality_rate))
@@ -91,7 +91,7 @@ def generate_sample_routes(region):
         conn.commit()
         Database.return_connection(conn)
 
-        print(f"已为 {len(routes)} 条线路生成过去7天的准点率数据")
+        print(f"已为 {len(routes)} 条线路生成过去30天的准点率数据")
         return True
 
     except Exception as e:
@@ -113,7 +113,6 @@ def generate_sample_stops(region):
             FROM stops s
             JOIN stop_times st ON s.stop_id = st.stop_id AND s.region = st.region
             WHERE s.region = %s
-            LIMIT 50
         """
         stops = execute_query(stops_query, (region,))
 
@@ -122,19 +121,19 @@ def generate_sample_stops(region):
             return False
 
         cursor.execute(
-            "DELETE FROM stop_daily_punctuality WHERE region = %s AND stat_date >= CURRENT_DATE - INTERVAL '7 days'",
+            "DELETE FROM stop_daily_punctuality WHERE region = %s AND stat_date >= CURRENT_DATE - INTERVAL '30 days'",
             (region,)
         )
 
         for stop in stops:
             stop_id = stop['stop_id']
 
-            for days_ago in range(7, 0, -1):
+            for days_ago in range(30, 0, -1):
                 stat_date = datetime.now().date() - timedelta(days=days_ago)
 
                 base_punctuality_rate = random.uniform(65, 92)
 
-                if 'Station' in stop.get('stop_name', '') or 'Terminal' in stop.get('stop_name', ''):
+                if 'Station' in (stop.get('stop_name') or '') or 'Terminal' in (stop.get('stop_name') or ''):
                     base_punctuality_rate += random.uniform(-3, 5)
 
                 punctuality_rate = min(96, max(55, base_punctuality_rate))
@@ -174,7 +173,7 @@ def generate_sample_stops(region):
         conn.commit()
         Database.return_connection(conn)
 
-        print(f"已为 {len(stops)} 个站点生成过去7天的准点率数据")
+        print(f"已为 {len(stops)} 个站点生成过去30天的准点率数据")
         return True
 
     except Exception as e:

@@ -9,7 +9,10 @@ import {
   getStopPunctuality,
   getHourlyPunctuality,
   getPunctualityConfig,
-  updatePunctualityConfig as updatePunctualityConfigApi
+  updatePunctualityConfig as updatePunctualityConfigApi,
+  refreshPunctualityData as refreshPunctualityDataApi,
+  getRouteTimetable,
+  getStopTimetable
 } from '../api/punctuality'
 
 export const usePunctualityStore = defineStore('punctuality', () => {
@@ -293,6 +296,51 @@ export const usePunctualityStore = defineStore('punctuality', () => {
     }
   }
 
+  // 刷新准点率数据（生成当天新数据）
+  const refreshPunctualityData = async () => {
+    try {
+      loading.value = true
+      const response = await refreshPunctualityDataApi()
+      return response
+    } catch (err) {
+      console.error('刷新准点率数据失败:', err)
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // 获取线路时刻表
+  const fetchRouteTimetable = async (routeId, params = {}) => {
+    try {
+      loading.value = true
+      const response = await getRouteTimetable(routeId, params)
+      return response
+    } catch (err) {
+      console.error('获取线路时刻表失败:', err)
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // 获取站点时刻表
+  const fetchStopTimetable = async (stopId, params = {}) => {
+    try {
+      loading.value = true
+      const response = await getStopTimetable(stopId, params)
+      return response
+    } catch (err) {
+      console.error('获取站点时刻表失败:', err)
+      error.value = err.message
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
   // 工具方法
   const clearError = () => {
     error.value = null
@@ -372,6 +420,9 @@ export const usePunctualityStore = defineStore('punctuality', () => {
     updatePunctualityConfig,
     fetchAllPunctualityData,
     refreshRealtimeData,
+    refreshPunctualityData,
+    fetchRouteTimetable,
+    fetchStopTimetable,
 
     // 工具方法
     clearError,

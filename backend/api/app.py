@@ -827,7 +827,7 @@ def get_route_punctuality():
         start_date = request.args.get('startDate')
         end_date = request.args.get('endDate')
         days = min(int(request.args.get('days', 7)), 90)
-        limit = min(int(request.args.get('limit', 20)), 100)
+        limit = min(int(request.args.get('limit', 20)), 1000)
 
         if route_id:
             query = """
@@ -907,7 +907,7 @@ def get_stop_punctuality():
         date = request.args.get('date')
         region = request.args.get('region')
         days = min(int(request.args.get('days', 7)), 90)
-        limit = min(int(request.args.get('limit', 20)), 100)
+        limit = min(int(request.args.get('limit', 20)), 10000)
 
         if stop_id:
             query = """
@@ -1158,6 +1158,310 @@ def punctuality_config():
 
     except Exception as e:
         return jsonify(error_response(f"操作失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/punctuality/refresh', methods=['POST'])
+def refresh_punctuality_data():
+    """刷新准点率数据 — 为所有线路和站点生成当天的模拟准点率数据"""
+    import time as _t
+    import random as _rand
+    from datetime import datetime as _dt
+
+    region = request.args.get('region', 'sf')
+    today = _dt.now().date()
+
+    try:
+        conn = Database.get_connection()
+        cursor = conn.cursor()
+
+        # --- 生成线路准点率数据 ---
+        routes = execute_query(
+            "SELECT route_id, route_short_name, route_long_name FROM routes WHERE region = %s",
+            (region,)
+        )
+
+        for route in routes:
+            route_id = route['route_id']
+            base_rate = _rand.uniform(70, 95)
+            if 'Rapid' in (route.get('route_long_name') or '') or (route.get('route_short_name') or '').startswith('R'):
+                base_rate += _rand.uniform(-5, 10)
+            if 'Express' in (route.get('route_long_name') or '') or 'X' in (route.get('route_short_name') or ''):
+                base_rate += _rand.uniform(-3, 8)
+            punctuality_rate = min(98, max(60, base_rate))
+            total_trips = _rand.randint(80, 300)
+            on_time_pct = punctuality_rate / 100
+            early_pct = _rand.uniform(0.05, 0.15)
+            late_pct = (1 - on_time_pct - early_pct) * 0.7
+            very_late_pct = (1 - on_time_pct - early_pct) * 0.3
+            on_time_trips = int(total_trips * on_time_pct)
+            early_trips = int(total_trips * early_pct)
+            late_trips = int(total_trips * late_pct)
+            very_late_trips = total_trips - on_time_trips - early_trips - late_trips
+            avg_delay = _rand.uniform(1.0, 8.0) if on_time_pct < 0.9 else _rand.uniform(0.5, 3.0)
+            max_delay = avg_delay * _rand.uniform(2.5, 5.0)
+
+            cursor.execute("""
+                INSERT INTO route_daily_punctuality
+                (region, route_id, stat_date, total_trips, on_time_trips, early_trips,
+                 late_trips, very_late_trips, avg_arrival_delay, max_arrival_delay,
+                 min_arrival_delay, punctuality_rate, early_rate, late_rate, very_late_rate)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (region, route_id, stat_date) DO UPDATE SET
+                    total_trips = EXCLUDED.total_trips,
+                    on_time_trips = EXCLUDED.on_time_trips,
+                    early_trips = EXCLUDED.early_trips,
+                    late_trips = EXCLUDED.late_trips,
+                    very_late_trips = EXCLUDED.very_late_trips,
+                    avg_arrival_delay = EXCLUDED.avg_arrival_delay,
+                    max_arrival_delay = EXCLUDED.max_arrival_delay,
+                    punctuality_rate = EXCLUDED.punctuality_rate,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (
+                region, route_id, today, total_trips, on_time_trips, early_trips,
+                late_trips, very_late_trips, avg_delay * 60, max_delay * 60,
+                _rand.randint(-120, -30), punctuality_rate,
+                early_pct * 100, late_pct * 100, very_late_pct * 100
+            ))
+
+        # --- 生成站点准点率数据 ---
+        stops = execute_query("""
+            SELECT DISTINCT s.stop_id, s.stop_name
+            FROM stops s
+            JOIN stop_times st ON s.stop_id = st.stop_id AND s.region = st.region
+            WHERE s.region = %s
+        """, (region,))
+
+        for stop in stops:
+            stop_id = stop['stop_id']
+            base_rate = _rand.uniform(65, 92)
+            if 'Station' in (stop.get('stop_name') or '') or 'Terminal' in (stop.get('stop_name') or ''):
+                base_rate += _rand.uniform(-3, 5)
+            punctuality_rate = min(96, max(55, base_rate))
+            total_visits = _rand.randint(100, 800)
+            on_time_pct = punctuality_rate / 100
+            early_pct = _rand.uniform(0.08, 0.18)
+            late_pct = (1 - on_time_pct - early_pct) * 0.75
+            very_late_pct = (1 - on_time_pct - early_pct) * 0.25
+            on_time_visits = int(total_visits * on_time_pct)
+            early_visits = int(total_visits * early_pct)
+            late_visits = int(total_visits * late_pct)
+            very_late_visits = total_visits - on_time_visits - early_visits - late_visits
+            avg_delay = _rand.uniform(1.2, 6.5)
+            max_delay = avg_delay * _rand.uniform(2.0, 4.0)
+
+            cursor.execute("""
+                INSERT INTO stop_daily_punctuality
+                (region, stop_id, stat_date, total_visits, on_time_visits, early_visits,
+                 late_visits, very_late_visits, avg_arrival_delay, max_arrival_delay,
+                 min_arrival_delay, punctuality_rate)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (region, stop_id, stat_date) DO UPDATE SET
+                    total_visits = EXCLUDED.total_visits,
+                    on_time_visits = EXCLUDED.on_time_visits,
+                    early_visits = EXCLUDED.early_visits,
+                    late_visits = EXCLUDED.late_visits,
+                    very_late_visits = EXCLUDED.very_late_visits,
+                    avg_arrival_delay = EXCLUDED.avg_arrival_delay,
+                    max_arrival_delay = EXCLUDED.max_arrival_delay,
+                    punctuality_rate = EXCLUDED.punctuality_rate,
+                    updated_at = CURRENT_TIMESTAMP
+            """, (
+                region, stop_id, today, total_visits, on_time_visits, early_visits,
+                late_visits, very_late_visits, avg_delay * 60, max_delay * 60,
+                _rand.randint(-120, -30), punctuality_rate
+            ))
+
+        conn.commit()
+        Database.return_connection(conn)
+
+        # 模拟数据采集耗时
+        _t.sleep(3)
+
+        return jsonify(success_response({
+            "routes_count": len(routes),
+            "stops_count": len(stops),
+            "stat_date": str(today),
+            "region": region
+        }))
+    except Exception as e:
+        return jsonify(error_response(f"刷新数据失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/punctuality/routes/<route_id>/timetable', methods=['GET'])
+def get_route_timetable(route_id):
+    """获取线路时刻表 — 含模拟的实际到站时间"""
+    import random as _rand
+    try:
+        region = request.args.get('region')
+        limit = min(int(request.args.get('limit', 10)), 30)
+
+        # 获取线路信息
+        route_query = """
+            SELECT route_id, route_short_name, route_long_name, route_type
+            FROM routes WHERE route_id = %s
+        """
+        route_params = [route_id]
+        if region:
+            route_query += " AND region = %s"
+            route_params.append(region)
+        route_info = execute_query_one(route_query, tuple(route_params))
+        if not route_info:
+            return jsonify(error_response("线路不存在", 404)), 404
+
+        # 获取该线路的班次
+        trip_query = """
+            SELECT trip_id, trip_headsign, direction_id, service_id
+            FROM trips WHERE route_id = %s
+        """
+        trip_params = [route_id]
+        if region:
+            trip_query += " AND region = %s"
+            trip_params.append(region)
+        trip_query += " ORDER BY trip_id LIMIT %s"
+        trip_params.append(limit)
+        trips = execute_query(trip_query, tuple(trip_params))
+
+        # 为每个班次获取站点时刻表并生成模拟实际到站时间
+        result_trips = []
+        for trip in trips:
+            trip_id_val = trip['trip_id']
+            st_query = """
+                SELECT st.stop_id, st.stop_sequence, st.arrival_time, st.departure_time,
+                       s.stop_name, s.stop_lat, s.stop_lon
+                FROM stop_times st
+                JOIN stops s ON st.region = s.region AND st.stop_id = s.stop_id
+                WHERE st.trip_id = %s
+            """
+            st_params = [trip_id_val]
+            if region:
+                st_query += " AND st.region = %s"
+                st_params.append(region)
+            st_query += " ORDER BY st.stop_sequence"
+            stop_times = execute_query(st_query, tuple(st_params))
+
+            stops_with_actual = []
+            for st in stop_times:
+                # 用 seeded random 生成一致的模拟延误
+                seed = hash(f"{route_id}_{trip_id_val}_{st['stop_id']}")
+                rng = _rand.Random(seed)
+                delay_seconds = rng.randint(-120, 600)
+
+                # 计算实际到站时间
+                scheduled = st['arrival_time'] or st['departure_time'] or ''
+                actual_time = scheduled
+                if scheduled:
+                    try:
+                        parts = scheduled.split(':')
+                        total_sec = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+                        total_sec += delay_seconds
+                        h, remainder = divmod(max(0, total_sec), 3600)
+                        m, s = divmod(remainder, 60)
+                        actual_time = f"{h:02d}:{m:02d}:{s:02d}"
+                    except (ValueError, IndexError):
+                        actual_time = scheduled
+
+                stops_with_actual.append({
+                    'stop_id': st['stop_id'],
+                    'stop_name': st['stop_name'],
+                    'stop_sequence': st['stop_sequence'],
+                    'scheduled_time': scheduled,
+                    'actual_time': actual_time,
+                    'delay_seconds': delay_seconds,
+                    'stop_lat': st['stop_lat'],
+                    'stop_lon': st['stop_lon']
+                })
+
+            result_trips.append({
+                'trip_id': trip_id_val,
+                'trip_headsign': trip.get('trip_headsign', ''),
+                'direction_id': trip.get('direction_id'),
+                'stops': stops_with_actual
+            })
+
+        return jsonify(success_response({
+            'route_info': dict(route_info),
+            'trips': result_trips
+        }))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/punctuality/stops/<stop_id>/timetable', methods=['GET'])
+def get_stop_timetable(stop_id):
+    """获取站点时刻表 — 含模拟的实际到站时间"""
+    import random as _rand
+    try:
+        region = request.args.get('region')
+        limit = min(int(request.args.get('limit', 50)), 200)
+
+        # 获取站点信息
+        stop_query = """
+            SELECT stop_id, stop_name, stop_lat, stop_lon
+            FROM stops WHERE stop_id = %s
+        """
+        stop_params = [stop_id]
+        if region:
+            stop_query += " AND region = %s"
+            stop_params.append(region)
+        stop_info = execute_query_one(stop_query, tuple(stop_params))
+        if not stop_info:
+            return jsonify(error_response("站点不存在", 404)), 404
+
+        # 获取经过该站点的时刻表记录
+        records_query = """
+            SELECT st.trip_id, st.arrival_time, st.departure_time, st.stop_sequence,
+                   t.route_id, t.trip_headsign, t.direction_id,
+                   r.route_short_name, r.route_long_name
+            FROM stop_times st
+            JOIN trips t ON st.region = t.region AND st.trip_id = t.trip_id
+            JOIN routes r ON t.region = r.region AND t.route_id = r.route_id
+            WHERE st.stop_id = %s
+        """
+        rec_params = [stop_id]
+        if region:
+            records_query += " AND st.region = %s"
+            rec_params.append(region)
+        records_query += " ORDER BY st.arrival_time LIMIT %s"
+        rec_params.append(limit)
+        records = execute_query(records_query, tuple(rec_params))
+
+        result_records = []
+        for rec in records:
+            seed = hash(f"{rec['route_id']}_{rec['trip_id']}_{stop_id}")
+            rng = _rand.Random(seed)
+            delay_seconds = rng.randint(-120, 600)
+
+            scheduled = rec['arrival_time'] or rec['departure_time'] or ''
+            actual_time = scheduled
+            if scheduled:
+                try:
+                    parts = scheduled.split(':')
+                    total_sec = int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+                    total_sec += delay_seconds
+                    h, remainder = divmod(max(0, total_sec), 3600)
+                    m, s = divmod(remainder, 60)
+                    actual_time = f"{h:02d}:{m:02d}:{s:02d}"
+                except (ValueError, IndexError):
+                    actual_time = scheduled
+
+            result_records.append({
+                'trip_id': rec['trip_id'],
+                'route_id': rec['route_id'],
+                'route_short_name': rec.get('route_short_name', ''),
+                'route_long_name': rec.get('route_long_name', ''),
+                'trip_headsign': rec.get('trip_headsign', ''),
+                'direction_id': rec.get('direction_id'),
+                'scheduled_time': scheduled,
+                'actual_time': actual_time,
+                'delay_seconds': delay_seconds
+            })
+
+        return jsonify(success_response({
+            'stop_info': dict(stop_info),
+            'records': result_records
+        }))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
 
 
 @app.route('/api/punctuality/collect', methods=['POST'])

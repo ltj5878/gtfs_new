@@ -10,7 +10,7 @@
       <div class="header-actions">
         <el-button
           type="primary"
-          :loading="loading"
+          :loading="refreshing"
           @click="refreshData"
           :icon="Refresh"
         >
@@ -93,7 +93,7 @@
       </div>
       <div class="stat-item">
         <div class="stat-value">{{ totalVisits.toLocaleString() }}</div>
-        <div class="stat-label">总访问次数</div>
+        <div class="stat-label">总访经过数</div>
       </div>
       <div class="stat-item">
         <div class="stat-value">{{ formatDelay(averageDelay) }}</div>
@@ -242,89 +242,6 @@
         />
       </div>
     </el-card>
-
-    <!-- 站点详情弹窗 -->
-    <el-dialog
-      v-model="detailVisible"
-      title="站点准点率详情"
-      width="800px"
-      destroy-on-close
-    >
-      <div v-if="selectedStop" v-loading="detailLoading">
-        <div class="stop-detail-header">
-          <h2>{{ selectedStop.stop_name }}</h2>
-          <p>站点ID: {{ selectedStop.stop_id }}</p>
-          <div class="stop-location" v-if="selectedStop.stop_lat && selectedStop.stop_lon">
-            <el-icon><Location /></el-icon>
-            {{ formatCoordinates(selectedStop.stop_lat, selectedStop.stop_lon) }}
-          </div>
-        </div>
-
-        <el-row :gutter="24" class="detail-stats">
-          <el-col :span="6">
-            <div class="detail-stat-card">
-              <div class="detail-stat-value">{{ formatPunctualityRate(selectedStop.avg_punctuality_rate) }}</div>
-              <div class="detail-stat-label">准点率</div>
-            </div>
-          </el-col>
-          <el-col :span="6">
-            <div class="detail-stat-card">
-              <div class="detail-stat-value">{{ (selectedStop.total_visits || 0).toLocaleString() }}</div>
-              <div class="detail-stat-label">总访问次数</div>
-            </div>
-          </el-col>
-          <el-col :span="6">
-            <div class="detail-stat-card">
-              <div class="detail-stat-value">{{ formatDelay(selectedStop.avg_delay_minutes || 0) }}</div>
-              <div class="detail-stat-label">平均延误</div>
-            </div>
-          </el-col>
-          <el-col :span="6">
-            <div class="detail-stat-card">
-              <div class="detail-stat-value">{{ formatDelay(selectedStop.max_delay_minutes || 0) }}</div>
-              <div class="detail-stat-label">最大延误</div>
-            </div>
-          </el-col>
-        </el-row>
-
-        <el-divider />
-
-        <!-- 准点分布图表 -->
-        <div class="punctuality-chart">
-          <h4>准点率分布</h4>
-          <div class="chart-bars">
-            <div class="chart-bar">
-              <div class="bar-label">准点</div>
-              <div class="bar-container">
-                <div class="bar-fill on-time" :style="{ width: getPercentage(selectedStop.on_time_visits, selectedStop.total_visits) + '%' }"></div>
-              </div>
-              <div class="bar-value">{{ getPercentage(selectedStop.on_time_visits, selectedStop.total_visits) }}%</div>
-            </div>
-            <div class="chart-bar">
-              <div class="bar-label">延误</div>
-              <div class="bar-container">
-                <div class="bar-fill late" :style="{ width: getPercentage(selectedStop.late_visits, selectedStop.total_visits) + '%' }"></div>
-              </div>
-              <div class="bar-value">{{ getPercentage(selectedStop.late_visits, selectedStop.total_visits) }}%</div>
-            </div>
-            <div class="chart-bar">
-              <div class="bar-label">严重延误</div>
-              <div class="bar-container">
-                <div class="bar-fill very-late" :style="{ width: getPercentage(selectedStop.very_late_visits, selectedStop.total_visits) + '%' }"></div>
-              </div>
-              <div class="bar-value">{{ getPercentage(selectedStop.very_late_visits, selectedStop.total_visits) }}%</div>
-            </div>
-            <div class="chart-bar">
-              <div class="bar-label">提前</div>
-              <div class="bar-container">
-                <div class="bar-fill early" :style="{ width: getPercentage(selectedStop.early_visits, selectedStop.total_visits) + '%' }"></div>
-              </div>
-              <div class="bar-value">{{ getPercentage(selectedStop.early_visits, selectedStop.total_visits) }}%</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </el-dialog>
   </div>
 </template>
 
@@ -347,6 +264,7 @@ const goHome = () => { window.location.href = '/' }
 
 // 响应式数据
 const loading = computed(() => punctualityStore.loading)
+const refreshing = ref(false)
 const stopPunctuality = computed(() => punctualityStore.stopPunctuality)
 
 const filters = ref({
@@ -360,10 +278,6 @@ const pagination = ref({
   currentPage: 1,
   pageSize: 20
 })
-
-const detailVisible = ref(false)
-const selectedStop = ref(null)
-const detailLoading = ref(false)
 
 // 计算属性
 const filteredStops = computed(() => {
@@ -427,7 +341,7 @@ const averageDelay = computed(() => {
 const fetchData = async () => {
   try {
     const params = {
-      limit: 1000,
+      limit: 10000,
       days: parseInt(filters.value.timeRange)
     }
 
@@ -438,8 +352,16 @@ const fetchData = async () => {
 }
 
 const refreshData = async () => {
-  await fetchData()
-  ElMessage.success('数据刷新成功')
+  try {
+    refreshing.value = true
+    await punctualityStore.refreshPunctualityData()
+    await fetchData()
+    ElMessage.success('数据刷新成功')
+  } catch (err) {
+    ElMessage.error('刷新数据失败')
+  } finally {
+    refreshing.value = false
+  }
 }
 
 const handleSearch = () => {
@@ -483,8 +405,7 @@ const handleCurrentChange = (page) => {
 }
 
 const viewStopDetail = (stop) => {
-  selectedStop.value = stop
-  detailVisible.value = true
+  router.push({ name: 'stop-punctuality-detail', params: { stopId: stop.stop_id } })
 }
 
 const viewOnMap = (stop) => {
@@ -492,7 +413,42 @@ const viewOnMap = (stop) => {
 }
 
 const exportData = () => {
-  ElMessage.info('导出功能开发中...')
+  const stops = filteredStops.value
+  if (!stops.length) {
+    ElMessage.warning('没有可导出的数据')
+    return
+  }
+
+  const headers = ['站点ID', '站点名称', '纬度', '经度', '准点率(%)', '总访问次数', '准点次数', '提前次数', '延误次数', '严重延误次数', '平均延误(分钟)', '最大延误(分钟)', '最后统计日期']
+  const rows = stops.map(s => [
+    s.stop_id,
+    s.stop_name || '',
+    s.stop_lat || '',
+    s.stop_lon || '',
+    (s.avg_punctuality_rate || 0).toFixed(1),
+    s.total_visits || 0,
+    s.on_time_visits || 0,
+    s.early_visits || 0,
+    s.late_visits || 0,
+    s.very_late_visits || 0,
+    (s.avg_delay_minutes || 0).toFixed(2),
+    (s.max_delay_minutes || 0).toFixed(2),
+    s.last_stat_date || ''
+  ])
+
+  const csvContent = '\uFEFF' + [headers, ...rows].map(row =>
+    row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+  ).join('\n')
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `站点准点率_${new Date().toISOString().slice(0, 10)}.csv`
+  link.click()
+  URL.revokeObjectURL(url)
+
+  ElMessage.success(`已导出 ${stops.length} 个站点数据`)
 }
 
 // 工具方法
@@ -778,120 +734,6 @@ watch(() => filters.value.sortBy, () => {
   display: flex;
   justify-content: center;
   margin-top: 20px;
-}
-
-/* 详情弹窗样式 */
-.stop-detail-header {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.stop-detail-header h2 {
-  margin: 0 0 8px 0;
-  color: #1f2937;
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.stop-detail-header p {
-  margin: 0 0 8px 0;
-  color: #6b7280;
-  font-size: 16px;
-}
-
-.stop-location {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  color: #6b7280;
-  font-size: 14px;
-}
-
-.detail-stats {
-  margin-bottom: 24px;
-}
-
-.detail-stat-card {
-  text-align: center;
-  padding: 16px;
-  background: #f9fafb;
-  border-radius: 8px;
-}
-
-.detail-stat-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 4px;
-}
-
-.detail-stat-label {
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.punctuality-chart h4 {
-  margin: 0 0 16px 0;
-  color: #1f2937;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.chart-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.chart-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.bar-label {
-  width: 80px;
-  font-size: 14px;
-  color: #374151;
-  text-align: right;
-}
-
-.bar-container {
-  flex: 1;
-  height: 20px;
-  background: #f3f4f6;
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.bar-fill {
-  height: 100%;
-  transition: width 0.3s ease;
-  border-radius: 10px;
-}
-
-.bar-fill.on-time {
-  background-color: #10b981;
-}
-
-.bar-fill.late {
-  background-color: #f59e0b;
-}
-
-.bar-fill.very-late {
-  background-color: #ef4444;
-}
-
-.bar-fill.early {
-  background-color: #3b82f6;
-}
-
-.bar-value {
-  width: 50px;
-  font-weight: 600;
-  color: #1f2937;
-  text-align: right;
 }
 
 @media (max-width: 768px) {
