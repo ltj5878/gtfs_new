@@ -93,7 +93,7 @@
       </div>
       <div class="stat-item">
         <div class="stat-value">{{ totalVisits.toLocaleString() }}</div>
-        <div class="stat-label">总访经过数</div>
+        <div class="stat-label">总访访问数</div>
       </div>
       <div class="stat-item">
         <div class="stat-value">{{ formatDelay(averageDelay) }}</div>
@@ -152,19 +152,19 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="total_visits" label="访问次数" width="100" sortable="custom">
+        <el-table-column prop="total_visits" label="访问次数" width="120" sortable="custom">
           <template #default="{ row }">
             <span class="visits-count">{{ (row.total_visits || 0).toLocaleString() }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="avg_delay_minutes" label="平均延误" width="120" sortable="custom">
+        <el-table-column prop="avg_delay_minutes" label="平均延误" width="150" sortable="custom" align="center">
           <template #default="{ row }">
             <div class="delay-cell">
               <el-icon class="delay-icon" :class="getDelayClass(row.avg_delay_minutes || 0)">
                 <Clock />
               </el-icon>
-              <span>{{ formatDelay(row.avg_delay_minutes || 0) }}</span>
+              <span style="white-space: nowrap;">{{ formatDelay(row.avg_delay_minutes || 0) }}</span>
             </div>
           </template>
         </el-table-column>
@@ -175,20 +175,31 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="准点分布" width="200">
+        <el-table-column min-width="260">
+          <template #header>
+            <span style="padding-left: 48px;">准点分布</span>
+          </template>
           <template #default="{ row }">
             <div class="punctuality-distribution">
               <div class="dist-item" :title="`准点: ${row.on_time_visits || 0}次`">
-                <div class="dist-bar on-time" :style="{ width: getPercentage(row.on_time_visits, row.total_visits) + '%' }"></div>
-                <span class="dist-label">{{ getPercentage(row.on_time_visits, row.total_visits) }}%</span>
+                <span class="dist-name on-time-text">准点</span>
+                <div class="dist-bar on-time" :style="{ width: getDistribution(row).onTime + '%' }"></div>
+                <span class="dist-label">{{ getDistribution(row).onTime }}%</span>
               </div>
               <div class="dist-item" :title="`延误: ${row.late_visits || 0}次`">
-                <div class="dist-bar late" :style="{ width: getPercentage(row.late_visits, row.total_visits) + '%' }"></div>
-                <span class="dist-label">{{ getPercentage(row.late_visits, row.total_visits) }}%</span>
+                <span class="dist-name late-text">延误</span>
+                <div class="dist-bar late" :style="{ width: getDistribution(row).late + '%' }"></div>
+                <span class="dist-label">{{ getDistribution(row).late }}%</span>
               </div>
               <div class="dist-item" :title="`严重延误: ${row.very_late_visits || 0}次`">
-                <div class="dist-bar very-late" :style="{ width: getPercentage(row.very_late_visits, row.total_visits) + '%' }"></div>
-                <span class="dist-label">{{ getPercentage(row.very_late_visits, row.total_visits) }}%</span>
+                <span class="dist-name very-late-text">严重延误</span>
+                <div class="dist-bar very-late" :style="{ width: getDistribution(row).veryLate + '%' }"></div>
+                <span class="dist-label">{{ getDistribution(row).veryLate }}%</span>
+              </div>
+              <div class="dist-item" :title="`提前: ${row.early_visits || 0}次`">
+                <span class="dist-name early-text">提前</span>
+                <div class="dist-bar early" :style="{ width: getDistribution(row).early + '%' }"></div>
+                <span class="dist-label">{{ getDistribution(row).early }}%</span>
               </div>
             </div>
           </template>
@@ -409,7 +420,7 @@ const viewStopDetail = (stop) => {
 }
 
 const viewOnMap = (stop) => {
-  ElMessage.info('地图功能开发中...')
+  router.push({ name: 'stop-detail', params: { id: stop.stop_id } })
 }
 
 const exportData = () => {
@@ -475,6 +486,31 @@ const formatCoordinates = (lat, lng) => {
 const getPercentage = (value, total) => {
   if (!total || total === 0) return 0
   return Math.round((value || 0) / total * 100)
+}
+
+// 计算四项分布，用最大余数法保证总和精确为 100%
+const getDistribution = (stop) => {
+  if (!stop) return { onTime: 0, late: 0, veryLate: 0, early: 0 }
+  const onTime = stop.on_time_visits || 0
+  const late = stop.late_visits || 0
+  const veryLate = stop.very_late_visits || 0
+  const early = stop.early_visits || 0
+  const actualTotal = onTime + late + veryLate + early
+  if (actualTotal === 0) return { onTime: 0, late: 0, veryLate: 0, early: 0 }
+  const values = [
+    { key: 'onTime', raw: onTime / actualTotal * 100 },
+    { key: 'late', raw: late / actualTotal * 100 },
+    { key: 'veryLate', raw: veryLate / actualTotal * 100 },
+    { key: 'early', raw: early / actualTotal * 100 },
+  ]
+  values.forEach(v => { v.floor = Math.floor(v.raw); v.remainder = v.raw - v.floor })
+  let sum = values.reduce((s, v) => s + v.floor, 0)
+  const remaining = 100 - sum
+  values.sort((a, b) => b.remainder - a.remainder)
+  for (let i = 0; i < remaining; i++) values[i].floor += 1
+  const result = {}
+  values.forEach(v => { result[v.key] = v.floor })
+  return result
 }
 
 const getProgressColor = (rate) => {
@@ -675,9 +711,22 @@ watch(() => filters.value.sortBy, () => {
 .dist-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   height: 16px;
 }
+
+.dist-name {
+  font-size: 11px;
+  font-weight: 500;
+  min-width: 48px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.dist-name.on-time-text { color: #10b981; }
+.dist-name.late-text { color: #f59e0b; }
+.dist-name.very-late-text { color: #ef4444; }
+.dist-name.early-text { color: #3b82f6; }
 
 .dist-bar {
   height: 100%;
@@ -695,6 +744,10 @@ watch(() => filters.value.sortBy, () => {
 
 .dist-bar.very-late {
   background-color: #ef4444;
+}
+
+.dist-bar.early {
+  background-color: #3b82f6;
 }
 
 .dist-label {

@@ -155,7 +155,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="avg_delay_minutes" label="平均延误" width="150" sortable="custom">
+        <el-table-column prop="avg_delay_minutes" label="平均延误" width="150" sortable="custom" align="center">
           <template #default="{ row }">
             <div class="delay-cell">
               <el-icon class="delay-icon" :class="getDelayClass(row.avg_delay_minutes || 0)">
@@ -172,7 +172,10 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="准点分布" min-width="260">
+        <el-table-column min-width="260">
+          <template #header>
+            <span style="padding-left: 48px;">准点分布</span>
+          </template>
           <template #default="{ row }">
             <div class="punctuality-distribution">
               <div class="dist-item" :title="`准点: ${row.on_time_trips || 0}班`">
