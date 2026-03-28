@@ -17,14 +17,14 @@ export const useRegionStore = defineStore('region', () => {
     loading.value = true
     try {
       const data = await getRegions()
-      regions.value = data
+      // 屏蔽纽约地区，只保留旧金山湾区和悉尼
+      regions.value = data.filter(r => r.region_id !== 'nyc')
       return data
     } catch (error) {
       console.error('获取地区列表失败:', error)
       // 降级到默认地区列表
       regions.value = [
         { region_id: 'sf', region_name: '旧金山湾区', country: 'US' },
-        { region_id: 'nyc', region_name: '纽约', country: 'US' },
         { region_id: 'sydney', region_name: '悉尼', country: 'AU' },
       ]
     } finally {

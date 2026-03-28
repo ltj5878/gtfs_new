@@ -64,26 +64,62 @@ start() {
   echo -e "${GREEN}项目已启动:${NC}"
   echo -e "  前端: http://localhost:$FRONTEND_PORT"
   echo -e "  后端: http://localhost:$BACKEND_PORT"
-  echo ""
-  echo -e "${YELLOW}可选：启动准点率数据收集服务（需设置对应 API Key 环境变量）${NC}"
-  echo -e "  SF_511_API_KEY=xxx python3 backend/scripts/start_punctuality_service.py --region sf &"
-  echo -e "  MTA_API_KEY=xxx python3 backend/scripts/start_punctuality_service.py --region nyc &"
-  echo -e "  TFNSW_API_KEY=xxx python3 backend/scripts/start_punctuality_service.py --region sydney &"
 }
 
 stop() {
   echo -e "${YELLOW}停止 GTFS 项目...${NC}"
 
+  # 停止后端：先尝试 PID 文件，再按端口兜底
+  local backend_stopped=false
   if [ -f "$BACKEND_PID_FILE" ]; then
-    kill "$(cat $BACKEND_PID_FILE)" 2>/dev/null && echo -e "${GREEN}✓ 后端已停止${NC}"
+    local pid=$(cat "$BACKEND_PID_FILE")
+    if kill -0 "$pid" 2>/dev/null; then
+      kill "$pid" 2>/dev/null
+      sleep 1
+      # 如果还没死，强制杀
+      kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null
+      backend_stopped=true
+    fi
     rm -f "$BACKEND_PID_FILE"
+  fi
+  # 兜底：按端口查找并杀掉残留进程
+  local port_pids=$(lsof -ti :$BACKEND_PORT 2>/dev/null)
+  if [ -n "$port_pids" ]; then
+    echo "$port_pids" | xargs kill 2>/dev/null
+    sleep 1
+    # 强制杀残留
+    port_pids=$(lsof -ti :$BACKEND_PORT 2>/dev/null)
+    [ -n "$port_pids" ] && echo "$port_pids" | xargs kill -9 2>/dev/null
+    backend_stopped=true
+  fi
+  if $backend_stopped; then
+    echo -e "${GREEN}✓ 后端已停止${NC}"
   else
     echo "后端未运行"
   fi
 
+  # 停止前端：先尝试 PID 文件，再按端口兜底
+  local frontend_stopped=false
   if [ -f "$FRONTEND_PID_FILE" ]; then
-    kill "$(cat $FRONTEND_PID_FILE)" 2>/dev/null && echo -e "${GREEN}✓ 前端已停止${NC}"
+    local pid=$(cat "$FRONTEND_PID_FILE")
+    if kill -0 "$pid" 2>/dev/null; then
+      kill "$pid" 2>/dev/null
+      sleep 1
+      kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null
+      frontend_stopped=true
+    fi
     rm -f "$FRONTEND_PID_FILE"
+  fi
+  local port_pids=$(lsof -ti :$FRONTEND_PORT 2>/dev/null)
+  if [ -n "$port_pids" ]; then
+    echo "$port_pids" | xargs kill 2>/dev/null
+    sleep 1
+    port_pids=$(lsof -ti :$FRONTEND_PORT 2>/dev/null)
+    [ -n "$port_pids" ] && echo "$port_pids" | xargs kill -9 2>/dev/null
+    frontend_stopped=true
+  fi
+  if $frontend_stopped; then
+    echo -e "${GREEN}✓ 前端已停止${NC}"
   else
     echo "前端未运行"
   fi
