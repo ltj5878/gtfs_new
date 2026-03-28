@@ -1,234 +1,127 @@
-# GTFS 公交数据分析系统 - 前端
+# 前端应用
 
-基于 Vue 3 + Vite + Element Plus 的公交数据可视化前端应用。
+基于 Vue 3 + Vite + Element Plus 的 GTFS 公交数据可视化前端，支持多地区切换、实时监控、准点率分析等功能。
 
-## 快速启动
+## 技术栈
 
-### 前置要求
+| 依赖 | 版本 | 用途 |
+|------|------|------|
+| Vue 3 | ^3.4.0 | 框架（Composition API + script setup） |
+| Vite | ^5.0.0 | 构建工具 |
+| Element Plus | ^2.5.0 | UI 组件库 |
+| Pinia | ^2.1.7 | 状态管理 |
+| Vue Router | ^4.2.5 | 路由 |
+| Axios | ^1.6.2 | HTTP 请求 |
+| ECharts | ^6.0.0 | 数据图表 |
+| Leaflet | ^1.9.4 | 地图展示 |
 
-- Node.js 16+
-- npm 或 pnpm
-- 后端 API 服务已启动（运行在 http://localhost:5000）
+## 目录结构
 
-### 完整启动步骤
+```
+src/
+├── api/
+│   ├── index.js          # Axios 实例，自动附加 region 参数
+│   ├── common.js         # 健康检查、统计、地区列表
+│   ├── routes.js         # 线路相关接口
+│   ├── stops.js          # 站点相关接口
+│   ├── trips.js          # 班次相关接口
+│   ├── punctuality.js    # 准点率相关接口
+│   ├── favorites.js      # 收藏相关接口
+│   ├── auth.js           # 认证相关接口
+│   ├── users.js          # 用户管理接口
+│   └── admin.js          # 管理员接口
+├── stores/
+│   ├── appStore.js       # 全局状态（统计数据、机构信息）
+│   ├── authStore.js      # 用户认证状态
+│   ├── regionStore.js    # 地区选择（持久化到 localStorage）
+│   ├── routeStore.js     # 线路数据
+│   ├── stopStore.js      # 站点数据
+│   ├── punctualityStore.js # 准点率数据
+│   └── favoriteStore.js  # 收藏数据
+├── views/
+│   ├── Home.vue                   # 首页（数据统计总览）
+│   ├── Login.vue                  # 登录页
+│   ├── Routes.vue                 # 线路列表（搜索、类型筛选、分页）
+│   ├── RouteDetail.vue            # 线路详情（站点时刻表、方向切换）
+│   ├── RoutePunctuality.vue       # 线路准点率列表
+│   ├── RoutePunctualityDetail.vue # 线路准点率详情
+│   ├── Stops.vue                  # 站点列表
+│   ├── StopDetail.vue             # 站点详情（经过线路）
+│   ├── StopPunctuality.vue        # 站点准点率列表
+│   ├── StopPunctualityDetail.vue  # 站点准点率详情
+│   ├── PunctualityOverview.vue    # 准点率总览（ECharts 图表）
+│   ├── RealtimeMonitor.vue        # 实时监控（车辆位置与速度）
+│   ├── Map.vue                    # 地图视图（Leaflet）
+│   ├── Favorites.vue              # 我的收藏
+│   ├── UserManagement.vue         # 用户管理（管理员）
+│   └── AdminDashboard.vue         # 管理员后台
+├── components/
+│   ├── RegionSelector.vue  # 地区切换下拉组件
+│   ├── RouteCard.vue       # 线路卡片
+│   ├── StopCard.vue        # 站点卡片
+│   └── SearchBar.vue       # 搜索栏
+├── router/
+│   └── index.js            # 路由配置（含权限守卫）
+├── App.vue                 # 根组件（导航栏 + 地区选择器）
+└── main.js                 # 入口文件
+```
+
+## 安装与启动
 
 ```bash
-# 1. 进入前端目录
-cd frontend
-
-# 2. 安装依赖
+# 安装依赖
 npm install
-# 或使用 pnpm
-pnpm install
 
-# 3. 启动开发服务器
+# 开发模式（需后端已启动）
 npm run dev
-```
 
-**前端应用将运行在**: http://localhost:5173
-
-### 快速启动（已安装依赖）
-
-```bash
-cd frontend
-npm run dev
-```
-
-### 构建生产版本
-
-```bash
-# 构建
+# 构建生产包
 npm run build
 
 # 预览构建结果
 npm run preview
 ```
 
-### 验证应用
+开发服务器运行在 http://localhost:5173，后端代理到 http://localhost:5001。
 
-打开浏览器访问 http://localhost:5173，你应该能看到：
-- 首页显示数据统计
-- 可以浏览线路列表
-- 可以查看站点信息
+## 多地区架构
 
-## 技术栈
+地区切换通过 `regionStore` 统一管理：
 
-- **Vue 3**: 渐进式 JavaScript 框架
-- **Vite**: 下一代前端构建工具
-- **Element Plus**: Vue 3 UI 组件库
-- **Pinia**: Vue 状态管理库
-- **Vue Router**: Vue 官方路由
-- **Axios**: HTTP 客户端
+1. `RegionSelector.vue` 提供切换 UI，当前支持旧金山湾区和悉尼
+2. `api/index.js` 拦截器自动在每个请求中附加 `?region=xxx`
+3. 切换地区后自动刷新统计数据和机构信息
+4. 选择结果持久化到 `localStorage`，刷新页面不丢失
 
-## 项目结构
+## 页面功能
 
-```
-frontend/
-├── src/
-│   ├── api/              # API 请求封装
-│   │   ├── index.js      # Axios 配置
-│   │   ├── routes.js     # 线路 API
-│   │   ├── stops.js      # 站点 API
-│   │   ├── trips.js      # 班次 API
-│   │   └── common.js     # 通用 API
-│   ├── assets/           # 静态资源
-│   ├── components/       # 公共组件
-│   │   ├── SearchBar.vue # 搜索栏
-│   │   ├── RouteCard.vue # 线路卡片
-│   │   └── StopCard.vue  # 站点卡片
-│   ├── views/            # 页面视图
-│   │   ├── Home.vue      # 首页
-│   │   ├── Routes.vue    # 线路列表
-│   │   ├── RouteDetail.vue # 线路详情
-│   │   ├── Stops.vue     # 站点列表
-│   │   ├── StopDetail.vue  # 站点详情
-│   │   └── Map.vue       # 地图视图
-│   ├── router/           # 路由配置
-│   │   └── index.js
-│   ├── stores/           # Pinia 状态管理
-│   │   ├── routeStore.js # 线路状态
-│   │   ├── stopStore.js  # 站点状态
-│   │   └── appStore.js   # 应用状态
-│   ├── App.vue           # 根组件
-│   └── main.js           # 入口文件
-├── public/               # 公共资源
-├── index.html            # HTML 模板
-├── vite.config.js        # Vite 配置
-└── package.json          # 项目依赖
+| 页面 | 路径 | 说明 |
+|------|------|------|
+| 首页 | `/` | 数据统计卡片，快速入口 |
+| 线路列表 | `/routes` | 搜索、类型筛选、分页 |
+| 线路详情 | `/routes/:id` | 站点时刻表、方向切换 |
+| 线路准点率 | `/punctuality/routes` | 线路维度准点率排行 |
+| 站点列表 | `/stops` | 搜索、分页 |
+| 站点详情 | `/stops/:id` | 经过线路列表 |
+| 站点准点率 | `/punctuality/stops` | 站点维度准点率 |
+| 准点率总览 | `/punctuality/overview` | ECharts 图表，按时段分布 |
+| 实时监控 | `/realtime` | 车辆实时位置与速度 |
+| 地图 | `/map` | Leaflet 地图，站点与轨迹 |
+| 我的收藏 | `/favorites` | 收藏的线路和站点 |
+| 用户管理 | `/admin/users` | 管理员功能 |
 
-## 快速开始
+## 状态管理
 
-### 安装依赖
+所有 Store 使用 Pinia Composition API 风格：
 
-```bash
-npm install
-```
-
-或使用 pnpm:
-
-```bash
-pnpm install
-```
-
-### 开发模式
-
-```bash
-npm run dev
-```
-
-应用将运行在 http://localhost:5173
-
-### 构建生产版本
-
-```bash
-npm run build
-```
-
-### 预览生产版本
-
-```bash
-npm run preview
-```
-
-## 功能特性
-
-### 已实现功能
-
-- ✅ 首页数据统计展示
-- ✅ 线路列表浏览（支持分页、搜索、筛选）
-- ✅ 线路详情查看（包含方向、站点列表）
-- ✅ 站点列表浏览（支持分页、搜索）
-- ✅ 站点详情查看（包含经过的线路）
-- ✅ 响应式设计（支持移动端）
-- ✅ 统一的错误处理
-- ✅ 加载状态提示
-
-### 待开发功能
-
-- ⏳ 地图展示（Leaflet 集成）
-- ⏳ 实时车辆位置
-- ⏳ 线路轨迹显示
-- ⏳ 班次时刻表查询
-- ⏳ 深色模式
-- ⏳ 国际化支持
-
-## API 配置
-
-后端 API 地址配置在 `vite.config.js` 中：
-
-```javascript
-server: {
-  proxy: {
-    '/api': {
-      target: 'http://localhost:5000',
-      changeOrigin: true
-    }
-  }
-}
-```
-
-也可以通过环境变量 `VITE_API_BASE_URL` 配置。
+- **regionStore**：核心 Store，地区切换影响所有数据请求
+- **authStore**：登录状态管理，路由守卫依赖此 Store
+- **appStore**：全局统计数据，地区切换时自动重新拉取
 
 ## 开发规范
 
-### 组件命名
-
-- 组件文件名使用 PascalCase: `RouteCard.vue`
-- 组件使用 `<script setup>` 语法
-- 使用 Composition API
-
-### 代码风格
-
-- 使用 ES6+ 语法
-- 使用 async/await 处理异步
+- 使用 `<script setup>` 语法
+- 组件名 PascalCase，文件名同组件名
+- 变量/函数 camelCase，常量 UPPER_SNAKE_CASE
 - 所有注释使用中文
-- 使用 JSDoc 注释函数
-
-### Git 提交
-
-遵循 Conventional Commits 规范：
-
-```
-feat(frontend): 添加线路列表组件
-fix(frontend): 修复分页问题
-docs: 更新前端文档
-```
-
-## 浏览器支持
-
-- Chrome >= 87
-- Firefox >= 78
-- Safari >= 14
-- Edge >= 88
-
-## 环境变量
-
-创建 `.env.local` 文件配置环境变量：
-
-```bash
-# API 基础 URL
-VITE_API_BASE_URL=http://localhost:5000/api
-```
-
-## 目录说明
-
-- **api/**: API 请求封装，统一管理所有后端接口调用
-- **assets/**: 静态资源文件（图片、字体等）
-- **components/**: 可复用的 Vue 组件
-- **views/**: 页面级组件
-- **router/**: Vue Router 路由配置
-- **stores/**: Pinia 状态管理
-- **utils/**: 工具函数和辅助方法
-
-## 相关文档
-
-- [项目主 README](../README.md)
-- [后端 API 文档](../backend/API_DOCUMENTATION.md)
-- [Vue 3 文档](https://vuejs.org/)
-- [Element Plus 文档](https://element-plus.org/)
-- [Pinia 文档](https://pinia.vuejs.org/)
-- [Vite 文档](https://vitejs.dev/)
-
-## 许可证
-
-本项目遵循项目主许可证。
+- Store 文件命名：`xxxStore.js`
