@@ -107,7 +107,7 @@
                 </div>
                 <div class="feature-item-text">
                   <div class="feature-item-title">线路准点率</div>
-                  <div class="feature-item-desc">分析各线路准点情况</div>
+                  <div class="feature-item-desc">近90天各线路准点率变化趋势与排名</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
@@ -118,18 +118,18 @@
                 </div>
                 <div class="feature-item-text">
                   <div class="feature-item-title">站点准点率</div>
-                  <div class="feature-item-desc">查看站点到达准点率</div>
+                  <div class="feature-item-desc">近90天各站点到达准点率趋势与排名</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
 
-              <div class="feature-item" @click="navigate('/punctuality/realtime')">
-                <div class="feature-item-icon" style="background-color: #fee;">
-                  <el-icon :size="20" color="#f56c6c"><Monitor /></el-icon>
+              <div class="feature-item" @click="navigate('/punctuality/trends')">
+                <div class="feature-item-icon" style="background-color: #e8eaf6;">
+                  <el-icon :size="20" color="#5c6bc0"><DataLine /></el-icon>
                 </div>
                 <div class="feature-item-text">
-                  <div class="feature-item-title">实时监控</div>
-                  <div class="feature-item-desc">实时车辆位置和状态</div>
+                  <div class="feature-item-title">准点率趋势总览</div>
+                  <div class="feature-item-desc">多维度趋势图表、排名对比与高峰分析</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
@@ -179,7 +179,6 @@ import {
   Position,
   Timer,
   DataLine,
-  Monitor,
   ArrowRight,
   Star
 } from '@element-plus/icons-vue'

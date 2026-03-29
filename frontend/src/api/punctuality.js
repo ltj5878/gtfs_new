@@ -54,6 +54,11 @@ export const refreshPunctualityData = () => {
   return apiClient.post('/punctuality/refresh')
 }
 
+// 获取准点率趋势数据（每日时间序列、排名、高峰对比等）
+export const getPunctualityTrends = (params = {}) => {
+  return apiClient.get('/punctuality/trends', { params })
+}
+
 // 获取线路时刻表（含模拟实际到站时间）
 export const getRouteTimetable = (routeId, params = {}) => {
   return apiClient.get(`/punctuality/routes/${routeId}/timetable`, { params })

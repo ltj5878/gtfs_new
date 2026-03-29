@@ -82,6 +82,12 @@ const router = createRouter({
       meta: { requiresAuth: true, title: '实时监控', icon: 'Monitor' }
     },
     {
+      path: '/punctuality/trends',
+      name: 'punctuality-trends',
+      component: () => import('@/views/PunctualityTrends.vue'),
+      meta: { requiresAuth: true, title: '准点率趋势总览', icon: 'DataLine' }
+    },
+    {
       path: '/favorites',
       name: 'favorites',
       component: () => import('@/views/Favorites.vue'),

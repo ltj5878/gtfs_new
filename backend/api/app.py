@@ -1464,6 +1464,152 @@ def get_stop_timetable(stop_id):
         return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
 
 
+@app.route('/api/punctuality/trends', methods=['GET'])
+def get_punctuality_trends():
+    """获取准点率趋势数据（每日时间序列）"""
+    try:
+        days = min(int(request.args.get('days', 30)), 90)
+        region = request.args.get('region')
+        route_id = request.args.get('route_id')
+        stop_id = request.args.get('stop_id')
+
+        region_clause = ""
+        region_params = []
+        if region:
+            region_clause = " AND rdp.region = %s"
+            region_params = [region]
+
+        result = {}
+
+        # 1. 系统每日准点率趋势
+        sys_query = """
+            SELECT
+                rdp.stat_date,
+                AVG(rdp.punctuality_rate) as avg_punctuality_rate,
+                SUM(rdp.total_trips) as total_trips,
+                AVG(ABS(rdp.avg_arrival_delay)) / 60 as avg_delay_minutes,
+                SUM(rdp.on_time_trips) as on_time_trips,
+                SUM(rdp.early_trips) as early_trips,
+                SUM(rdp.late_trips) as late_trips,
+                SUM(rdp.very_late_trips) as very_late_trips
+            FROM route_daily_punctuality rdp
+            WHERE rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
+            %s
+            GROUP BY rdp.stat_date
+            ORDER BY rdp.stat_date
+        """ % (days, region_clause)
+        result['daily_trends'] = execute_query(sys_query, tuple(region_params) if region_params else None)
+
+        # 2. 线路 TOP5 / BOTTOM5
+        route_rank_query = """
+            SELECT
+                rdp.route_id, r.route_short_name, r.route_long_name,
+                AVG(rdp.punctuality_rate) as avg_punctuality_rate,
+                SUM(rdp.total_trips) as total_trips,
+                AVG(ABS(rdp.avg_arrival_delay)) / 60 as avg_delay_minutes
+            FROM route_daily_punctuality rdp
+            JOIN routes r ON rdp.region = r.region AND rdp.route_id = r.route_id
+            WHERE rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
+            %s
+            GROUP BY rdp.route_id, r.route_short_name, r.route_long_name
+            HAVING SUM(rdp.total_trips) >= 10
+            ORDER BY avg_punctuality_rate DESC
+        """ % (days, region_clause)
+        all_routes = execute_query(route_rank_query, tuple(region_params) if region_params else None)
+        result['top_routes'] = all_routes[:5] if all_routes else []
+        result['bottom_routes'] = list(reversed(all_routes[-5:])) if all_routes else []
+
+        # 3. 站点 TOP5 / BOTTOM5
+        stop_rank_query = """
+            SELECT
+                sdp.stop_id, s.stop_name,
+                AVG(sdp.punctuality_rate) as avg_punctuality_rate,
+                SUM(sdp.total_visits) as total_visits,
+                AVG(ABS(sdp.avg_arrival_delay)) / 60 as avg_delay_minutes
+            FROM stop_daily_punctuality sdp
+            JOIN stops s ON sdp.region = s.region AND sdp.stop_id = s.stop_id
+            WHERE sdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
+            %s
+        """ % (days, region_clause.replace('rdp.', 'sdp.'))
+        stop_rank_query += """
+            GROUP BY sdp.stop_id, s.stop_name
+            HAVING SUM(sdp.total_visits) >= 10
+            ORDER BY avg_punctuality_rate DESC
+        """
+        all_stops = execute_query(stop_rank_query, tuple(region_params) if region_params else None)
+        result['top_stops'] = all_stops[:5] if all_stops else []
+        result['bottom_stops'] = list(reversed(all_stops[-5:])) if all_stops else []
+
+        # 4. 单条线路趋势（可选）
+        if route_id:
+            route_trend_query = """
+                SELECT
+                    rdp.stat_date, rdp.route_id, r.route_short_name,
+                    rdp.punctuality_rate, rdp.total_trips,
+                    rdp.avg_arrival_delay / 60 as avg_delay_minutes,
+                    rdp.on_time_trips, rdp.early_trips, rdp.late_trips, rdp.very_late_trips
+                FROM route_daily_punctuality rdp
+                JOIN routes r ON rdp.region = r.region AND rdp.route_id = r.route_id
+                WHERE rdp.route_id = %s
+                AND rdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
+            """ % ('%s', days)
+            rt_params = [route_id]
+            if region:
+                route_trend_query += " AND rdp.region = %s"
+                rt_params.append(region)
+            route_trend_query += " ORDER BY rdp.stat_date"
+            result['route_trend'] = execute_query(route_trend_query, tuple(rt_params))
+
+        # 5. 单个站点趋势（可选）
+        if stop_id:
+            stop_trend_query = """
+                SELECT
+                    sdp.stat_date, sdp.stop_id, s.stop_name,
+                    sdp.punctuality_rate, sdp.total_visits,
+                    sdp.avg_arrival_delay / 60 as avg_delay_minutes,
+                    sdp.on_time_visits, sdp.early_visits, sdp.late_visits, sdp.very_late_visits
+                FROM stop_daily_punctuality sdp
+                JOIN stops s ON sdp.region = s.region AND sdp.stop_id = s.stop_id
+                WHERE sdp.stop_id = %s
+                AND sdp.stat_date >= CURRENT_DATE - INTERVAL '%s days'
+            """ % ('%s', days)
+            st_params = [stop_id]
+            if region:
+                stop_trend_query += " AND sdp.region = %s"
+                st_params.append(region)
+            stop_trend_query += " ORDER BY sdp.stat_date"
+            result['stop_trend'] = execute_query(stop_trend_query, tuple(st_params))
+
+        # 6. 高峰/非高峰时段对比
+        peak_query = """
+            SELECT
+                CASE
+                    WHEN hps.hour_of_day BETWEEN 7 AND 9 THEN '早高峰(7-9时)'
+                    WHEN hps.hour_of_day BETWEEN 17 AND 19 THEN '晚高峰(17-19时)'
+                    ELSE '非高峰时段'
+                END as period,
+                AVG(hps.punctuality_rate) as avg_punctuality_rate,
+                SUM(hps.total_trips) as total_trips,
+                AVG(ABS(hps.avg_arrival_delay)) / 60 as avg_delay_minutes
+            FROM hourly_punctuality_stats hps
+            WHERE hps.stat_date >= CURRENT_DATE - INTERVAL '%s days'
+        """ % days
+        if region:
+            peak_query += " AND hps.region = %s"
+        peak_query += """
+            GROUP BY period
+            ORDER BY period
+        """
+        result['peak_comparison'] = execute_query(peak_query, (region,) if region else None)
+
+        result['days'] = days
+        result['data_available'] = bool(result['daily_trends'])
+
+        return jsonify(success_response(result))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
 @app.route('/api/punctuality/collect', methods=['POST'])
 def trigger_punctuality_collection():
     """触发一次实时准点率数据收集"""

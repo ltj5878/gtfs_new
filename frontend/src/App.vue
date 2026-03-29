@@ -21,7 +21,7 @@
             <el-menu-item index="/punctuality">准点率概览</el-menu-item>
             <el-menu-item index="/punctuality/routes">线路准点率</el-menu-item>
             <el-menu-item index="/punctuality/stops">站点准点率</el-menu-item>
-            <el-menu-item index="/punctuality/realtime">实时监控</el-menu-item>
+            <el-menu-item index="/punctuality/trends">准点率趋势总览</el-menu-item>
           </el-sub-menu>
           <el-menu-item v-if="authStore.isAdmin" index="/admin">运维看板</el-menu-item>
           <el-menu-item v-if="authStore.isAdmin" index="/users">用户管理</el-menu-item>
