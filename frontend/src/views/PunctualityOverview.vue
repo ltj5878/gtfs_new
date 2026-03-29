@@ -162,28 +162,7 @@
               </div>
             </template>
 
-            <div class="chart-container">
-              <!-- 时段准点率柱状图 -->
-              <div class="hourly-chart">
-                <div
-                  v-for="hour in hourlyData"
-                  :key="hour.hour"
-                  class="hour-bar"
-                >
-                  <div class="hour-label">{{ hour.hour_label }}</div>
-                  <div class="bar-container">
-                    <div
-                      class="bar-fill"
-                      :style="{
-                        width: `${Math.min(hour.punctuality_rate, 100)}%`,
-                        backgroundColor: getBarColor(hour.punctuality_rate)
-                      }"
-                    />
-                  </div>
-                  <div class="hour-rate">{{ formatPunctualityRate(hour.punctuality_rate) }}</div>
-                </div>
-              </div>
-            </div>
+            <div ref="hourlyChartRef" class="chart-container"></div>
           </el-card>
         </el-col>
       </el-row>
@@ -222,7 +201,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePunctualityStore } from '../stores/punctualityStore'
 import { useRegionStore } from '@/stores/regionStore'
@@ -231,6 +210,7 @@ import {
   Timer, InfoFilled, Clock, Calendar, ArrowLeft
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import * as echarts from 'echarts'
 
 // Store
 const router = useRouter()
@@ -242,6 +222,8 @@ const regionStore = useRegionStore()
 const rankingType = ref('best')
 const selectedDate = ref(new Date())
 const refreshTimer = ref(null)
+const hourlyChartRef = ref(null)
+let hourlyChart = null
 
 // 计算属性
 const loading = computed(() => punctualityStore.loading)
@@ -281,13 +263,91 @@ const fetchHourlyData = async () => {
   try {
     const dateStr = selectedDate.value.toISOString().split('T')[0]
     await punctualityStore.fetchHourlyPunctuality({ date: dateStr })
+    await nextTick()
+    renderHourlyChart()
   } catch (err) {
     ElMessage.error('获取时段数据失败')
   }
 }
 
+// 渲染时段准点率 ECharts 图表
+const renderHourlyChart = () => {
+  if (!hourlyChartRef.value) return
+  if (hourlyChart) hourlyChart.dispose()
+  hourlyChart = echarts.init(hourlyChartRef.value)
+
+  const data = hourlyData.value || []
+  const hours = data.map(d => d.hour_label)
+  const rates = data.map(d => d.punctuality_rate)
+  const delays = data.map(d => Math.abs(d.avg_delay_minutes))
+  const trips = data.map(d => d.total_trips)
+
+  hourlyChart.setOption({
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params) => {
+        let tip = params[0]?.axisValue || ''
+        params.forEach(p => {
+          tip += `<br/>${p.marker}${p.seriesName}: ${p.value}${p.seriesName.includes('班次') ? '' : ''}`
+        })
+        return tip
+      }
+    },
+    legend: { data: ['准点率(%)', '平均延误(分钟)', '班次数'], top: 0 },
+    grid: { left: 50, right: 50, bottom: 40, top: 40 },
+    xAxis: {
+      type: 'category',
+      data: hours,
+      axisLabel: { fontSize: 11, interval: 1 }
+    },
+    yAxis: [
+      { type: 'value', name: '准点率(%)', min: 0, max: 100 },
+      { type: 'value', name: '延误(分钟)', position: 'right' },
+      { type: 'value', show: false }
+    ],
+    series: [
+      {
+        name: '班次数',
+        type: 'bar',
+        yAxisIndex: 2,
+        data: trips,
+        itemStyle: { color: 'rgba(64,158,255,0.15)' },
+        barMaxWidth: 20,
+        silent: true,
+        z: 0
+      },
+      {
+        name: '准点率(%)',
+        type: 'bar',
+        data: rates.map(v => ({
+          value: v,
+          itemStyle: { color: getBarColor(v) }
+        })),
+        barMaxWidth: 16,
+        z: 1
+      },
+      {
+        name: '平均延误(分钟)',
+        type: 'line',
+        smooth: true,
+        yAxisIndex: 1,
+        data: delays.map(v => v.toFixed(2)),
+        itemStyle: { color: '#e6a23c' },
+        lineStyle: { width: 2 },
+        z: 2
+      }
+    ]
+  })
+}
+
+const handleResize = () => {
+  hourlyChart?.resize()
+}
+
 const refreshData = async () => {
   try {
+    // 先触发后端生成当天新数据，再拉取
+    await punctualityStore.refreshPunctualityData()
     await Promise.all([
       fetchOverviewData(),
       fetchHourlyData()
@@ -356,10 +416,16 @@ onMounted(async () => {
 
   // 启动自动刷新
   startAutoRefresh()
+  window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
   stopAutoRefresh()
+  window.removeEventListener('resize', handleResize)
+  if (hourlyChart) {
+    hourlyChart.dispose()
+    hourlyChart = null
+  }
 })
 
 // 切换地区时重新加载
@@ -609,50 +675,6 @@ watch(() => regionStore.selectedRegion, async () => {
 
 .chart-container {
   height: 400px;
-  overflow: hidden;
-}
-
-.hourly-chart {
-  height: 100%;
-  overflow-y: auto;
-}
-
-.hour-bar {
-  display: flex;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid #f3f4f6;
-}
-
-.hour-label {
-  width: 60px;
-  font-size: 12px;
-  color: #6b7280;
-  text-align: right;
-  margin-right: 12px;
-}
-
-.bar-container {
-  flex: 1;
-  height: 24px;
-  background: #f3f4f6;
-  border-radius: 12px;
-  overflow: hidden;
-  margin-right: 12px;
-}
-
-.bar-fill {
-  height: 100%;
-  transition: width 0.3s ease;
-  border-radius: 12px;
-}
-
-.hour-rate {
-  width: 60px;
-  text-align: right;
-  font-weight: 600;
-  color: #1f2937;
-  font-size: 12px;
 }
 
 .data-status-card {

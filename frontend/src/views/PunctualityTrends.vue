@@ -121,9 +121,10 @@
           </div>
         </div>
       </template>
-      <div v-if="singleTrendLoading" v-loading="true" class="chart-container"></div>
-      <div v-else-if="singleTrendData.length" ref="singleTrendChart" class="chart-container"></div>
-      <el-empty v-else description="请选择一条线路或一个站点查看趋势" />
+      <div v-loading="singleTrendLoading" class="chart-container">
+        <div v-show="singleTrendData.length" ref="singleTrendChart" style="width:100%;height:100%"></div>
+        <el-empty v-if="!singleTrendLoading && !singleTrendData.length" description="请选择一条线路或一个站点查看趋势" style="padding-top:60px" />
+      </div>
     </el-card>
   </div>
 </template>
@@ -254,48 +255,83 @@ const fetchSingleTrend = async () => {
 
 // ==================== 图表渲染 ====================
 
+// 高峰时段颜色映射（按名称而非索引）
+const peakColorMap = {
+  '早高峰': '#e6a23c',
+  '晚高峰': '#f56c6c',
+  '非高峰': '#67c23a'
+}
+const getPeakColor = (period) => {
+  for (const [key, color] of Object.entries(peakColorMap)) {
+    if (period.includes(key)) return color
+  }
+  return '#409eff'
+}
+
 // 1. 系统每日准点率折线图
 const renderDailyTrend = () => {
   const chart = initChart(dailyTrendChart.value, 'daily')
   if (!chart) return
   const data = trendsData.value.daily_trends || []
+  const rates = data.map(d => parseFloat(d.avg_punctuality_rate || 0))
+  const delays = data.map(d => parseFloat(d.avg_delay_minutes || 0))
+  const trips = data.map(d => parseInt(d.total_trips || 0))
+  // 准点率Y轴自适应范围，留出上下余量
+  const rateMin = Math.max(0, Math.floor(Math.min(...rates) - 3))
+  const rateMax = Math.min(100, Math.ceil(Math.max(...rates) + 3))
   chart.setOption({
-    tooltip: { trigger: 'axis' },
+    tooltip: {
+      trigger: 'axis',
+      formatter: (params) => {
+        let tip = params[0]?.axisValue || ''
+        params.forEach(p => {
+          tip += `<br/>${p.marker}${p.seriesName}: ${p.value}${p.seriesName.includes('班次') ? '' : ''}`
+        })
+        return tip
+      }
+    },
     legend: { data: ['准点率(%)', '平均延误(分钟)', '班次数'], top: 0 },
-    grid: { left: 60, right: 70, bottom: 60, top: 40 },
+    grid: { left: 60, right: 60, bottom: 60, top: 50 },
     xAxis: {
       type: 'category',
       data: data.map(d => formatDate(d.stat_date)),
       axisLabel: { rotate: 45, fontSize: 11 }
     },
     yAxis: [
-      { type: 'value', name: '准点率(%)', min: 0, max: 100 },
-      { type: 'value', name: '延误/班次', position: 'right' }
+      { type: 'value', name: '准点率(%)', min: rateMin, max: rateMax },
+      { type: 'value', name: '延误(分钟)', position: 'right' },
+      { type: 'value', show: false }
     ],
     series: [
+      {
+        name: '班次数',
+        type: 'bar',
+        yAxisIndex: 2,
+        data: trips,
+        itemStyle: { color: 'rgba(64,158,255,0.15)' },
+        barMaxWidth: 24,
+        silent: true,
+        z: 0
+      },
       {
         name: '准点率(%)',
         type: 'line',
         smooth: true,
-        data: data.map(d => parseFloat(d.avg_punctuality_rate || 0).toFixed(1)),
+        data: rates.map(v => v.toFixed(1)),
         itemStyle: { color: '#67c23a' },
-        areaStyle: { color: 'rgba(103,194,58,0.15)' }
+        lineStyle: { width: 2.5 },
+        areaStyle: { color: 'rgba(103,194,58,0.1)' },
+        z: 2
       },
       {
         name: '平均延误(分钟)',
         type: 'line',
         smooth: true,
         yAxisIndex: 1,
-        data: data.map(d => parseFloat(d.avg_delay_minutes || 0).toFixed(2)),
-        itemStyle: { color: '#e6a23c' }
-      },
-      {
-        name: '班次数',
-        type: 'bar',
-        yAxisIndex: 1,
-        data: data.map(d => parseInt(d.total_trips || 0)),
-        itemStyle: { color: 'rgba(64,158,255,0.3)' },
-        barMaxWidth: 20
+        data: delays.map(v => v.toFixed(2)),
+        itemStyle: { color: '#e6a23c' },
+        lineStyle: { width: 2.5 },
+        z: 2
       }
     ]
   })
@@ -306,14 +342,15 @@ const renderDistribution = () => {
   const chart = initChart(distributionChart.value, 'dist')
   if (!chart) return
   const data = trendsData.value.daily_trends || []
-  // 汇总所有天的分布
+  // 汇总所有天的分布，过滤负值
   let onTime = 0, early = 0, late = 0, veryLate = 0
   data.forEach(d => {
-    onTime += parseInt(d.on_time_trips || 0)
-    early += parseInt(d.early_trips || 0)
-    late += parseInt(d.late_trips || 0)
-    veryLate += parseInt(d.very_late_trips || 0)
+    onTime += Math.max(0, parseInt(d.on_time_trips || 0))
+    early += Math.max(0, parseInt(d.early_trips || 0))
+    late += Math.max(0, parseInt(d.late_trips || 0))
+    veryLate += Math.max(0, parseInt(d.very_late_trips || 0))
   })
+  const total = onTime + early + late + veryLate
   chart.setOption({
     tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
     legend: { bottom: 0 },
@@ -322,13 +359,13 @@ const renderDistribution = () => {
       radius: ['40%', '70%'],
       avoidLabelOverlap: true,
       itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
-      label: { show: true, formatter: '{b}\n{d}%' },
-      data: [
+      label: { show: total > 0, formatter: '{b}\n{d}%' },
+      data: total > 0 ? [
         { value: onTime, name: '准点', itemStyle: { color: '#67c23a' } },
         { value: early, name: '早到', itemStyle: { color: '#409eff' } },
         { value: late, name: '晚到', itemStyle: { color: '#e6a23c' } },
         { value: veryLate, name: '严重晚到', itemStyle: { color: '#f56c6c' } }
-      ]
+      ] : [{ value: 1, name: '暂无数据', itemStyle: { color: '#dcdfe6' } }]
     }]
   })
 }
@@ -352,13 +389,10 @@ const renderPeakComparison = () => {
       {
         name: '准点率(%)',
         type: 'bar',
-        data: data.map(d => parseFloat(d.avg_punctuality_rate || 0).toFixed(1)),
-        itemStyle: {
-          color: (params) => {
-            const colors = ['#e6a23c', '#f56c6c', '#67c23a']
-            return colors[params.dataIndex] || '#409eff'
-          }
-        },
+        data: data.map(d => ({
+          value: parseFloat(d.avg_punctuality_rate || 0).toFixed(1),
+          itemStyle: { color: getPeakColor(d.period) }
+        })),
         barMaxWidth: 50
       },
       {
@@ -377,35 +411,31 @@ const renderPeakComparison = () => {
 const renderRouteRank = () => {
   const chart = initChart(routeRankChart.value, 'routeRank')
   if (!chart) return
-  const list = routeRankType.value === 'top'
+  const isTop = routeRankType.value === 'top'
+  const list = isTop
     ? (trendsData.value.top_routes || [])
     : (trendsData.value.bottom_routes || [])
-  // 倒序显示（最高分在顶部），用 slice 避免修改原数组
-  const reversed = list.slice().reverse()
-  const names = reversed.map(r => r.route_short_name || r.route_id)
-  const rates = reversed.map(r => parseFloat(r.avg_punctuality_rate || 0).toFixed(1))
+  // top_routes: 后端按准点率DESC排序，index0最高 → reverse让最高在Y轴顶部
+  // bottom_routes: 后端返回最差在前(index0最低) → 直接用，最差在Y轴底部
+  const display = isTop ? list.slice().reverse() : list.slice()
+  const names = display.map(r => r.route_short_name || r.route_id)
+  const rates = display.map(r => parseFloat(r.avg_punctuality_rate || 0).toFixed(1))
+  const color = isTop ? '#67c23a' : '#f56c6c'
   chart.setOption({
     tooltip: {
       trigger: 'axis',
       formatter: (params) => {
         const item = params[0]
-        const orig = list.slice().reverse()[item.dataIndex]
+        const orig = display[item.dataIndex]
         return `${orig?.route_short_name || ''} ${orig?.route_long_name || ''}<br/>准点率: ${item.value}%`
       }
     },
-    grid: { left: 80, right: 80, bottom: 30, top: 20 },
+    grid: { left: 120, right: 80, bottom: 30, top: 20 },
     xAxis: { type: 'value', name: '准点率(%)', min: 0, max: 100, nameGap: 5 },
-    yAxis: { type: 'category', data: names, axisLabel: { fontSize: 12 } },
+    yAxis: { type: 'category', data: names, axisLabel: { fontSize: 12, width: 100, overflow: 'truncate' } },
     series: [{
       type: 'bar',
-      data: rates.map((v, i) => ({
-        value: v,
-        itemStyle: {
-          color: routeRankType.value === 'top'
-            ? `rgba(103,194,58,${0.5 + i * 0.1})`
-            : `rgba(245,108,108,${0.5 + i * 0.1})`
-        }
-      })),
+      data: rates.map(v => ({ value: v, itemStyle: { color } })),
       barMaxWidth: 36,
       label: { show: true, position: 'right', formatter: '{c}%' }
     }]
@@ -416,37 +446,32 @@ const renderRouteRank = () => {
 const renderStopRank = () => {
   const chart = initChart(stopRankChart.value, 'stopRank')
   if (!chart) return
-  const list = stopRankType.value === 'top'
+  const isTop = stopRankType.value === 'top'
+  const list = isTop
     ? (trendsData.value.top_stops || [])
     : (trendsData.value.bottom_stops || [])
-  const reversed = list.slice().reverse()
-  const names = reversed.map(s => {
+  const display = isTop ? list.slice().reverse() : list.slice()
+  const names = display.map(s => {
     const name = s.stop_name || s.stop_id
     return name.length > 14 ? name.substring(0, 14) + '…' : name
   })
-  const rates = reversed.map(s => parseFloat(s.avg_punctuality_rate || 0).toFixed(1))
+  const rates = display.map(s => parseFloat(s.avg_punctuality_rate || 0).toFixed(1))
+  const color = isTop ? '#67c23a' : '#f56c6c'
   chart.setOption({
     tooltip: {
       trigger: 'axis',
       formatter: (params) => {
         const item = params[0]
-        const orig = list.slice().reverse()[item.dataIndex]
+        const orig = display[item.dataIndex]
         return `${orig?.stop_name || orig?.stop_id || ''}<br/>准点率: ${item.value}%`
       }
     },
-    grid: { left: 160, right: 80, bottom: 30, top: 20 },
+    grid: { left: 120, right: 80, bottom: 30, top: 20 },
     xAxis: { type: 'value', name: '准点率(%)', min: 0, max: 100, nameGap: 5 },
-    yAxis: { type: 'category', data: names, axisLabel: { fontSize: 11, width: 140, overflow: 'truncate' } },
+    yAxis: { type: 'category', data: names, axisLabel: { fontSize: 11, width: 100, overflow: 'truncate' } },
     series: [{
       type: 'bar',
-      data: rates.map((v, i) => ({
-        value: v,
-        itemStyle: {
-          color: stopRankType.value === 'top'
-            ? `rgba(103,194,58,${0.5 + i * 0.1})`
-            : `rgba(245,108,108,${0.5 + i * 0.1})`
-        }
-      })),
+      data: rates.map(v => ({ value: v, itemStyle: { color } })),
       barMaxWidth: 36,
       label: { show: true, position: 'right', formatter: '{c}%' }
     }]
