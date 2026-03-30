@@ -44,33 +44,37 @@
       </el-col>
     </el-row>
 
-    <!-- 线路排名 TOP5 / BOTTOM5 -->
-    <el-card class="chart-card" v-loading="loading">
-      <template #header>
-        <div class="card-header-row">
-          <span class="card-title">线路准点率排名</span>
-          <el-radio-group v-model="routeRankType" size="small">
-            <el-radio-button value="top">最佳 TOP5</el-radio-button>
-            <el-radio-button value="bottom">最差 TOP5</el-radio-button>
-          </el-radio-group>
-        </div>
-      </template>
-      <div ref="routeRankChart" class="chart-container"></div>
-    </el-card>
-
-    <!-- 站点排名 TOP5 / BOTTOM5 -->
-    <el-card class="chart-card" v-loading="loading">
-      <template #header>
-        <div class="card-header-row">
-          <span class="card-title">站点准点率排名</span>
-          <el-radio-group v-model="stopRankType" size="small">
-            <el-radio-button value="top">最佳 TOP5</el-radio-button>
-            <el-radio-button value="bottom">最差 TOP5</el-radio-button>
-          </el-radio-group>
-        </div>
-      </template>
-      <div ref="stopRankChart" class="chart-container"></div>
-    </el-card>
+    <!-- 线路排名 + 站点排名 并排 -->
+    <el-row :gutter="20">
+      <el-col :xs="24" :md="12">
+        <el-card class="chart-card" v-loading="loading">
+          <template #header>
+            <div class="card-header-row">
+              <span class="card-title">线路准点率排名</span>
+              <el-radio-group v-model="routeRankType" size="small">
+                <el-radio-button value="top">最佳 TOP5</el-radio-button>
+                <el-radio-button value="bottom">最差 TOP5</el-radio-button>
+              </el-radio-group>
+            </div>
+          </template>
+          <div ref="routeRankChart" class="rank-chart-container"></div>
+        </el-card>
+      </el-col>
+      <el-col :xs="24" :md="12">
+        <el-card class="chart-card" v-loading="loading">
+          <template #header>
+            <div class="card-header-row">
+              <span class="card-title">站点准点率排名</span>
+              <el-radio-group v-model="stopRankType" size="small">
+                <el-radio-button value="top">最佳 TOP5</el-radio-button>
+                <el-radio-button value="bottom">最差 TOP5</el-radio-button>
+              </el-radio-group>
+            </div>
+          </template>
+          <div ref="stopRankChart" class="rank-chart-container"></div>
+        </el-card>
+      </el-col>
+    </el-row>
 
     <!-- 单条线路/站点趋势查询 -->
     <el-card class="chart-card">
@@ -133,10 +137,12 @@
 import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { ArrowLeft } from '@element-plus/icons-vue'
 import { useRegionStore } from '@/stores/regionStore'
+import { useRouter } from 'vue-router'
 import { getPunctualityTrends, getRoutePunctuality, getStopPunctuality } from '@/api/punctuality'
 import * as echarts from 'echarts'
 
 const regionStore = useRegionStore()
+const router = useRouter()
 
 // 状态
 const days = ref(30)
@@ -407,7 +413,83 @@ const renderPeakComparison = () => {
   })
 }
 
-// 4. 线路排名柱状图
+// 生成排名图表通用配置（进度条风格）
+const buildRankOption = (display, rates, isTop, tooltipFn) => {
+  const mainColor = isTop ? ['#52c41a', '#95de64'] : ['#ff4d4f', '#ff7875']
+  const bgColor = 'rgba(0,0,0,0.04)'
+  return {
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'none' },
+      formatter: tooltipFn
+    },
+    grid: { left: 16, right: 100, bottom: 12, top: 12, containLabel: true },
+    xAxis: {
+      type: 'value',
+      min: 0,
+      max: 100,
+      splitLine: { lineStyle: { type: 'dashed', color: '#f0f0f0' } },
+      axisLabel: { formatter: '{value}%', fontSize: 11, color: '#999' },
+      axisTick: { show: false },
+      axisLine: { show: false }
+    },
+    yAxis: {
+      type: 'category',
+      data: display.map(item => item._label),
+      inverse: false,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: {
+        fontSize: 12,
+        color: '#555',
+        width: 90,
+        overflow: 'truncate',
+        align: 'right'
+      }
+    },
+    series: [
+      // 背景轨道
+      {
+        type: 'bar',
+        data: display.map(() => 100),
+        barWidth: 14,
+        itemStyle: { color: bgColor, borderRadius: 7 },
+        emphasis: { disabled: true },
+        silent: true,
+        z: 0
+      },
+      // 数据条
+      {
+        type: 'bar',
+        data: rates.map((v, i) => ({
+          value: v,
+          itemStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+              { offset: 0, color: mainColor[0] },
+              { offset: 1, color: mainColor[1] }
+            ]),
+            borderRadius: 7
+          }
+        })),
+        barWidth: 14,
+        barGap: '-100%',
+        cursor: 'pointer',
+        label: {
+          show: true,
+          position: 'right',
+          distance: 8,
+          formatter: params => `${params.value}%`,
+          fontSize: 13,
+          fontWeight: 600,
+          color: isTop ? '#389e0d' : '#cf1322'
+        },
+        z: 1
+      }
+    ]
+  }
+}
+
+// 4. 线路排名
 const renderRouteRank = () => {
   const chart = initChart(routeRankChart.value, 'routeRank')
   if (!chart) return
@@ -415,34 +497,25 @@ const renderRouteRank = () => {
   const list = isTop
     ? (trendsData.value.top_routes || [])
     : (trendsData.value.bottom_routes || [])
-  // top_routes: 后端按准点率DESC排序，index0最高 → reverse让最高在Y轴顶部
-  // bottom_routes: 后端返回最差在前(index0最低) → 直接用，最差在Y轴底部
-  const display = isTop ? list.slice().reverse() : list.slice()
-  const names = display.map(r => r.route_short_name || r.route_id)
+  const display = (isTop ? list.slice().reverse() : list.slice()).map(r => ({
+    ...r,
+    _label: r.route_short_name || r.route_id
+  }))
   const rates = display.map(r => parseFloat(r.avg_punctuality_rate || 0).toFixed(1))
-  const color = isTop ? '#67c23a' : '#f56c6c'
-  chart.setOption({
-    tooltip: {
-      trigger: 'axis',
-      formatter: (params) => {
-        const item = params[0]
-        const orig = display[item.dataIndex]
-        return `${orig?.route_short_name || ''} ${orig?.route_long_name || ''}<br/>准点率: ${item.value}%`
-      }
-    },
-    grid: { left: 120, right: 80, bottom: 30, top: 20 },
-    xAxis: { type: 'value', name: '准点率(%)', min: 0, max: 100, nameGap: 5 },
-    yAxis: { type: 'category', data: names, axisLabel: { fontSize: 12, width: 100, overflow: 'truncate' } },
-    series: [{
-      type: 'bar',
-      data: rates.map(v => ({ value: v, itemStyle: { color } })),
-      barMaxWidth: 36,
-      label: { show: true, position: 'right', formatter: '{c}%' }
-    }]
+  chart.setOption(buildRankOption(display, rates, isTop, (params) => {
+    const item = params.find(p => p.seriesIndex === 1) || params[0]
+    const orig = display[item.dataIndex]
+    return `<b>${orig?.route_short_name || ''}</b> ${orig?.route_long_name || ''}<br/>准点率: <b>${item.value}%</b><br/><span style="color:#999;font-size:11px">点击查看详情</span>`
+  }))
+  chart.off('click')
+  chart.on('click', (params) => {
+    if (params.seriesIndex !== 1) return
+    const orig = display[params.dataIndex]
+    if (orig?.route_id) router.push(`/routes/${orig.route_id}`)
   })
 }
 
-// 5. 站点排名柱状图
+// 5. 站点排名
 const renderStopRank = () => {
   const chart = initChart(stopRankChart.value, 'stopRank')
   if (!chart) return
@@ -450,31 +523,21 @@ const renderStopRank = () => {
   const list = isTop
     ? (trendsData.value.top_stops || [])
     : (trendsData.value.bottom_stops || [])
-  const display = isTop ? list.slice().reverse() : list.slice()
-  const names = display.map(s => {
+  const display = (isTop ? list.slice().reverse() : list.slice()).map(s => {
     const name = s.stop_name || s.stop_id
-    return name.length > 14 ? name.substring(0, 14) + '…' : name
+    return { ...s, _label: name.length > 14 ? name.substring(0, 14) + '…' : name }
   })
   const rates = display.map(s => parseFloat(s.avg_punctuality_rate || 0).toFixed(1))
-  const color = isTop ? '#67c23a' : '#f56c6c'
-  chart.setOption({
-    tooltip: {
-      trigger: 'axis',
-      formatter: (params) => {
-        const item = params[0]
-        const orig = display[item.dataIndex]
-        return `${orig?.stop_name || orig?.stop_id || ''}<br/>准点率: ${item.value}%`
-      }
-    },
-    grid: { left: 120, right: 80, bottom: 30, top: 20 },
-    xAxis: { type: 'value', name: '准点率(%)', min: 0, max: 100, nameGap: 5 },
-    yAxis: { type: 'category', data: names, axisLabel: { fontSize: 11, width: 100, overflow: 'truncate' } },
-    series: [{
-      type: 'bar',
-      data: rates.map(v => ({ value: v, itemStyle: { color } })),
-      barMaxWidth: 36,
-      label: { show: true, position: 'right', formatter: '{c}%' }
-    }]
+  chart.setOption(buildRankOption(display, rates, isTop, (params) => {
+    const item = params.find(p => p.seriesIndex === 1) || params[0]
+    const orig = display[item.dataIndex]
+    return `<b>${orig?.stop_name || orig?.stop_id || ''}</b><br/>准点率: <b>${item.value}%</b><br/><span style="color:#999;font-size:11px">点击查看详情</span>`
+  }))
+  chart.off('click')
+  chart.on('click', (params) => {
+    if (params.seriesIndex !== 1) return
+    const orig = display[params.dataIndex]
+    if (orig?.stop_id) router.push(`/stops/${orig.stop_id}`)
   })
 }
 
@@ -583,6 +646,11 @@ onBeforeUnmount(() => {
 
 .chart-container {
   height: 360px;
+  width: 100%;
+}
+
+.rank-chart-container {
+  height: 220px;
   width: 100%;
 }
 
