@@ -94,6 +94,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/planner/transfer',
+      name: 'transfer-planner',
+      component: () => import('@/views/TransferPlanner.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/admin',
       name: 'admin',
       component: () => import('@/views/AdminDashboard.vue'),

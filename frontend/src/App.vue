@@ -2,7 +2,7 @@
   <el-container class="app-container">
     <el-header class="app-header">
       <div class="header-content">
-        <div class="logo" @click="window.location.href = '/'">
+        <div class="logo" @click="$router.push('/')" style="cursor: pointer">
           <el-icon :size="28"><TrendCharts /></el-icon>
           <span>公交准点率分析系统</span>
         </div>
@@ -13,9 +13,16 @@
           @select="handleMenuSelect"
         >
           <el-menu-item index="/">首页</el-menu-item>
-          <el-menu-item index="/routes">线路</el-menu-item>
-          <el-menu-item index="/stops">站点</el-menu-item>
-          <el-menu-item index="/favorites">我的收藏</el-menu-item>
+          <el-sub-menu index="/browse">
+            <template #title>线路与站点</template>
+            <el-menu-item index="/routes">线路</el-menu-item>
+            <el-menu-item index="/stops">站点</el-menu-item>
+          </el-sub-menu>
+          <el-sub-menu index="/tools">
+            <template #title>出行工具</template>
+            <el-menu-item index="/favorites">我的收藏</el-menu-item>
+            <el-menu-item index="/planner/transfer">换乘规划</el-menu-item>
+          </el-sub-menu>
           <el-sub-menu index="/punctuality">
             <template #title>准点率</template>
             <el-menu-item index="/punctuality">准点率概览</el-menu-item>
@@ -23,8 +30,11 @@
             <el-menu-item index="/punctuality/stops">站点准点率</el-menu-item>
             <el-menu-item index="/punctuality/trends">准点率趋势总览</el-menu-item>
           </el-sub-menu>
-          <el-menu-item v-if="authStore.isAdmin" index="/admin">运维看板</el-menu-item>
-          <el-menu-item v-if="authStore.isAdmin" index="/users">用户管理</el-menu-item>
+          <el-sub-menu v-if="authStore.isAdmin" index="/manage">
+            <template #title>管理</template>
+            <el-menu-item index="/admin">运维看板</el-menu-item>
+            <el-menu-item index="/users">用户管理</el-menu-item>
+          </el-sub-menu>
         </el-menu>
         <div class="header-right">
           <RegionSelector />
@@ -79,6 +89,7 @@ const activeMenu = computed(() => {
   if (path.startsWith('/routes')) return '/routes'
   if (path.startsWith('/stops')) return '/stops'
   if (path.startsWith('/favorites')) return '/favorites'
+  if (path.startsWith('/planner')) return '/planner/transfer'
   if (path.startsWith('/admin')) return '/admin'
   if (path.startsWith('/users')) return '/users'
   return '/'

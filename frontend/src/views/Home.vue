@@ -27,12 +27,12 @@
     <!-- 功能导航区域 -->
     <div class="features-section">
       <el-row :gutter="20">
-        <!-- 基础功能 -->
-        <el-col :xs="24" :md="12">
+        <!-- 线路与站点 -->
+        <el-col :xs="24" :md="8">
           <div class="feature-card">
             <div class="feature-header">
               <el-icon :size="20" color="#409eff"><Guide /></el-icon>
-              <span class="feature-title">基础功能</span>
+              <span class="feature-title">线路与站点</span>
             </div>
             <div class="feature-content">
               <div class="feature-item" @click="$router.push('/routes')">
@@ -67,7 +67,18 @@
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
+            </div>
+          </div>
+        </el-col>
 
+        <!-- 出行工具 -->
+        <el-col :xs="24" :md="8">
+          <div class="feature-card">
+            <div class="feature-header">
+              <el-icon :size="20" color="#0288d1"><Promotion /></el-icon>
+              <span class="feature-title">出行工具</span>
+            </div>
+            <div class="feature-content">
               <div class="feature-item" @click="$router.push('/favorites')">
                 <div class="feature-item-icon" style="background-color: #fff8e1;">
                   <el-icon :size="20" color="#f0a020"><Star /></el-icon>
@@ -78,12 +89,23 @@
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
+
+              <div class="feature-item" @click="$router.push('/planner/transfer')">
+                <div class="feature-item-icon" style="background-color: #e1f5fe;">
+                  <el-icon :size="20" color="#0288d1"><Promotion /></el-icon>
+                </div>
+                <div class="feature-item-text">
+                  <div class="feature-item-title">换乘规划</div>
+                  <div class="feature-item-desc">输入起终点，智能规划换乘路线</div>
+                </div>
+                <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
+              </div>
             </div>
           </div>
         </el-col>
 
         <!-- 准点率分析 -->
-        <el-col :xs="24" :md="12">
+        <el-col :xs="24" :md="8">
           <div class="feature-card">
             <div class="feature-header">
               <el-icon :size="20" color="#e6a23c"><TrendCharts /></el-icon>
@@ -180,7 +202,8 @@ import {
   Timer,
   DataLine,
   ArrowRight,
-  Star
+  Star,
+  Promotion
 } from '@element-plus/icons-vue'
 
 const router = useRouter()

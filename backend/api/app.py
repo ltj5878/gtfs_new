@@ -2022,6 +2022,34 @@ def update_user_password(user_id: int):
         return jsonify(error_response(f"修改失败: {str(e)}", 500)), 500
 
 
+# ==================== 换乘规划接口 ====================
+
+@app.route('/api/planner/transfer', methods=['GET'])
+def plan_transfer():
+    """换乘规划接口：根据起终点站返回候选换乘方案"""
+    from_stop_id = request.args.get('from_stop_id', '').strip()
+    to_stop_id = request.args.get('to_stop_id', '').strip()
+    region = request.args.get('region', 'sf').strip()
+    strategy = request.args.get('strategy', 'min_transfer').strip()
+
+    if not from_stop_id or not to_stop_id:
+        return jsonify(error_response("缺少必要参数：from_stop_id 和 to_stop_id", 400)), 400
+
+    if strategy not in ('min_transfer', 'min_time'):
+        strategy = 'min_transfer'
+
+    try:
+        from business_logic.transfer_planner import find_transfer_plans
+        result = find_transfer_plans(from_stop_id, to_stop_id, region, strategy)
+
+        if 'error' in result:
+            return jsonify(error_response(result['error'], 400)), 400
+
+        return jsonify(success_response(result))
+    except Exception as e:
+        return jsonify(error_response(f"换乘规划失败: {str(e)}", 500)), 500
+
+
 @app.errorhandler(404)
 def not_found(error):
     """404 错误处理"""
