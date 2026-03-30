@@ -13,6 +13,18 @@
           <el-radio-button :value="30">近30天</el-radio-button>
           <el-radio-button :value="90">近90天</el-radio-button>
         </el-radio-group>
+        <el-dropdown trigger="click" @command="handleExport">
+          <el-button :icon="Download" type="primary" plain>数据导出</el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="daily">每日准点率趋势</el-dropdown-item>
+              <el-dropdown-item command="route_rank">线路准点率排名</el-dropdown-item>
+              <el-dropdown-item command="stop_rank">站点准点率排名</el-dropdown-item>
+              <el-dropdown-item command="peak">高峰时段对比</el-dropdown-item>
+              <el-dropdown-item v-if="singleTrendData.length" command="single">当前查询趋势</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
 
@@ -83,6 +95,21 @@
           <span class="card-title">单线路 / 站点准点率趋势查询</span>
           <div class="query-controls">
             <el-select
+              v-model="queryAgencyId"
+              clearable
+              placeholder="按机构筛选"
+              :loading="agenciesLoading"
+              style="width: 160px; margin-right: 12px"
+              @change="onAgencyFilterChange"
+            >
+              <el-option
+                v-for="a in agencies"
+                :key="a.agency_id"
+                :label="a.agency_name"
+                :value="a.agency_id"
+              />
+            </el-select>
+            <el-select
               v-model="queryType"
               style="width: 120px; margin-right: 12px"
               @change="clearQuery"
@@ -100,7 +127,7 @@
               @change="fetchSingleTrend"
             >
               <el-option
-                v-for="r in routeOptions"
+                v-for="r in filteredRouteOptions"
                 :key="r.route_id"
                 :label="`${r.route_short_name || ''} ${r.route_long_name || ''}`"
                 :value="r.route_id"
@@ -134,11 +161,13 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ArrowLeft, Download } from '@element-plus/icons-vue'
 import { useRegionStore } from '@/stores/regionStore'
 import { useRouter } from 'vue-router'
 import { getPunctualityTrends, getRoutePunctuality, getStopPunctuality } from '@/api/punctuality'
+import { getAgencies } from '@/api/common'
+import { getRoutes } from '@/api/routes'
 import * as echarts from 'echarts'
 
 const regionStore = useRegionStore()
@@ -154,6 +183,24 @@ const selectedRouteId = ref('')
 const selectedStopId = ref('')
 const singleTrendLoading = ref(false)
 const singleTrendData = ref([])
+
+// 运营机构
+const agencies = ref([])
+const agenciesLoading = ref(false)
+const queryAgencyId = ref('')
+const allRoutesForFilter = ref([])  // 全量线路（用于按机构过滤）
+
+// 按机构过滤后的线路选项
+const filteredRouteOptions = computed(() => {
+  if (!queryAgencyId.value) return routeOptions.value
+  // 先拿全量线路中属于该机构的 route_id 集合
+  const agencyRouteIds = new Set(
+    allRoutesForFilter.value
+      .filter(r => r.agency_id === queryAgencyId.value)
+      .map(r => r.route_id)
+  )
+  return routeOptions.value.filter(r => agencyRouteIds.has(r.route_id))
+})
 
 // 数据
 const trendsData = ref({})
@@ -232,6 +279,105 @@ const clearQuery = () => {
   selectedRouteId.value = ''
   selectedStopId.value = ''
   singleTrendData.value = []
+}
+
+// 切换机构筛选时清空已选线路
+const onAgencyFilterChange = () => {
+  selectedRouteId.value = ''
+  singleTrendData.value = []
+}
+
+// 加载运营机构列表
+const loadAgencies = async () => {
+  agenciesLoading.value = true
+  try {
+    const data = await getAgencies()
+    agencies.value = Array.isArray(data) ? data : []
+  } catch { /* ignore */ } finally {
+    agenciesLoading.value = false
+  }
+}
+
+// 加载全量线路（用于按机构过滤）
+const loadAllRoutes = async () => {
+  try {
+    const data = await getRoutes({ page_size: 500 })
+    allRoutesForFilter.value = data?.routes || []
+  } catch { /* ignore */ }
+}
+
+// 数据导出
+const handleExport = (command) => {
+  let rows = []
+  let filename = ''
+
+  if (command === 'daily') {
+    const data = trendsData.value.daily_trends || []
+    rows = [['日期', '准点率(%)', '平均延误(分钟)', '总班次', '准点', '早到', '晚到', '严重晚到']]
+    data.forEach(d => {
+      rows.push([
+        formatDate(d.stat_date),
+        parseFloat(d.avg_punctuality_rate || 0).toFixed(2),
+        parseFloat(d.avg_delay_minutes || 0).toFixed(2),
+        d.total_trips || 0,
+        d.on_time_trips || 0,
+        d.early_trips || 0,
+        d.late_trips || 0,
+        d.very_late_trips || 0
+      ])
+    })
+    filename = `每日准点率趋势_近${days.value}天.csv`
+  } else if (command === 'route_rank') {
+    const top = trendsData.value.top_routes || []
+    const bottom = trendsData.value.bottom_routes || []
+    rows = [['排名类型', '线路编号', '线路名称', '准点率(%)', '平均延误(分钟)', '总班次']]
+    top.forEach(r => rows.push(['最佳', r.route_short_name || r.route_id, r.route_long_name || '', parseFloat(r.avg_punctuality_rate || 0).toFixed(2), parseFloat(r.avg_delay_minutes || 0).toFixed(2), r.total_trips || 0]))
+    bottom.forEach(r => rows.push(['最差', r.route_short_name || r.route_id, r.route_long_name || '', parseFloat(r.avg_punctuality_rate || 0).toFixed(2), parseFloat(r.avg_delay_minutes || 0).toFixed(2), r.total_trips || 0]))
+    filename = `线路准点率排名_近${days.value}天.csv`
+  } else if (command === 'stop_rank') {
+    const top = trendsData.value.top_stops || []
+    const bottom = trendsData.value.bottom_stops || []
+    rows = [['排名类型', '站点名称', '准点率(%)', '平均延误(分钟)', '总访问量']]
+    top.forEach(s => rows.push(['最佳', s.stop_name || s.stop_id, parseFloat(s.avg_punctuality_rate || 0).toFixed(2), parseFloat(s.avg_delay_minutes || 0).toFixed(2), s.total_visits || 0]))
+    bottom.forEach(s => rows.push(['最差', s.stop_name || s.stop_id, parseFloat(s.avg_punctuality_rate || 0).toFixed(2), parseFloat(s.avg_delay_minutes || 0).toFixed(2), s.total_visits || 0]))
+    filename = `站点准点率排名_近${days.value}天.csv`
+  } else if (command === 'peak') {
+    const data = trendsData.value.peak_comparison || []
+    rows = [['时段', '准点率(%)', '平均延误(分钟)', '总班次']]
+    data.forEach(d => rows.push([d.period, parseFloat(d.avg_punctuality_rate || 0).toFixed(2), parseFloat(d.avg_delay_minutes || 0).toFixed(2), d.total_trips || 0]))
+    filename = `高峰时段对比_近${days.value}天.csv`
+  } else if (command === 'single') {
+    const data = singleTrendData.value
+    const isRoute = queryType.value === 'route'
+    rows = [['日期', '准点率(%)', '平均延误(分钟)', isRoute ? '总班次' : '总访问量', '准点', '早到', '晚到', '严重晚到']]
+    data.forEach(d => {
+      rows.push([
+        formatDate(d.stat_date),
+        parseFloat(d.punctuality_rate || 0).toFixed(2),
+        parseFloat(d.avg_delay_minutes || 0).toFixed(2),
+        isRoute ? (d.total_trips || 0) : (d.total_visits || 0),
+        isRoute ? (d.on_time_trips || 0) : (d.on_time_visits || 0),
+        isRoute ? (d.early_trips || 0) : (d.early_visits || 0),
+        isRoute ? (d.late_trips || 0) : (d.late_visits || 0),
+        isRoute ? (d.very_late_trips || 0) : (d.very_late_visits || 0)
+      ])
+    })
+    const label = isRoute ? (data[0]?.route_short_name || selectedRouteId.value) : (data[0]?.stop_name || selectedStopId.value)
+    filename = `${label}_准点率趋势_近${days.value}天.csv`
+  }
+
+  if (rows.length <= 1) return
+
+  // 生成 CSV 并下载（UTF-8 BOM 兼容 Excel）
+  const bom = '\uFEFF'
+  const csv = bom + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 // 查询单条线路/站点趋势
@@ -594,13 +740,18 @@ const handleResize = () => {
 watch(routeRankType, () => renderRouteRank())
 watch(stopRankType, () => renderStopRank())
 watch(() => regionStore.selectedRegion, () => {
+  queryAgencyId.value = ''
   fetchData()
   fetchOptions()
+  loadAgencies()
+  loadAllRoutes()
 })
 
 onMounted(() => {
   fetchData()
   fetchOptions()
+  loadAgencies()
+  loadAllRoutes()
   window.addEventListener('resize', handleResize)
 })
 
@@ -634,10 +785,10 @@ onBeforeUnmount(() => {
   margin: 0 0 4px;
 }
 
-.header-content p {
-  font-size: 14px;
-  color: #6c757d;
-  margin: 0;
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .chart-card {

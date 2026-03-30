@@ -26,7 +26,7 @@
           </el-sub-menu>
           <el-sub-menu index="/punctuality">
             <template #title>准点率</template>
-            <el-menu-item index="/punctuality">准点率概览</el-menu-item>
+<!--            <el-menu-item index="/punctuality">准点率概览</el-menu-item>-->
             <el-menu-item index="/punctuality/routes">线路准点率</el-menu-item>
             <el-menu-item index="/punctuality/stops">站点准点率</el-menu-item>
             <el-menu-item index="/punctuality/trends">准点率趋势总览</el-menu-item>

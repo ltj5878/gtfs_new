@@ -123,16 +123,16 @@
               <span class="feature-title">准点率分析</span>
             </div>
             <div class="feature-content">
-              <div class="feature-item" @click="navigate('/punctuality')">
-                <div class="feature-item-icon" style="background-color: #fef0e6;">
-                  <el-icon :size="20" color="#e6a23c"><TrendCharts /></el-icon>
-                </div>
-                <div class="feature-item-text">
-                  <div class="feature-item-title">准点率概览</div>
-                  <div class="feature-item-desc">查看整体准点率统计</div>
-                </div>
-                <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
-              </div>
+<!--              <div class="feature-item" @click="navigate('/punctuality')">-->
+<!--                <div class="feature-item-icon" style="background-color: #fef0e6;">-->
+<!--                  <el-icon :size="20" color="#e6a23c"><TrendCharts /></el-icon>-->
+<!--                </div>-->
+<!--                <div class="feature-item-text">-->
+<!--                  <div class="feature-item-title">准点率概览</div>-->
+<!--                  <div class="feature-item-desc">查看整体准点率统计</div>-->
+<!--                </div>-->
+<!--                <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>-->
+<!--              </div>-->
 
               <div class="feature-item" @click="navigate('/punctuality/routes')">
                 <div class="feature-item-icon" style="background-color: #e3f2fd;">
@@ -140,7 +140,7 @@
                 </div>
                 <div class="feature-item-text">
                   <div class="feature-item-title">线路准点率</div>
-                  <div class="feature-item-desc">近90天各线路准点率变化趋势与排名</div>
+                  <div class="feature-item-desc">各线路准点率变化趋势与排名</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
@@ -151,7 +151,7 @@
                 </div>
                 <div class="feature-item-text">
                   <div class="feature-item-title">站点准点率</div>
-                  <div class="feature-item-desc">近90天各站点到达准点率趋势与排名</div>
+                  <div class="feature-item-desc">各站点到达准点率趋势与排名</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
@@ -162,7 +162,7 @@
                 </div>
                 <div class="feature-item-text">
                   <div class="feature-item-title">准点率趋势总览</div>
-                  <div class="feature-item-desc">多维度趋势图表、排名对比与高峰分析</div>
+                  <div class="feature-item-desc">多维度趋势图表与排名对比</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
