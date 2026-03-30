@@ -100,6 +100,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/compare/routes',
+      name: 'route-compare',
+      component: () => import('@/views/RouteCompare.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/admin',
       name: 'admin',
       component: () => import('@/views/AdminDashboard.vue'),

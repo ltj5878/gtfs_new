@@ -22,6 +22,7 @@
             <template #title>出行工具</template>
             <el-menu-item index="/favorites">我的收藏</el-menu-item>
             <el-menu-item index="/planner/transfer">换乘规划</el-menu-item>
+            <el-menu-item index="/compare/routes">线路对比</el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="/punctuality">
             <template #title>准点率</template>
@@ -90,6 +91,7 @@ const activeMenu = computed(() => {
   if (path.startsWith('/stops')) return '/stops'
   if (path.startsWith('/favorites')) return '/favorites'
   if (path.startsWith('/planner')) return '/planner/transfer'
+  if (path.startsWith('/compare')) return '/compare/routes'
   if (path.startsWith('/admin')) return '/admin'
   if (path.startsWith('/users')) return '/users'
   return '/'

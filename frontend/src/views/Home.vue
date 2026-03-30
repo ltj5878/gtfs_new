@@ -100,6 +100,17 @@
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
+
+              <div class="feature-item" @click="$router.push('/compare/routes')">
+                <div class="feature-item-icon" style="background-color: #e8f5e9;">
+                  <el-icon :size="20" color="#67c23a"><DataAnalysis /></el-icon>
+                </div>
+                <div class="feature-item-text">
+                  <div class="feature-item-title">线路对比</div>
+                  <div class="feature-item-desc">并排对比多条线路的站点与信息</div>
+                </div>
+                <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
+              </div>
             </div>
           </div>
         </el-col>
@@ -203,7 +214,8 @@ import {
   DataLine,
   ArrowRight,
   Star,
-  Promotion
+  Promotion,
+  DataAnalysis
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
