@@ -17,22 +17,22 @@
           </svg>
         </div>
         <div class="header-text">
-          <h1>公交准点率分析系统</h1>
-          <p class="subtitle">GTFS Transit Punctuality Analytics</p>
+          <h1>{{ $t('login.title') }}</h1>
+          <p class="subtitle">{{ $t('login.subtitle') }}</p>
         </div>
       </div>
 
       <!-- 登录/注册切换 -->
       <div class="tab-bar">
-        <button :class="{ active: !isRegister }" @click="switchMode(false)">登录</button>
-        <button :class="{ active: isRegister }" @click="switchMode(true)">注册</button>
+        <button :class="{ active: !isRegister }" @click="switchMode(false)">{{ $t('login.loginTab') }}</button>
+        <button :class="{ active: isRegister }" @click="switchMode(true)">{{ $t('login.registerTab') }}</button>
         <div class="tab-indicator" :style="{ left: isRegister ? '50%' : '0' }"></div>
       </div>
 
       <!-- 登录表单 -->
       <form v-if="!isRegister" @submit.prevent="handleLogin" class="auth-form">
         <div class="field">
-          <label for="login-user">用户名</label>
+          <label for="login-user">{{ $t('login.username') }}</label>
           <div class="input-wrap">
             <svg class="field-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <input
@@ -40,13 +40,13 @@
               v-model="form.username"
               type="text"
               autocomplete="username"
-              placeholder="请输入用户名"
+              :placeholder="$t('login.usernamePlaceholder')"
               required
             />
           </div>
         </div>
         <div class="field">
-          <label for="login-pwd">密码</label>
+          <label for="login-pwd">{{ $t('login.password') }}</label>
           <div class="input-wrap">
             <svg class="field-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             <input
@@ -54,10 +54,10 @@
               v-model="form.password"
               :type="showPwd ? 'text' : 'password'"
               autocomplete="current-password"
-              placeholder="请输入密码"
+              :placeholder="$t('login.passwordPlaceholder')"
               required
             />
-            <button type="button" class="eye-btn" @click="showPwd = !showPwd" tabindex="-1" aria-label="切换密码可见性">
+            <button type="button" class="eye-btn" @click="showPwd = !showPwd" tabindex="-1" :aria-label="$t('login.togglePassword')">
               <svg v-if="showPwd" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
             </button>
@@ -67,14 +67,14 @@
         <p v-if="successMsg" class="msg msg-ok">{{ successMsg }}</p>
         <button type="submit" class="submit-btn" :disabled="loading">
           <span v-if="loading" class="btn-loading"></span>
-          {{ loading ? '登录中...' : '登录' }}
+          {{ loading ? $t('login.loginLoading') : $t('login.loginBtn') }}
         </button>
       </form>
 
       <!-- 注册表单 -->
       <form v-else @submit.prevent="handleRegister" class="auth-form">
         <div class="field">
-          <label for="reg-user">用户名</label>
+          <label for="reg-user">{{ $t('login.username') }}</label>
           <div class="input-wrap">
             <svg class="field-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <input
@@ -82,7 +82,7 @@
               v-model="regForm.username"
               type="text"
               autocomplete="username"
-              placeholder="4-20 个字符"
+              :placeholder="$t('login.usernameHint')"
               required
               minlength="4"
               maxlength="20"
@@ -90,7 +90,7 @@
           </div>
         </div>
         <div class="field">
-          <label for="reg-pwd">密码</label>
+          <label for="reg-pwd">{{ $t('login.password') }}</label>
           <div class="input-wrap">
             <svg class="field-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             <input
@@ -98,18 +98,18 @@
               v-model="regForm.password"
               :type="showPwd ? 'text' : 'password'"
               autocomplete="new-password"
-              placeholder="至少 6 位"
+              :placeholder="$t('login.passwordHint')"
               required
               minlength="6"
             />
-            <button type="button" class="eye-btn" @click="showPwd = !showPwd" tabindex="-1" aria-label="切换密码可见性">
+            <button type="button" class="eye-btn" @click="showPwd = !showPwd" tabindex="-1" :aria-label="$t('login.togglePassword')">
               <svg v-if="showPwd" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
             </button>
           </div>
         </div>
         <div class="field">
-          <label for="reg-pwd2">确认密码</label>
+          <label for="reg-pwd2">{{ $t('login.confirmPassword') }}</label>
           <div class="input-wrap">
             <svg class="field-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             <input
@@ -117,10 +117,10 @@
               v-model="regForm.confirmPassword"
               :type="showPwd2 ? 'text' : 'password'"
               autocomplete="new-password"
-              placeholder="再次输入密码"
+              :placeholder="$t('login.confirmHint')"
               required
             />
-            <button type="button" class="eye-btn" @click="showPwd2 = !showPwd2" tabindex="-1" aria-label="切换密码可见性">
+            <button type="button" class="eye-btn" @click="showPwd2 = !showPwd2" tabindex="-1" :aria-label="$t('login.togglePassword')">
               <svg v-if="showPwd2" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
             </button>
@@ -129,7 +129,7 @@
         <p v-if="errorMsg" class="msg msg-error">{{ errorMsg }}</p>
         <button type="submit" class="submit-btn" :disabled="loading">
           <span v-if="loading" class="btn-loading"></span>
-          {{ loading ? '注册中...' : '注册' }}
+          {{ loading ? $t('login.registerLoading') : $t('login.registerBtn') }}
         </button>
       </form>
 
@@ -143,9 +143,11 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/authStore.js'
 import { register } from '@/api/auth.js'
 
+const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -169,7 +171,7 @@ async function handleLogin() {
   errorMsg.value = ''
   successMsg.value = ''
   if (!form.username || !form.password) {
-    errorMsg.value = '请填写用户名和密码'
+    errorMsg.value = t('login.fillUsernameAndPassword')
     return
   }
   loading.value = true
@@ -177,7 +179,7 @@ async function handleLogin() {
     await authStore.login(form.username, form.password)
     router.push('/')
   } catch (e) {
-    errorMsg.value = e.message || '登录失败，请检查用户名和密码'
+    errorMsg.value = e.message || t('login.loginFailed')
   } finally {
     loading.value = false
   }
@@ -186,29 +188,29 @@ async function handleLogin() {
 async function handleRegister() {
   errorMsg.value = ''
   if (!regForm.username || !regForm.password || !regForm.confirmPassword) {
-    errorMsg.value = '请填写所有字段'
+    errorMsg.value = t('login.fillAllFields')
     return
   }
   if (regForm.username.length < 4 || regForm.username.length > 20) {
-    errorMsg.value = '用户名长度须在 4-20 个字符之间'
+    errorMsg.value = t('login.usernameLengthError')
     return
   }
   if (regForm.password.length < 6) {
-    errorMsg.value = '密码长度不能少于 6 位'
+    errorMsg.value = t('login.passwordLengthError')
     return
   }
   if (regForm.password !== regForm.confirmPassword) {
-    errorMsg.value = '两次输入的密码不一致'
+    errorMsg.value = t('login.passwordMismatch')
     return
   }
   loading.value = true
   try {
     await register(regForm.username, regForm.password)
     switchMode(false)
-    successMsg.value = '注册成功，请登录'
+    successMsg.value = t('login.registerSuccess')
     form.username = regForm.username
   } catch (e) {
-    errorMsg.value = e.message || '注册失败，请稍后重试'
+    errorMsg.value = e.message || t('login.registerFailed')
   } finally {
     loading.value = false
   }

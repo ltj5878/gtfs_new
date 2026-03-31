@@ -2,7 +2,7 @@
   <div class="stop-detail-page">
     <div v-loading="stopStore.loading" class="detail-content">
       <div v-if="stopStore.currentStop" class="stop-detail">
-        <el-page-header @back="$router.back()" title="返回">
+        <el-page-header @back="$router.back()" :title="$t('common.back')">
           <template #content>
             <div class="stop-title">
               <el-icon :size="24"><Location /></el-icon>
@@ -13,7 +13,7 @@
                 :class="{ 'is-favorited': stopFavorited }"
                 :size="22"
                 @click.stop="handleFavorite"
-                :title="stopFavorited ? '取消收藏' : '收藏此站点'"
+                :title="stopFavorited ? $t('common.unfavorite') : $t('common.favoriteStop')"
               >
                 <Star />
               </el-icon>
@@ -27,16 +27,16 @@
           <el-col :xs="24" :md="12">
             <el-card>
               <template #header>
-                <span>站点信息</span>
+                <span>{{ $t('stopDetail.stopInfo') }}</span>
               </template>
               <el-descriptions :column="1" border>
-                <el-descriptions-item label="站点ID">{{ stopStore.currentStop.stop_id }}</el-descriptions-item>
-                <el-descriptions-item label="站点名称">{{ stopStore.currentStop.stop_name }}</el-descriptions-item>
-                <el-descriptions-item v-if="stopStore.currentStop.stop_code" label="站点编号">{{ stopStore.currentStop.stop_code }}</el-descriptions-item>
-                <el-descriptions-item label="纬度">{{ stopStore.currentStop.stop_lat.toFixed(6) }}</el-descriptions-item>
-                <el-descriptions-item label="经度">{{ stopStore.currentStop.stop_lon.toFixed(6) }}</el-descriptions-item>
-                <el-descriptions-item v-if="stopStore.currentStop.stop_desc" label="描述">{{ stopStore.currentStop.stop_desc }}</el-descriptions-item>
-                <el-descriptions-item v-if="stopStore.currentStop.wheelchair_boarding !== null" label="无障碍">
+                <el-descriptions-item :label="$t('stopDetail.stopId')">{{ stopStore.currentStop.stop_id }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('stopDetail.stopName')">{{ stopStore.currentStop.stop_name }}</el-descriptions-item>
+                <el-descriptions-item v-if="stopStore.currentStop.stop_code" :label="$t('stopDetail.stopCode')">{{ stopStore.currentStop.stop_code }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('stopDetail.latitude')">{{ stopStore.currentStop.stop_lat.toFixed(6) }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('stopDetail.longitude')">{{ stopStore.currentStop.stop_lon.toFixed(6) }}</el-descriptions-item>
+                <el-descriptions-item v-if="stopStore.currentStop.stop_desc" :label="$t('stopDetail.description')">{{ stopStore.currentStop.stop_desc }}</el-descriptions-item>
+                <el-descriptions-item v-if="stopStore.currentStop.wheelchair_boarding !== null" :label="$t('stopDetail.wheelchair')">
                   {{ getWheelchairText(stopStore.currentStop.wheelchair_boarding) }}
                 </el-descriptions-item>
               </el-descriptions>
@@ -47,14 +47,14 @@
             <el-card>
               <template #header>
                 <div class="map-header">
-                  <span>地图位置</span>
+                  <span>{{ $t('stopDetail.mapLocation') }}</span>
                   <el-button
                     v-if="stopStore.stopRoutes.length > 0"
                     type="primary"
                     size="small"
                     @click="viewRouteMap"
                   >
-                    查看线路地图
+                    {{ $t('stopDetail.viewRouteMap') }}
                   </el-button>
                 </div>
               </template>
@@ -67,7 +67,7 @@
 
         <el-card class="routes-card">
           <template #header>
-            <span>经过的线路</span>
+            <span>{{ $t('stopDetail.passingRoutes') }}</span>
           </template>
           <div v-loading="loadingRoutes">
             <div v-if="stopStore.stopRoutes.length > 0" class="routes-list">
@@ -91,7 +91,7 @@
                 </div>
               </el-card>
             </div>
-            <el-empty v-else description="暂无线路信息" />
+            <el-empty v-else :description="$t('stopDetail.noRouteInfo')" />
           </div>
         </el-card>
       </div>
@@ -101,6 +101,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useStopStore } from '@/stores/stopStore'
 import { useRegionStore } from '@/stores/regionStore'
@@ -111,6 +112,7 @@ import { ElMessage } from 'element-plus'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const stopStore = useStopStore()
@@ -129,7 +131,7 @@ const stopFavorited = computed(() =>
 
 const handleFavorite = async () => {
   if (!authStore.isLoggedIn) {
-    ElMessage.warning('请先登录后再收藏')
+    ElMessage.warning(t('common.loginFirst'))
     return
   }
   if (!stopStore.currentStop) return
@@ -141,7 +143,7 @@ const handleFavorite = async () => {
       item_name: stopStore.currentStop.stop_name || stopStore.currentStop.stop_id
     })
   } catch (e) {
-    ElMessage.error('操作失败，请重试')
+    ElMessage.error(t('common.operationFailed'))
   }
 }
 
@@ -208,28 +210,23 @@ const initStopMap = () => {
   }, 100)
 }
 
-const routeTypeNames = {
-  0: '轻轨/地铁',
-  1: '地铁',
-  2: '铁路',
-  3: '公交',
-  4: '轮渡',
-  5: '有轨电车',
-  6: '缆车',
-  7: '索道'
-}
+const routeTypeNames = computed(() => ({
+  0: t('routeType.0'),
+  1: t('routeType.1'),
+  2: t('routeType.2'),
+  3: t('routeType.3'),
+  4: t('routeType.4'),
+  5: t('routeType.5'),
+  6: t('routeType.6'),
+  7: t('routeType.7')
+}))
 
 const getRouteTypeName = (type) => {
-  return routeTypeNames[type] || '未知'
+  return routeTypeNames.value[type] || t('common.unknown')
 }
 
 const getWheelchairText = (value) => {
-  const map = {
-    0: '无信息',
-    1: '可用',
-    2: '不可用'
-  }
-  return map[value] || '未知'
+  return t(`wheelchair.${value}`) || t('common.unknown')
 }
 
 const handleRouteClick = (route) => {

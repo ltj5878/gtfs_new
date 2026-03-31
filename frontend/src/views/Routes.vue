@@ -1,17 +1,17 @@
 <template>
   <div class="routes-page">
     <div class="page-header">
-      <h1>线路列表</h1>
+      <h1>{{ $t('routeList.title') }}</h1>
       <div class="toolbar">
         <SearchBar
           v-model="searchKeyword"
-          placeholder="搜索线路名称..."
+          :placeholder="$t('routeList.searchPlaceholder')"
           @search="handleSearch"
           class="toolbar-search"
         />
         <el-select
           v-model="selectedAgency"
-          placeholder="运营机构"
+          :placeholder="$t('routeList.agencyPlaceholder')"
           clearable
           @change="handleFilter"
           style="width: 160px"
@@ -25,16 +25,16 @@
         </el-select>
         <el-select
           v-model="selectedRouteType"
-          placeholder="线路类型"
+          :placeholder="$t('routeList.typePlaceholder')"
           clearable
           @change="handleFilter"
           style="width: 130px"
         >
-          <el-option label="全部类型" :value="null" />
-          <el-option label="公交" :value="3" />
-          <el-option label="轻轨/地铁" :value="0" />
-          <el-option label="有轨电车" :value="5" />
-          <el-option label="缆车" :value="6" />
+          <el-option :label="$t('routeList.allTypes')" :value="null" />
+          <el-option :label="$t('routeList.bus')" :value="3" />
+          <el-option :label="$t('routeList.lightRail')" :value="0" />
+          <el-option :label="$t('routeList.tram')" :value="5" />
+          <el-option :label="$t('routeList.cableCar')" :value="6" />
         </el-select>
       </div>
     </div>
@@ -42,7 +42,7 @@
     <el-divider />
 
     <div v-loading="routeStore.loading" class="routes-content">
-      <el-empty v-if="!routeStore.loading && routeStore.routes.length === 0" description="暂无线路数据" />
+      <el-empty v-if="!routeStore.loading && routeStore.routes.length === 0" :description="$t('routeList.noData')" />
 
       <div v-else class="routes-grid">
         <RouteCard

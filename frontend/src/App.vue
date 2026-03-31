@@ -1,10 +1,11 @@
 <template>
+  <el-config-provider :locale="elementLocale">
   <el-container class="app-container">
     <el-header class="app-header">
       <div class="header-content">
         <div class="logo" @click="$router.push('/')" style="cursor: pointer">
           <el-icon :size="28"><TrendCharts /></el-icon>
-          <span>公交准点率分析系统</span>
+          <span>{{ $t('app.title') }}</span>
         </div>
         <el-menu
           :default-active="activeMenu"
@@ -12,38 +13,55 @@
           :ellipsis="false"
           @select="handleMenuSelect"
         >
-          <el-menu-item index="/">首页</el-menu-item>
+          <el-menu-item index="/">{{ $t('common.home') }}</el-menu-item>
           <el-sub-menu index="/browse">
-            <template #title>线路与站点</template>
-            <el-menu-item index="/routes">线路</el-menu-item>
-            <el-menu-item index="/stops">站点</el-menu-item>
+            <template #title>{{ $t('nav.routesAndStops') }}</template>
+            <el-menu-item index="/routes">{{ $t('common.routes') }}</el-menu-item>
+            <el-menu-item index="/stops">{{ $t('common.stops') }}</el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="/tools">
-            <template #title>出行工具</template>
-            <el-menu-item index="/favorites">我的收藏</el-menu-item>
-            <el-menu-item index="/planner/transfer">换乘规划</el-menu-item>
-            <el-menu-item index="/compare/routes">线路对比</el-menu-item>
+            <template #title>{{ $t('nav.travelTools') }}</template>
+            <el-menu-item index="/favorites">{{ $t('nav.favorites') }}</el-menu-item>
+            <el-menu-item index="/planner/transfer">{{ $t('nav.transferPlanner') }}</el-menu-item>
+            <el-menu-item index="/compare/routes">{{ $t('nav.routeCompare') }}</el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="/punctuality">
-            <template #title>准点率</template>
-<!--            <el-menu-item index="/punctuality">准点率概览</el-menu-item>-->
-            <el-menu-item index="/punctuality/routes">线路准点率</el-menu-item>
-            <el-menu-item index="/punctuality/stops">站点准点率</el-menu-item>
-            <el-menu-item index="/punctuality/trends">准点率趋势总览</el-menu-item>
+            <template #title>{{ $t('nav.punctuality') }}</template>
+            <el-menu-item index="/punctuality/routes">{{ $t('nav.routePunctuality') }}</el-menu-item>
+            <el-menu-item index="/punctuality/stops">{{ $t('nav.stopPunctuality') }}</el-menu-item>
+            <el-menu-item index="/punctuality/trends">{{ $t('nav.punctualityTrends') }}</el-menu-item>
           </el-sub-menu>
           <el-sub-menu v-if="authStore.isAdmin" index="/manage">
-            <template #title>管理</template>
-            <el-menu-item index="/admin">运维看板</el-menu-item>
-            <el-menu-item index="/users">用户管理</el-menu-item>
+            <template #title>{{ $t('nav.manage') }}</template>
+            <el-menu-item index="/admin">{{ $t('nav.adminDashboard') }}</el-menu-item>
+            <el-menu-item index="/users">{{ $t('nav.userManagement') }}</el-menu-item>
+            <el-menu-item index="/admin/audit-logs">{{ $t('nav.auditLog') }}</el-menu-item>
           </el-sub-menu>
         </el-menu>
         <div class="header-right">
           <RegionSelector />
+          <el-button
+            size="small"
+            text
+            @click="themeStore.toggleTheme()"
+            class="theme-btn"
+            :title="themeStore.isDark ? '切换到浅色模式' : '切换到深色模式'"
+          >
+            <el-icon><component :is="themeStore.isDark ? Sunny : Moon" /></el-icon>
+          </el-button>
+          <el-button
+            size="small"
+            text
+            @click="toggleLocale"
+            class="lang-btn"
+          >
+            {{ currentLocale === 'zh-CN' ? 'EN' : '中' }}
+          </el-button>
           <div class="header-user" v-if="authStore.isLoggedIn">
             <el-icon><User /></el-icon>
             <span>{{ authStore.username }}</span>
-            <el-tag v-if="authStore.isAdmin" type="danger" size="small" style="margin-left:4px">管理员</el-tag>
-            <el-button link type="primary" @click="handleLogout">退出</el-button>
+            <el-tag v-if="authStore.isAdmin" type="danger" size="small" style="margin-left:4px">{{ $t('app.admin') }}</el-tag>
+            <el-button link type="primary" @click="handleLogout">{{ $t('app.logout') }}</el-button>
           </div>
         </div>
       </div>
@@ -55,27 +73,44 @@
 
     <el-footer class="app-footer">
       <div class="footer-content">
-        <p>&copy; 2026 公交准点率分析系统</p>
-        <p>数据来源: {{ currentRegionName }} GTFS + GTFS Realtim数据</p>
+        <p>{{ $t('app.footerCopyright') }}</p>
+        <p>{{ $t('app.footerDataSource', { name: currentRegionName }) }}</p>
       </div>
     </el-footer>
   </el-container>
+  </el-config-provider>
 </template>
 
 <script setup>
 import { computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { TrendCharts, User } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
+import { TrendCharts, User, Sunny, Moon } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/authStore.js'
 import { useRegionStore } from '@/stores/regionStore.js'
 import { useFavoriteStore } from '@/stores/favoriteStore.js'
+import { useThemeStore } from '@/stores/themeStore.js'
 import RegionSelector from '@/components/RegionSelector.vue'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
+import en from 'element-plus/es/locale/lang/en'
 
+const { locale: currentLocale } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const regionStore = useRegionStore()
 const favoriteStore = useFavoriteStore()
+const themeStore = useThemeStore()
+
+// Element Plus 语言切换
+const elementLocale = computed(() => currentLocale.value === 'en' ? en : zhCn)
+
+// 切换语言
+const toggleLocale = () => {
+  const next = currentLocale.value === 'zh-CN' ? 'en' : 'zh-CN'
+  currentLocale.value = next
+  localStorage.setItem('locale', next)
+}
 
 // 页面刷新后若已登录，自动拉取收藏列表
 onMounted(() => {
@@ -92,6 +127,7 @@ const activeMenu = computed(() => {
   if (path.startsWith('/favorites')) return '/favorites'
   if (path.startsWith('/planner')) return '/planner/transfer'
   if (path.startsWith('/compare')) return '/compare/routes'
+  if (path.startsWith('/admin/audit')) return '/admin/audit-logs'
   if (path.startsWith('/admin')) return '/admin'
   if (path.startsWith('/users')) return '/users'
   return '/'
@@ -99,7 +135,7 @@ const activeMenu = computed(() => {
 
 const currentRegionName = computed(() => {
   const r = regionStore.currentRegion()
-  return r ? r.region_name : '旧金山湾区'
+  return r ? r.region_name : ''
 })
 
 const handleMenuSelect = (index) => {
@@ -129,8 +165,8 @@ html, body, #app {
 }
 
 .app-header {
-  background-color: #fff;
-  border-bottom: 1px solid #e4e7ed;
+  background-color: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-light);
   padding: 0;
   height: 60px;
   display: flex;
@@ -163,7 +199,7 @@ html, body, #app {
 }
 
 .app-main {
-  background-color: #f5f7fa;
+  background-color: var(--el-bg-color-page);
   padding: 0;
   overflow-y: auto;
 }
@@ -174,8 +210,8 @@ html, body, #app {
 }
 
 .app-footer {
-  background-color: #fff;
-  border-top: 1px solid #e4e7ed;
+  background-color: var(--el-bg-color);
+  border-top: 1px solid var(--el-border-color-light);
   height: 60px;
   display: flex;
   align-items: center;
@@ -197,7 +233,7 @@ html, body, #app {
   align-items: center;
   gap: 6px;
   font-size: 14px;
-  color: #606266;
+  color: var(--el-text-color-regular);
   white-space: nowrap;
 }
 
@@ -205,6 +241,17 @@ html, body, #app {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.lang-btn {
+  font-weight: 600;
+  font-size: 14px;
+  min-width: 32px;
+}
+
+.theme-btn {
+  font-size: 16px;
+  min-width: 32px;
 }
 
 .fade-enter-active,

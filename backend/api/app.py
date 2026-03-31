@@ -8,6 +8,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from core.db import Database, execute_query, execute_query_one, execute_count, execute_write
 from core.route_mappings import enrich_route_attributes
+from core.audit import record_audit_log
 from typing import Dict, Any, List
 import os
 import sys
@@ -1279,6 +1280,11 @@ def refresh_punctuality_data():
         # 模拟数据采集耗时
         _t.sleep(3)
 
+        # 记录审计日志
+        current_user = _get_current_user()
+        if current_user:
+            record_audit_log(current_user['user_id'], current_user['username'], 'refresh_punctuality', f'punctuality:{region}', {'region': region, 'routes_count': len(routes), 'stops_count': len(stops)})
+
         return jsonify(success_response({
             "routes_count": len(routes),
             "stops_count": len(stops),
@@ -1898,6 +1904,72 @@ def admin_log_api_call():
         return jsonify(error_response(f"记录失败: {str(e)}", 500)), 500
 
 
+# ==================== 审计日志查询接口（仅管理员）====================
+
+@app.route('/api/admin/audit-logs', methods=['GET'])
+def admin_audit_logs():
+    """获取审计日志列表（支持筛选和分页）"""
+    _, err = _require_admin()
+    if err:
+        return err
+
+    # 分页参数
+    page = max(1, int(request.args.get('page', 1)))
+    page_size = min(100, max(1, int(request.args.get('page_size', 20))))
+
+    # 筛选参数
+    action = request.args.get('action', '').strip()
+    username_filter = request.args.get('username', '').strip()
+    start_time = request.args.get('start_time', '').strip()
+    end_time = request.args.get('end_time', '').strip()
+
+    where_clauses = []
+    params = []
+
+    if action:
+        where_clauses.append("action = %s")
+        params.append(action)
+    if username_filter:
+        where_clauses.append("username LIKE %s")
+        params.append(f"%{username_filter}%")
+    if start_time:
+        where_clauses.append("created_at >= %s")
+        params.append(start_time)
+    if end_time:
+        where_clauses.append("created_at <= %s")
+        params.append(end_time)
+
+    where_sql = " AND ".join(where_clauses) if where_clauses else "1=1"
+
+    try:
+        # 总数
+        total = execute_count(f"SELECT COUNT(*) FROM audit_logs WHERE {where_sql}", tuple(params))
+
+        # 分页查询
+        offset = (page - 1) * page_size
+        rows = execute_query(
+            f"""SELECT id, user_id, username, action, target, detail, ip_address, created_at
+                FROM audit_logs WHERE {where_sql}
+                ORDER BY created_at DESC
+                LIMIT %s OFFSET %s""",
+            tuple(params) + (page_size, offset)
+        )
+
+        # 序列化 datetime
+        for row in rows:
+            if row.get('created_at'):
+                row['created_at'] = row['created_at'].isoformat()
+
+        return jsonify(success_response({
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "list": rows
+        }))
+    except Exception as e:
+        return jsonify(error_response(f"查询审计日志失败: {str(e)}", 500)), 500
+
+
 # ==================== 用户管理接口（仅管理员）====================
 
 from auth.models import create_user as _create_user, hash_password as _hash_password, get_user_by_username as _get_user_by_username
@@ -1921,7 +1993,7 @@ def list_users():
 @app.route('/api/users', methods=['POST'])
 def create_user_api():
     """创建新普通用户"""
-    _, err = _require_admin()
+    admin_user, err = _require_admin()
     if err:
         return err
     data = request.get_json() or {}
@@ -1937,6 +2009,7 @@ def create_user_api():
         return jsonify(error_response("用户名已存在", 409)), 409
     try:
         new_id = _create_user(username, password, role='user')
+        record_audit_log(admin_user['user_id'], admin_user['username'], 'create_user', f'user:{new_id}', {'username': username, 'role': 'user'})
         return jsonify(success_response({"id": new_id, "username": username, "role": "user"}))
     except Exception as e:
         return jsonify(error_response(f"创建用户失败: {str(e)}", 500)), 500
@@ -1959,6 +2032,7 @@ def update_user_api(user_id: int):
             "UPDATE users SET is_active = %s WHERE id = %s",
             (bool(is_active), user_id)
         )
+        record_audit_log(admin_user['user_id'], admin_user['username'], 'toggle_user', f'user:{user_id}', {'is_active': bool(is_active)})
         return jsonify(success_response({"message": "更新成功"}))
     except Exception as e:
         return jsonify(error_response(f"更新失败: {str(e)}", 500)), 500
@@ -1973,7 +2047,11 @@ def delete_user_api(user_id: int):
     if admin_user['user_id'] == user_id:
         return jsonify(error_response("不能删除自己", 400)), 400
     try:
+        # 先查询用户名，删除后无法获取
+        target_user = execute_query_one("SELECT username FROM users WHERE id = %s", (user_id,))
+        target_username = target_user['username'] if target_user else str(user_id)
         execute_write("DELETE FROM users WHERE id = %s", (user_id,))
+        record_audit_log(admin_user['user_id'], admin_user['username'], 'delete_user', f'user:{user_id}', {'username': target_username})
         return jsonify(success_response({"message": "删除成功"}))
     except Exception as e:
         return jsonify(error_response(f"删除失败: {str(e)}", 500)), 500
@@ -1982,7 +2060,7 @@ def delete_user_api(user_id: int):
 @app.route('/api/users/<int:user_id>/password', methods=['GET'])
 def get_user_password(user_id: int):
     """查看用户密码（管理员专用，返回明文密码哈希前缀用于展示，实际返回重置后的临时密码）"""
-    _, err = _require_admin()
+    admin_user, err = _require_admin()
     if err:
         return err
     try:
@@ -1996,6 +2074,7 @@ def get_user_password(user_id: int):
         temp_password = _secrets.token_urlsafe(8)
         from auth.models import hash_password as _hp
         execute_write("UPDATE users SET password_hash = %s WHERE id = %s", (_hp(temp_password), user_id))
+        record_audit_log(admin_user['user_id'], admin_user['username'], 'reset_password', f'user:{user_id}', {'username': user['username']})
         return jsonify(success_response({"temp_password": temp_password, "username": user['username']}))
     except Exception as e:
         return jsonify(error_response(f"操作失败: {str(e)}", 500)), 500
@@ -2004,7 +2083,7 @@ def get_user_password(user_id: int):
 @app.route('/api/users/<int:user_id>/password', methods=['PUT'])
 def update_user_password(user_id: int):
     """修改用户密码（管理员专用）"""
-    _, err = _require_admin()
+    admin_user, err = _require_admin()
     if err:
         return err
     data = request.get_json() or {}
@@ -2012,13 +2091,14 @@ def update_user_password(user_id: int):
     if len(new_password) < 6:
         return jsonify(error_response("密码长度不能少于 6 位", 400)), 400
     try:
-        user = execute_query_one("SELECT id, role FROM users WHERE id = %s", (user_id,))
+        user = execute_query_one("SELECT id, username, role FROM users WHERE id = %s", (user_id,))
         if not user:
             return jsonify(error_response("用户不存在", 404)), 404
         if user['role'] == 'admin':
             return jsonify(error_response("不能修改管理员密码", 403)), 403
         from auth.models import hash_password as _hp
         execute_write("UPDATE users SET password_hash = %s WHERE id = %s", (_hp(new_password), user_id))
+        record_audit_log(admin_user['user_id'], admin_user['username'], 'change_password', f'user:{user_id}', {'username': user['username']})
         return jsonify(success_response({"message": "密码修改成功"}))
     except Exception as e:
         return jsonify(error_response(f"修改失败: {str(e)}", 500)), 500

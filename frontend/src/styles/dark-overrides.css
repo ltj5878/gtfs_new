@@ -1,0 +1,209 @@
+/* 全局深色模式覆盖样式 */
+/* 针对各页面中硬编码的浅色颜色值，统一在深色模式下覆盖 */
+
+/* 页面背景 */
+html.dark .route-punctuality,
+html.dark .stop-punctuality,
+html.dark .route-compare,
+html.dark .transfer-planner,
+html.dark .route-detail-page,
+html.dark .stop-detail-page,
+html.dark .punctuality-overview,
+html.dark .punctuality-trends,
+html.dark .realtime-monitor,
+html.dark .route-punctuality-detail,
+html.dark .stop-punctuality-detail,
+html.dark .admin-page,
+html.dark .user-management-page,
+html.dark .favorites-page,
+html.dark .map-view {
+  background: var(--el-bg-color-page) !important;
+}
+
+/* 白色卡片背景 */
+html.dark .page-header,
+html.dark .stats-overview,
+html.dark .search-card,
+html.dark .compare-block,
+html.dark .plan-card,
+html.dark .stat-card,
+html.dark .feature-card,
+html.dark .info-card {
+  background: var(--el-bg-color) !important;
+}
+
+/* 标题文字颜色 */
+html.dark .header-content h1,
+html.dark .section-title,
+html.dark .welcome-title,
+html.dark .feature-title,
+html.dark .compare-block-title,
+html.dark .table-header h3,
+html.dark .page-header h1 {
+  color: var(--el-text-color-primary) !important;
+}
+
+/* 主要文字颜色 */
+html.dark .stat-value,
+html.dark .rate-text,
+html.dark .route-name .route-short,
+html.dark .stop-name,
+html.dark .info-val,
+html.dark .seg-stop,
+html.dark .favorite-name,
+html.dark .trips-count,
+html.dark .visits-count,
+html.dark .info-value {
+  color: var(--el-text-color-primary) !important;
+}
+
+/* 次要文字颜色 */
+html.dark .header-content p,
+html.dark .stat-label,
+html.dark .route-name .route-long,
+html.dark .stop-id,
+html.dark .page-size-label,
+html.dark .dist-label,
+html.dark .stat-date,
+html.dark .coords,
+html.dark .no-location,
+html.dark .info-key,
+html.dark .rate-label,
+html.dark .slot-label,
+html.dark .stop-label,
+html.dark .result-header,
+html.dark .seg-route-name,
+html.dark .seg-meta,
+html.dark .plan-index,
+html.dark .info-label,
+html.dark .welcome-subtitle,
+html.dark .favorite-time,
+html.dark .from-routes-title {
+  color: var(--el-text-color-secondary) !important;
+}
+
+/* 列表项背景 */
+html.dark .favorite-item,
+html.dark .feature-item {
+  background: var(--el-fill-color-light) !important;
+  border-color: var(--el-border-color-light) !important;
+}
+
+html.dark .favorite-item:hover,
+html.dark .feature-item:hover {
+  background: var(--el-fill-color) !important;
+}
+
+/* 对比列边框 */
+html.dark .compare-col {
+  border-color: var(--el-border-color-light) !important;
+}
+
+/* 方案卡片分隔线 */
+html.dark .plan-header {
+  border-bottom-color: var(--el-border-color-light) !important;
+}
+
+/* 功能卡片分隔线 */
+html.dark .feature-header {
+  border-bottom-color: var(--el-border-color-lighter) !important;
+}
+
+/* 共同站点高亮 */
+html.dark .stop-item.stop-common {
+  background: rgba(103, 194, 58, 0.1) !important;
+  color: var(--el-text-color-primary) !important;
+}
+
+/* 站点列表项 */
+html.dark .stop-item {
+  color: var(--el-text-color-regular) !important;
+}
+
+/* 登录页特殊处理 */
+html.dark .auth-page {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 30%, #0f3460 60%, #1a1a2e 100%) !important;
+}
+
+html.dark .auth-card {
+  background: rgba(30, 30, 46, 0.9) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+html.dark .auth-header h1 {
+  color: var(--el-text-color-primary) !important;
+}
+
+html.dark .subtitle {
+  color: var(--el-text-color-secondary) !important;
+}
+
+html.dark .tab-bar {
+  background: var(--el-fill-color-dark) !important;
+}
+
+html.dark .tab-bar button {
+  color: var(--el-text-color-secondary) !important;
+}
+
+html.dark .tab-bar button.active {
+  color: var(--el-text-color-primary) !important;
+}
+
+html.dark .tab-indicator {
+  background: var(--el-bg-color) !important;
+}
+
+html.dark .field label {
+  color: var(--el-text-color-regular) !important;
+}
+
+html.dark .field input {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: var(--el-border-color) !important;
+  color: var(--el-text-color-primary) !important;
+}
+
+html.dark .field input:focus {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark .auth-footer {
+  border-top-color: var(--el-border-color-light) !important;
+}
+
+html.dark .auth-footer span {
+  color: var(--el-text-color-placeholder) !important;
+}
+
+/* 空状态文字 */
+html.dark .empty-state,
+html.dark .col-empty,
+html.dark .status-box {
+  color: var(--el-text-color-placeholder) !important;
+}
+
+/* 路线长名 */
+html.dark .route-long-name {
+  color: var(--el-text-color-secondary) !important;
+}
+
+/* 箭头图标 */
+html.dark .seg-arrow,
+html.dark .feature-item-arrow,
+html.dark .stop-seq {
+  color: var(--el-text-color-placeholder) !important;
+}
+
+/* 地图页 */
+html.dark .map-controls {
+  background: var(--el-bg-color) !important;
+}
+
+html.dark .loading-overlay {
+  background: rgba(30, 30, 46, 0.95) !important;
+}
+
+html.dark .loading-overlay p {
+  color: var(--el-text-color-secondary) !important;
+}

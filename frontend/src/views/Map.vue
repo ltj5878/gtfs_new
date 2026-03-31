@@ -5,7 +5,7 @@
       <div class="control-section">
         <el-select
           v-model="selectedAgency"
-          placeholder="选择运营机构"
+          :placeholder="$t('mapView.selectAgency')"
           clearable
           @change="handleAgencyChange"
           style="width: 200px"
@@ -20,7 +20,7 @@
 
         <el-select
           v-model="selectedRoute"
-          placeholder="选择线路"
+          :placeholder="$t('mapView.selectRoute')"
           clearable
           filterable
           @change="handleRouteChange"
@@ -36,24 +36,24 @@
 
         <el-button type="primary" @click="showAllStops">
           <el-icon><Location /></el-icon>
-          显示所有站点
+          {{ $t('mapView.showAllStops') }}
         </el-button>
 
         <el-button @click="resetMap">
           <el-icon><RefreshRight /></el-icon>
-          重置地图
+          {{ $t('mapView.resetMap') }}
         </el-button>
       </div>
 
       <div class="map-info">
         <el-tag v-if="selectedRoute" type="primary">
-          已选线路: {{ getRouteLabel(selectedRoute) }}
+          {{ $t('mapView.selectedRoute') }}: {{ getRouteLabel(selectedRoute) }}
         </el-tag>
         <el-tag type="info">
-          站点数量: {{ visibleStops.length || 0 }}
+          {{ $t('mapView.stopCount') }}: {{ visibleStops.length || 0 }}
         </el-tag>
         <el-tag v-if="!selectedRoute && Object.keys(routeStopsMap).length > 0" type="success">
-          显示线路: {{ Object.keys(routeStopsMap).length }} 条
+          {{ $t('mapView.showingRoutes') }}: {{ Object.keys(routeStopsMap).length }} {{ $t('mapView.routeUnit') }}
         </el-tag>
       </div>
     </div>
@@ -64,7 +64,7 @@
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-overlay">
       <el-icon class="is-loading" :size="40"><Loading /></el-icon>
-      <p>加载地图数据中...</p>
+      <p>{{ $t('mapView.loadingMapData') }}</p>
     </div>
   </div>
 </template>
@@ -72,6 +72,7 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Location, RefreshRight, Loading } from '@element-plus/icons-vue'
@@ -79,6 +80,7 @@ import { ElMessage } from 'element-plus'
 import apiClient from '@/api/index'
 import { useRegionStore } from '@/stores/regionStore'
 
+const { t } = useI18n()
 const router = useRouter()
 const regionStore = useRegionStore()
 const loading = ref(false)
@@ -141,7 +143,7 @@ const loadAgencies = async () => {
     agencies.value = Array.isArray(data) ? data : (data?.agencies || [])
   } catch (error) {
     console.error('加载运营机构失败:', error)
-    ElMessage.error('加载运营机构失败')
+    ElMessage.error(t('common.dataRefreshFailed'))
   }
 }
 
@@ -157,7 +159,7 @@ const loadRoutes = async (agencyId = null) => {
     routes.value = data?.routes || []
   } catch (error) {
     console.error('加载线路失败:', error)
-    ElMessage.error('加载线路失败')
+    ElMessage.error(t('common.dataRefreshFailed'))
   } finally {
     loading.value = false
   }
@@ -186,7 +188,7 @@ const loadStops = async (routeId = null) => {
     }
   } catch (error) {
     console.error('加载站点失败:', error)
-    ElMessage.error('加载站点失败')
+    ElMessage.error(t('common.dataRefreshFailed'))
   } finally {
     loading.value = false
   }
@@ -219,7 +221,7 @@ const loadAllRoutesWithStops = async () => {
     displayAllRoutesWithStops()
   } catch (error) {
     console.error('加载线路站点失败:', error)
-    ElMessage.error('加载线路站点失败')
+    ElMessage.error(t('common.dataRefreshFailed'))
   }
 }
 
@@ -265,9 +267,9 @@ const displayStopsWithRoute = async (routeId) => {
         .bindPopup(`
           <div class="stop-popup">
             <h3>${stop.stop_name}</h3>
-            <p><strong>站点ID:</strong> ${stop.stop_id}</p>
-            ${stop.stop_code ? `<p><strong>站点代码:</strong> ${stop.stop_code}</p>` : ''}
-            <button onclick="window.location.href='#/stops/${stop.stop_id}'">查看详情</button>
+            <p><strong>${t('mapView.stopId')}:</strong> ${stop.stop_id}</p>
+            ${stop.stop_code ? `<p><strong>${t('mapView.stopCode')}:</strong> ${stop.stop_code}</p>` : ''}
+            <button onclick="window.location.href='#/stops/${stop.stop_id}'">${t('common.viewDetail')}</button>
           </div>
         `)
 
@@ -364,9 +366,9 @@ const displayAllRoutesWithStops = async () => {
           .bindPopup(`
             <div class="stop-popup">
               <h3>${stop.stop_name}</h3>
-              <p><strong>所属线路:</strong> ${routeName}</p>
-              <p><strong>站点ID:</strong> ${stop.stop_id}</p>
-              <button onclick="window.location.href='#/stops/${stop.stop_id}'">查看详情</button>
+              <p><strong>${t('mapView.belongsToRoute')}:</strong> ${routeName}</p>
+              <p><strong>${t('mapView.stopId')}:</strong> ${stop.stop_id}</p>
+              <button onclick="window.location.href='#/stops/${stop.stop_id}'">${t('common.viewDetail')}</button>
             </div>
           `)
 

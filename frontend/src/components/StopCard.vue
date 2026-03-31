@@ -4,7 +4,7 @@
       <el-icon class="stop-icon" :size="24"><Location /></el-icon>
       <div class="stop-info">
         <h3>{{ stop.stop_name }}</h3>
-        <p v-if="stop.stop_code" class="stop-code">站点编号: {{ stop.stop_code }}</p>
+        <p v-if="stop.stop_code" class="stop-code">{{ $t('stopList.stopCode') }}: {{ stop.stop_code }}</p>
       </div>
       <!-- 收藏按钮 -->
       <el-icon
@@ -12,7 +12,7 @@
         :class="{ 'is-favorited': favorited }"
         :size="20"
         @click.stop="handleFavorite"
-        :title="favorited ? '取消收藏' : '收藏'"
+        :title="favorited ? $t('common.unfavorite') : $t('common.favorite')"
       >
         <Star />
       </el-icon>
@@ -29,10 +29,13 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { Location, Position, Star } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useFavoriteStore } from '@/stores/favoriteStore.js'
 import { useAuthStore } from '@/stores/authStore.js'
+
+const { t } = useI18n()
 
 const props = defineProps({
   stop: {
@@ -60,7 +63,7 @@ const handleClick = () => {
 
 const handleFavorite = async () => {
   if (!authStore.isLoggedIn) {
-    ElMessage.warning('请先登录后再收藏')
+    ElMessage.warning(t('common.loginFirst'))
     return
   }
   try {
@@ -71,7 +74,7 @@ const handleFavorite = async () => {
       item_name: props.stop.stop_name || props.stop.stop_id
     })
   } catch (e) {
-    ElMessage.error('操作失败，请重试')
+    ElMessage.error(t('common.operationFailed'))
   }
 }
 </script>

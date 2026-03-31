@@ -2,12 +2,12 @@
   <div class="route-compare">
     <!-- 标题 -->
     <div class="search-section">
-      <div class="section-title">线路对比分析</div>
+      <div class="section-title">{{ $t('compare.title') }}</div>
       <div class="search-card">
         <div class="slots-row">
           <div v-for="(slot, idx) in slots" :key="idx" class="search-slot">
             <div class="slot-label">
-              线路 {{ idx + 1 }}
+              {{ $t('compare.routeN', { n: idx + 1 }) }}
               <el-button
                 v-if="slots.length > 2"
                 link type="danger" :icon="Close" size="small"
@@ -19,7 +19,7 @@
             <el-select
               v-model="slot.agencyId"
               clearable
-              placeholder="按机构筛选"
+              :placeholder="$t('compare.filterByAgency')"
               :loading="agenciesLoading"
               style="width:100%;margin-bottom:8px"
               @change="() => { slot.routeId = ''; clearSlotData(idx) }"
@@ -36,7 +36,7 @@
               v-model="slot.routeId"
               filterable
               clearable
-              placeholder="请选择线路"
+              :placeholder="$t('compare.selectRoute')"
               :loading="routesLoading"
               style="width:100%"
               @change="(val) => onRouteChange(val, idx)"
@@ -55,7 +55,7 @@
           </div>
 
           <div v-if="slots.length < 3" class="add-slot">
-            <el-button :icon="Plus" @click="addSlot">添加对比线路</el-button>
+            <el-button :icon="Plus" @click="addSlot">{{ $t('compare.addRoute') }}</el-button>
           </div>
         </div>
       </div>
@@ -66,7 +66,7 @@
 
       <!-- 基本信息 -->
       <div class="compare-block">
-        <div class="compare-block-title">基本信息</div>
+        <div class="compare-block-title">{{ $t('compare.basicInfo') }}</div>
         <div class="compare-grid" :style="gridStyle">
           <div v-for="(slot, idx) in slots" :key="idx" class="compare-col">
             <div v-if="slot.loading" class="col-loading">
@@ -84,34 +84,34 @@
               </div>
               <div class="info-rows">
                 <div class="info-row">
-                  <span class="info-key">运营机构</span>
+                  <span class="info-key">{{ $t('compare.agency') }}</span>
                   <span class="info-val">{{ slot.data.agency_id || '—' }}</span>
                 </div>
                 <div class="info-row">
-                  <span class="info-key">线路类型</span>
+                  <span class="info-key">{{ $t('compare.routeType') }}</span>
                   <span class="info-val">{{ routeTypeLabel(slot.data.route_type) }}</span>
                 </div>
                 <div class="info-row">
-                  <span class="info-key">方向数</span>
+                  <span class="info-key">{{ $t('compare.directionCount') }}</span>
                   <span class="info-val">{{ slot.directions.length }}</span>
                 </div>
                 <div class="info-row">
-                  <span class="info-key">站点数</span>
+                  <span class="info-key">{{ $t('compare.stopCount') }}</span>
                   <span class="info-val">
-                    <el-tag type="primary" size="small">{{ slot.stops.length }} 站</el-tag>
+                    <el-tag type="primary" size="small">{{ slot.stops.length }} {{ $t('compare.stopsUnit') }}</el-tag>
                   </span>
                 </div>
                 <div v-if="commonStopIds.size > 0" class="info-row">
-                  <span class="info-key">共同站点</span>
+                  <span class="info-key">{{ $t('compare.commonStops') }}</span>
                   <span class="info-val">
-                    <el-tag type="success" size="small">{{ commonStopIds.size }} 站</el-tag>
+                    <el-tag type="success" size="small">{{ commonStopIds.size }} {{ $t('compare.stopsUnit') }}</el-tag>
                   </span>
                 </div>
               </div>
             </template>
             <div v-else class="col-empty">
               <el-icon :size="32" color="#dcdfe6"><Guide /></el-icon>
-              <p>请选择线路</p>
+              <p>{{ $t('compare.selectRoute') }}</p>
             </div>
           </div>
         </div>
@@ -120,8 +120,8 @@
       <!-- 准点率对比 -->
       <div class="compare-block">
         <div class="compare-block-title">
-          准点率对比
-          <span style="font-size:12px;color:#909399;font-weight:400;margin-left:8px">近30天数据</span>
+          {{ $t('compare.punctualityCompare') }}
+          <span style="font-size:12px;color:#909399;font-weight:400;margin-left:8px">{{ $t('compare.last30Days') }}</span>
         </div>
         <div class="compare-grid" :style="gridStyle">
           <div v-for="(slot, idx) in slots" :key="idx" class="compare-col">
@@ -138,43 +138,43 @@
                     :width="100"
                     :stroke-width="8"
                   />
-                  <span class="rate-label">准点率</span>
+                  <span class="rate-label">{{ $t('compare.punctualityRate') }}</span>
                 </div>
                 <div class="info-rows" style="margin-top:12px">
                   <div class="info-row">
-                    <span class="info-key">总班次</span>
+                    <span class="info-key">{{ $t('compare.totalTrips') }}</span>
                     <span class="info-val">{{ slot.punctuality.total_trips?.toLocaleString() || '—' }}</span>
                   </div>
                   <div class="info-row">
-                    <span class="info-key">准点班次</span>
+                    <span class="info-key">{{ $t('compare.onTimeTrips') }}</span>
                     <span class="info-val" style="color:#67c23a">{{ slot.punctuality.on_time_trips?.toLocaleString() || '—' }}</span>
                   </div>
                   <div class="info-row">
-                    <span class="info-key">晚点班次</span>
+                    <span class="info-key">{{ $t('compare.lateTrips') }}</span>
                     <span class="info-val" style="color:#e6a23c">{{ slot.punctuality.late_trips?.toLocaleString() || '—' }}</span>
                   </div>
                   <div class="info-row">
-                    <span class="info-key">严重晚点</span>
+                    <span class="info-key">{{ $t('compare.veryLateTrips') }}</span>
                     <span class="info-val" style="color:#f56c6c">{{ slot.punctuality.very_late_trips?.toLocaleString() || '—' }}</span>
                   </div>
                   <div class="info-row">
-                    <span class="info-key">平均延误</span>
+                    <span class="info-key">{{ $t('compare.avgDelay') }}</span>
                     <span class="info-val">
                       <el-tag
                         :type="slot.punctuality.avg_delay_minutes > 5 ? 'danger' : slot.punctuality.avg_delay_minutes > 2 ? 'warning' : 'success'"
                         size="small"
-                      >{{ (slot.punctuality.avg_delay_minutes || 0).toFixed(1) }} 分钟</el-tag>
+                      >{{ (slot.punctuality.avg_delay_minutes || 0).toFixed(1) }} {{ $t('common.minutes') }}</el-tag>
                     </span>
                   </div>
                   <div class="info-row">
-                    <span class="info-key">最大延误</span>
-                    <span class="info-val">{{ (slot.punctuality.max_delay_minutes || 0).toFixed(1) }} 分钟</span>
+                    <span class="info-key">{{ $t('compare.maxDelay') }}</span>
+                    <span class="info-val">{{ (slot.punctuality.max_delay_minutes || 0).toFixed(1) }} {{ $t('common.minutes') }}</span>
                   </div>
                 </div>
               </template>
               <div v-else class="col-empty" style="height:120px">
                 <el-icon :size="24" color="#dcdfe6"><Warning /></el-icon>
-                <p>暂无准点率数据</p>
+                <p>{{ $t('compare.noPunctualityData') }}</p>
               </div>
             </template>
             <div v-else class="col-empty" style="height:120px">
@@ -187,10 +187,10 @@
       <!-- 站点列表对比 -->
       <div v-if="hasStopsData" class="compare-block">
         <div class="compare-block-title">
-          站点列表
+          {{ $t('compare.stopList') }}
           <span v-if="commonStopIds.size > 0" class="common-hint">
             <el-icon color="#67c23a"><CircleCheck /></el-icon>
-            绿色高亮为共同站点
+            {{ $t('compare.commonStopHint') }}
           </span>
         </div>
         <div class="compare-grid" :style="gridStyle">
@@ -215,13 +215,14 @@
     <!-- 空状态 -->
     <div v-else class="empty-state">
       <el-icon :size="64" color="#dcdfe6"><DataAnalysis /></el-icon>
-      <p>请选择至少一条线路开始对比</p>
+      <p>{{ $t('compare.selectAtLeastOne') }}</p>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRegionStore } from '@/stores/regionStore'
 import { getRoutes, getRouteById, getRouteStops, getRouteDirections } from '@/api/routes'
 import { getAgencies } from '@/api/common'
@@ -229,6 +230,7 @@ import { getRoutePunctuality } from '@/api/punctuality'
 import { Guide, Plus, Close, Loading, CircleCheck, DataAnalysis, Warning } from '@element-plus/icons-vue'
 
 const regionStore = useRegionStore()
+const { t } = useI18n()
 
 // 运营机构
 const agencies = ref([])
@@ -354,8 +356,17 @@ const rateColor = (rate) => {
   return '#f56c6c'
 }
 
-const ROUTE_TYPES = { 0: '有轨电车', 1: '地铁', 2: '铁路', 3: '公共汽车', 4: '轮渡', 5: '缆车', 6: '空中缆车', 7: '缆索铁路' }
-const routeTypeLabel = (t) => ROUTE_TYPES[t] || `类型 ${t}`
+const routeTypeNames = computed(() => ({
+  0: t('compareRouteType.0'),
+  1: t('compareRouteType.1'),
+  2: t('compareRouteType.2'),
+  3: t('compareRouteType.3'),
+  4: t('compareRouteType.4'),
+  5: t('compareRouteType.5'),
+  6: t('compareRouteType.6'),
+  7: t('compareRouteType.7'),
+}))
+const routeTypeLabel = (type) => routeTypeNames.value[type] || `${type}`
 </script>
 
 <style scoped>

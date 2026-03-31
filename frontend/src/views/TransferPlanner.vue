@@ -2,16 +2,16 @@
   <div class="transfer-planner">
     <!-- 搜索区域 -->
     <div class="search-section">
-      <div class="section-title">换乘规划</div>
+      <div class="section-title">{{ $t('transfer.title') }}</div>
       <div class="search-card">
         <el-row :gutter="16" align="middle">
           <el-col :xs="24" :sm="8">
-            <div class="stop-label">起点站</div>
+            <div class="stop-label">{{ $t('transfer.fromStop') }}</div>
             <el-select
               v-model="fromStopId"
               filterable
               clearable
-              placeholder="请选择起点站"
+              :placeholder="$t('transfer.fromPlaceholder')"
               :loading="stopsLoading"
               style="width: 100%"
               @change="onFromChange"
@@ -29,21 +29,21 @@
           </el-col>
 
           <el-col :xs="24" :sm="1" class="swap-col">
-            <el-button circle :icon="Sort" @click="swapStops" title="交换起终点" />
+            <el-button circle :icon="Sort" @click="swapStops" :title="$t('transfer.swapStops')" />
           </el-col>
 
           <el-col :xs="24" :sm="8">
-            <div class="stop-label">终点站 <span v-if="reachableLoading" style="color:#909399;font-size:12px">（加载可达站点中...）</span></div>
+            <div class="stop-label">{{ $t('transfer.toStop') }} <span v-if="reachableLoading" style="color:#909399;font-size:12px">{{ $t('transfer.loadingReachable') }}</span></div>
             <el-select
               v-model="toStopId"
               filterable
               clearable
-              placeholder="请选择终点站"
+              :placeholder="$t('transfer.toPlaceholder')"
               :loading="stopsLoading"
               style="width: 100%"
               @change="onToChange"
             >
-              <el-option-group v-if="fromStopId && reachableStopIds.size > 0" label="直达可达站点">
+              <el-option-group v-if="fromStopId && reachableStopIds.size > 0" :label="$t('transfer.directReachable')">
                 <el-option
                   v-for="s in toStopOptions.filter(s => reachableStopIds.has(s.stop_id))"
                   :key="s.stop_id"
@@ -54,7 +54,7 @@
                   <span style="color:#999;font-size:12px;margin-left:8px">{{ s.stop_id }}</span>
                 </el-option>
               </el-option-group>
-              <el-option-group :label="fromStopId && reachableStopIds.size > 0 ? '其他站点（需换乘）' : '全部站点'">
+              <el-option-group :label="fromStopId && reachableStopIds.size > 0 ? t('transfer.otherStops') : t('transfer.allStops')">
                 <el-option
                   v-for="s in (fromStopId && reachableStopIds.size > 0 ? toStopOptions.filter(s => !reachableStopIds.has(s.stop_id)) : toStopOptions)"
                   :key="s.stop_id"
@@ -69,10 +69,10 @@
           </el-col>
 
           <el-col :xs="24" :sm="4">
-            <div class="stop-label">排序策略</div>
+            <div class="stop-label">{{ $t('transfer.strategy') }}</div>
             <el-select v-model="strategy" style="width: 100%">
-              <el-option label="最少换乘" value="min_transfer" />
-              <el-option label="最短时间" value="min_time" />
+              <el-option :label="$t('transfer.minTransfer')" value="min_transfer" />
+              <el-option :label="$t('transfer.minTime')" value="min_time" />
             </el-select>
           </el-col>
 
@@ -85,7 +85,7 @@
               style="width: 100%"
               @click="doSearch"
             >
-              查询
+              {{ $t('transfer.search') }}
             </el-button>
           </el-col>
         </el-row>
@@ -97,19 +97,19 @@
       <!-- 加载中 -->
       <div v-if="searching" class="status-box">
         <el-icon class="spinning"><Loading /></el-icon>
-        <span>正在规划路线...</span>
+        <span>{{ $t('transfer.planning') }}</span>
       </div>
 
       <!-- 无结果 -->
       <div v-else-if="!searching && plans.length === 0" class="status-box empty">
         <el-icon :size="48" color="#c0c4cc"><Warning /></el-icon>
-        <p>未找到可用的换乘方案（最多支持3次换乘）</p>
-        <p class="hint">两站可能属于不同运营机构的线路网络，暂无法通过公交换乘连通</p>
+        <p>{{ $t('transfer.noResult') }}</p>
+        <p class="hint">{{ $t('transfer.noResultHint') }}</p>
 
         <!-- 起点站和终点站经过的线路 -->
         <div v-if="fromRoutes.length > 0 || toRoutes.length > 0" class="from-routes">
           <div v-if="fromRoutes.length > 0" class="route-info-block">
-            <div class="from-routes-title">「{{ fromStopName }}」经过的线路：</div>
+            <div class="from-routes-title">{{ $t('transfer.fromRoutes', { name: fromStopName }) }}</div>
             <div class="from-routes-tags">
               <el-tag
                 v-for="r in fromRoutes"
@@ -125,7 +125,7 @@
           </div>
 
           <div v-if="toRoutes.length > 0" class="route-info-block">
-            <div class="from-routes-title">「{{ toStopName }}」经过的线路：</div>
+            <div class="from-routes-title">{{ $t('transfer.toRoutes', { name: toStopName }) }}</div>
             <div class="from-routes-tags">
               <el-tag
                 v-for="r in toRoutes"
@@ -141,7 +141,7 @@
           </div>
 
           <div v-if="commonRoutes.length > 0" class="route-info-block">
-            <div class="from-routes-title" style="color:#e6a23c">两站共同线路（可能方向不同）：</div>
+            <div class="from-routes-title" style="color:#e6a23c">{{ $t('transfer.commonRoutes') }}</div>
             <div class="from-routes-tags">
               <el-tag
                 v-for="r in commonRoutes"
@@ -159,7 +159,7 @@
       <!-- 方案列表 -->
       <template v-else>
         <div class="result-header">
-          找到 <strong>{{ plans.length }}</strong> 条方案
+          {{ $t('transfer.foundPlans') }} <strong>{{ plans.length }}</strong> {{ $t('transfer.plansUnit') }}
           （{{ fromStopName }} → {{ toStopName }}）
         </div>
 
@@ -171,11 +171,11 @@
           <!-- 方案头部 -->
           <div class="plan-header">
             <div class="plan-badges">
-              <el-tag type="success" size="small" v-if="plan.transfer_count === 0">直达</el-tag>
-              <el-tag type="warning" size="small" v-else>换乘 {{ plan.transfer_count }} 次</el-tag>
-              <el-tag type="info" size="small">约 {{ plan.total_minutes }} 分钟</el-tag>
+              <el-tag type="success" size="small" v-if="plan.transfer_count === 0">{{ $t('transfer.direct') }}</el-tag>
+              <el-tag type="warning" size="small" v-else>{{ $t('transfer.transferCount', { n: plan.transfer_count }) }}</el-tag>
+              <el-tag type="info" size="small">{{ $t('transfer.aboutMinutes', { n: plan.total_minutes }) }}</el-tag>
             </div>
-            <div class="plan-index">方案 {{ idx + 1 }}</div>
+            <div class="plan-index">{{ $t('transfer.plan') }} {{ idx + 1 }}</div>
           </div>
 
           <!-- 步骤时间线 -->
@@ -203,10 +203,10 @@
                   <span class="seg-stop to">{{ seg.to_stop_name }}</span>
                 </div>
                 <div class="seg-meta">
-                  经过 {{ seg.stop_count }} 站
-                  <span v-if="seg.minutes > 0">· 约 {{ seg.minutes }} 分钟</span>
+                  {{ $t('transfer.passingStops', { n: seg.stop_count }) }}
+                  <span v-if="seg.minutes > 0">· {{ $t('transfer.aboutMinutes', { n: seg.minutes }) }}</span>
                   <span v-if="seg.depart_time" class="seg-time">
-                    · 发车 {{ seg.depart_time.slice(0, 5) }}
+                    · {{ $t('transfer.depart') }} {{ seg.depart_time.slice(0, 5) }}
                   </span>
                 </div>
               </div>
@@ -217,7 +217,7 @@
               <div class="seg-content">
                 <div class="seg-stop to" style="font-weight:600">
                   <el-icon color="#67c23a"><Location /></el-icon>
-                  {{ toStopName }} （终点）
+                  {{ toStopName }} {{ $t('transfer.destination') }}
                 </div>
               </div>
             </el-timeline-item>
@@ -230,6 +230,7 @@
 
 <script setup>
 import { ref, watch, onMounted, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRegionStore } from '@/stores/regionStore'
 import { getStops, getStopRoutes } from '@/api/stops'
 import { getRouteStops } from '@/api/routes'
@@ -238,6 +239,7 @@ import { ArrowRight, Location, Sort, Loading, Warning } from '@element-plus/icon
 import { ElMessage } from 'element-plus'
 
 const regionStore = useRegionStore()
+const { t } = useI18n()
 
 const fromStopId = ref('')
 const toStopId = ref('')
@@ -299,7 +301,7 @@ const loadStops = async () => {
     const data = await getStops({ page_size: 500 })
     stopOptions.value = data?.stops || []
   } catch {
-    ElMessage.error('站点列表加载失败')
+    ElMessage.error(t('transfer.stopsLoadFailed'))
   } finally {
     stopsLoading.value = false
   }
@@ -368,7 +370,7 @@ const swapStops = () => {
 const doSearch = async () => {
   if (!fromStopId.value || !toStopId.value) return
   if (fromStopId.value === toStopId.value) {
-    ElMessage.warning('起点和终点不能相同')
+    ElMessage.warning(t('transfer.sameStopError'))
     return
   }
 

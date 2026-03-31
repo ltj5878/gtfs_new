@@ -1,21 +1,21 @@
 <template>
   <div class="favorites-page">
     <div class="page-header">
-      <h1>我的收藏</h1>
+      <h1>{{ $t('favorites.title') }}</h1>
     </div>
 
     <el-divider />
 
     <div v-if="favoriteStore.favorites.length === 0 && !loading" class="empty-state">
-      <el-empty description="暂无收藏，去线路或站点页面收藏吧" />
+      <el-empty :description="$t('favorites.noFavorites')" />
     </div>
 
     <div v-else>
       <el-tabs v-model="activeTab">
         <!-- 线路收藏 -->
-        <el-tab-pane :label="`线路 (${routeFavorites.length})`" name="route">
+        <el-tab-pane :label="$t('favorites.routeTab', { count: routeFavorites.length })" name="route">
           <div v-if="routeFavorites.length === 0" class="tab-empty">
-            <el-empty description="暂无收藏线路" />
+            <el-empty :description="$t('favorites.noRoutes')" />
           </div>
           <div v-else class="favorites-list">
             <div
@@ -35,10 +35,10 @@
               </div>
               <div class="favorite-actions">
                 <el-button size="small" type="primary" plain @click="goToRoute(item)">
-                  查看详情
+                  {{ $t('common.viewDetail') }}
                 </el-button>
                 <el-button size="small" type="danger" plain @click="removeFav(item)">
-                  取消收藏
+                  {{ $t('common.unfavorite') }}
                 </el-button>
               </div>
             </div>
@@ -46,9 +46,9 @@
         </el-tab-pane>
 
         <!-- 站点收藏 -->
-        <el-tab-pane :label="`站点 (${stopFavorites.length})`" name="stop">
+        <el-tab-pane :label="$t('favorites.stopTab', { count: stopFavorites.length })" name="stop">
           <div v-if="stopFavorites.length === 0" class="tab-empty">
-            <el-empty description="暂无收藏站点" />
+            <el-empty :description="$t('favorites.noStops')" />
           </div>
           <div v-else class="favorites-list">
             <div
@@ -68,10 +68,10 @@
               </div>
               <div class="favorite-actions">
                 <el-button size="small" type="primary" plain @click="goToStop(item)">
-                  查看详情
+                  {{ $t('common.viewDetail') }}
                 </el-button>
                 <el-button size="small" type="danger" plain @click="removeFav(item)">
-                  取消收藏
+                  {{ $t('common.unfavorite') }}
                 </el-button>
               </div>
             </div>
@@ -85,11 +85,13 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Guide, Location } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useFavoriteStore } from '@/stores/favoriteStore.js'
 import { useRegionStore } from '@/stores/regionStore.js'
 
+const { t } = useI18n()
 const router = useRouter()
 const favoriteStore = useFavoriteStore()
 const regionStore = useRegionStore()
@@ -97,13 +99,14 @@ const regionStore = useRegionStore()
 const activeTab = ref('route')
 const loading = ref(false)
 
-const REGION_LABELS = {
-  sf: '旧金山',
-  nyc: '纽约',
-  sydney: '悉尼'
+const regionLabel = (region) => {
+  const map = {
+    sf: t('region.sfShort'),
+    nyc: t('region.nyc'),
+    sydney: t('region.sydney')
+  }
+  return map[region] || region
 }
-
-const regionLabel = (region) => REGION_LABELS[region] || region
 
 const routeFavorites = computed(() =>
   favoriteStore.favorites.filter(f => f.item_type === 'route')
@@ -137,9 +140,9 @@ const removeFav = async (item) => {
       item_id: item.item_id,
       item_name: item.item_name
     })
-    ElMessage.success('已取消收藏')
+    ElMessage.success(t('common.unfavorited'))
   } catch (e) {
-    ElMessage.error('操作失败，请重试')
+    ElMessage.error(t('common.operationFailed'))
   }
 }
 

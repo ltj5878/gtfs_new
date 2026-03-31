@@ -2,13 +2,13 @@
   <div class="home">
     <!-- 欢迎区域 -->
     <div class="welcome-section">
-      <h1 class="welcome-title">公交准点率分析系统</h1>
-      <p class="welcome-subtitle">公交数据监控与分析平台</p>
+      <h1 class="welcome-title">{{ $t('app.title') }}</h1>
+      <p class="welcome-subtitle">{{ $t('app.subtitle') }}</p>
     </div>
 
     <!-- 统计数据卡片 -->
     <div class="stats-section">
-      <div class="section-title">数据概览</div>
+      <div class="section-title">{{ $t('home.dataOverview') }}</div>
       <el-row :gutter="20">
         <el-col :xs="12" :sm="8" :md="4" v-for="(item, key) in statsData" :key="key">
           <div class="stat-card">
@@ -32,7 +32,7 @@
           <div class="feature-card">
             <div class="feature-header">
               <el-icon :size="20" color="#409eff"><Guide /></el-icon>
-              <span class="feature-title">线路与站点</span>
+              <span class="feature-title">{{ $t('home.routesAndStops') }}</span>
             </div>
             <div class="feature-content">
               <div class="feature-item" @click="$router.push('/routes')">
@@ -40,8 +40,8 @@
                   <el-icon :size="20" color="#409eff"><Guide /></el-icon>
                 </div>
                 <div class="feature-item-text">
-                  <div class="feature-item-title">浏览线路</div>
-                  <div class="feature-item-desc">查看所有公交线路信息</div>
+                  <div class="feature-item-title">{{ $t('home.browseRoutes') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.browseRoutesDesc') }}</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
@@ -51,8 +51,8 @@
                   <el-icon :size="20" color="#67c23a"><Location /></el-icon>
                 </div>
                 <div class="feature-item-text">
-                  <div class="feature-item-title">查找站点</div>
-                  <div class="feature-item-desc">搜索和定位公交站点</div>
+                  <div class="feature-item-title">{{ $t('home.findStops') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.findStopsDesc') }}</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
@@ -62,8 +62,8 @@
                   <el-icon :size="20" color="#909399"><MapLocation /></el-icon>
                 </div>
                 <div class="feature-item-text">
-                  <div class="feature-item-title">地图视图</div>
-                  <div class="feature-item-desc">在地图上查看线路和站点</div>
+                  <div class="feature-item-title">{{ $t('home.mapView') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.mapViewDesc') }}</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
@@ -76,7 +76,7 @@
           <div class="feature-card">
             <div class="feature-header">
               <el-icon :size="20" color="#0288d1"><Promotion /></el-icon>
-              <span class="feature-title">出行工具</span>
+              <span class="feature-title">{{ $t('home.travelTools') }}</span>
             </div>
             <div class="feature-content">
               <div class="feature-item" @click="$router.push('/favorites')">
@@ -84,8 +84,8 @@
                   <el-icon :size="20" color="#f0a020"><Star /></el-icon>
                 </div>
                 <div class="feature-item-text">
-                  <div class="feature-item-title">我的收藏</div>
-                  <div class="feature-item-desc">查看已收藏的线路和站点</div>
+                  <div class="feature-item-title">{{ $t('home.myFavorites') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.myFavoritesDesc') }}</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
@@ -95,8 +95,8 @@
                   <el-icon :size="20" color="#0288d1"><Promotion /></el-icon>
                 </div>
                 <div class="feature-item-text">
-                  <div class="feature-item-title">换乘规划</div>
-                  <div class="feature-item-desc">输入起终点，智能规划换乘路线</div>
+                  <div class="feature-item-title">{{ $t('home.transferPlanner') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.transferPlannerDesc') }}</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
@@ -106,8 +106,8 @@
                   <el-icon :size="20" color="#67c23a"><DataAnalysis /></el-icon>
                 </div>
                 <div class="feature-item-text">
-                  <div class="feature-item-title">线路对比</div>
-                  <div class="feature-item-desc">并排对比多条线路的站点与信息</div>
+                  <div class="feature-item-title">{{ $t('home.routeCompare') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.routeCompareDesc') }}</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
@@ -120,7 +120,7 @@
           <div class="feature-card">
             <div class="feature-header">
               <el-icon :size="20" color="#e6a23c"><TrendCharts /></el-icon>
-              <span class="feature-title">准点率分析</span>
+              <span class="feature-title">{{ $t('home.punctualityAnalysis') }}</span>
             </div>
             <div class="feature-content">
 <!--              <div class="feature-item" @click="navigate('/punctuality')">-->
@@ -139,8 +139,8 @@
                   <el-icon :size="20" color="#409eff"><Guide /></el-icon>
                 </div>
                 <div class="feature-item-text">
-                  <div class="feature-item-title">线路准点率</div>
-                  <div class="feature-item-desc">各线路准点率变化趋势与排名</div>
+                  <div class="feature-item-title">{{ $t('home.routePunctuality') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.routePunctualityDesc') }}</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
@@ -150,8 +150,8 @@
                   <el-icon :size="20" color="#67c23a"><Location /></el-icon>
                 </div>
                 <div class="feature-item-text">
-                  <div class="feature-item-title">站点准点率</div>
-                  <div class="feature-item-desc">各站点到达准点率趋势与排名</div>
+                  <div class="feature-item-title">{{ $t('home.stopPunctuality') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.stopPunctualityDesc') }}</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
@@ -161,8 +161,8 @@
                   <el-icon :size="20" color="#5c6bc0"><DataLine /></el-icon>
                 </div>
                 <div class="feature-item-text">
-                  <div class="feature-item-title">准点率趋势总览</div>
-                  <div class="feature-item-desc">多维度趋势图表与排名对比</div>
+                  <div class="feature-item-title">{{ $t('home.punctualityTrends') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.punctualityTrendsDesc') }}</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
@@ -176,23 +176,23 @@
     <div class="info-section">
       <div class="info-card">
         <div class="info-item">
-          <span class="info-label">数据来源</span>
+          <span class="info-label">{{ $t('home.dataSource') }}</span>
           <span class="info-value">{{ regionInfo.source }}</span>
         </div>
         <div class="info-divider"></div>
         <div class="info-item">
-          <span class="info-label">覆盖区域</span>
+          <span class="info-label">{{ $t('home.coverageArea') }}</span>
           <span class="info-value">{{ regionInfo.name }}</span>
         </div>
         <div class="info-divider"></div>
         <div class="info-item">
-          <span class="info-label">数据类型</span>
-          <span class="info-value">GTFS 静态 + 实时数据</span>
+          <span class="info-label">{{ $t('home.dataType') }}</span>
+          <span class="info-value">{{ $t('home.dataTypeValue') }}</span>
         </div>
         <div class="info-divider"></div>
         <div class="info-item">
-          <span class="info-label">更新频率</span>
-          <span class="info-value">每周更新</span>
+          <span class="info-label">{{ $t('home.updateFrequency') }}</span>
+          <span class="info-value">{{ $t('home.updateFrequencyValue') }}</span>
         </div>
       </div>
     </div>
@@ -202,6 +202,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/appStore'
 import { useRegionStore } from '@/stores/regionStore'
 import {
@@ -219,6 +220,7 @@ import {
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
+const { t } = useI18n()
 const appStore = useAppStore()
 const regionStore = useRegionStore()
 
@@ -227,49 +229,49 @@ const navigate = (path) => { window.location.href = path }
 const stats = ref({})
 
 // 地区信息映射
-const REGION_INFO = {
-  sf: { name: '旧金山湾区', source: '511 SF Bay API' },
-  nyc: { name: '纽约', source: 'MTA Open Data' },
-  sydney: { name: '悉尼', source: 'TfNSW Open Data' },
-}
+const REGION_INFO = computed(() => ({
+  sf: { name: t('region.sf'), source: t('region.sfSource') },
+  nyc: { name: t('region.nyc'), source: t('region.nycSource') },
+  sydney: { name: t('region.sydney'), source: t('region.sydneySource') },
+}))
 
 const regionInfo = computed(() => {
-  return REGION_INFO[regionStore.selectedRegion] || { name: '旧金山湾区', source: '511 SF Bay API' }
+  return REGION_INFO.value[regionStore.selectedRegion] || { name: t('region.sf'), source: t('region.sfSource') }
 })
 
 // 统计数据配置
-const statsData = {
+const statsData = computed(() => ({
   agencies: {
-    label: '运营机构',
+    label: t('home.agencies'),
     icon: TrendCharts,
     color: '#e3f2fd'
   },
   routes: {
-    label: '线路数量',
+    label: t('home.routeCount'),
     icon: Guide,
     color: '#e8f5e9'
   },
   stops: {
-    label: '站点数量',
+    label: t('home.stopCount'),
     icon: Location,
     color: '#fef0e6'
   },
   trips: {
-    label: '班次数量',
+    label: t('home.tripCount'),
     icon: Timer,
     color: '#f3e5f5'
   },
   stop_times: {
-    label: '时刻表记录',
+    label: t('home.stopTimeRecords'),
     icon: DataLine,
     color: '#e0f2f1'
   },
   shapes: {
-    label: '轨迹数量',
+    label: t('home.shapeCount'),
     icon: Position,
     color: '#fce4ec'
   }
-}
+}))
 
 onMounted(async () => {
   try {
@@ -291,7 +293,7 @@ watch(() => regionStore.selectedRegion, async () => {
 <style scoped>
 .home {
   min-height: 100vh;
-  background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);
+  background: var(--el-bg-color-page);
   padding: 40px 20px;
 }
 
@@ -305,14 +307,14 @@ watch(() => regionStore.selectedRegion, async () => {
 .welcome-title {
   font-size: 32px;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--el-text-color-primary);
   margin-bottom: 12px;
   letter-spacing: 0.5px;
 }
 
 .welcome-subtitle {
   font-size: 16px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   font-weight: 400;
 }
 
@@ -325,14 +327,14 @@ watch(() => regionStore.selectedRegion, async () => {
 .section-title {
   font-size: 20px;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--el-text-color-primary);
   margin-bottom: 24px;
   padding-left: 12px;
   border-left: 4px solid #409eff;
 }
 
 .stat-card {
-  background: white;
+  background: var(--el-bg-color);
   border-radius: 12px;
   padding: 24px 16px;
   text-align: center;
@@ -361,14 +363,14 @@ watch(() => regionStore.selectedRegion, async () => {
 .stat-value {
   font-size: 28px;
   font-weight: 700;
-  color: #2c3e50;
+  color: var(--el-text-color-primary);
   margin-bottom: 8px;
   line-height: 1;
 }
 
 .stat-label {
   font-size: 13px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   font-weight: 500;
 }
 
@@ -379,7 +381,7 @@ watch(() => regionStore.selectedRegion, async () => {
 }
 
 .feature-card {
-  background: white;
+  background: var(--el-bg-color);
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
@@ -393,13 +395,13 @@ watch(() => regionStore.selectedRegion, async () => {
   gap: 8px;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 2px solid #f5f7fa;
+  border-bottom: 2px solid var(--el-border-color-lighter);
 }
 
 .feature-title {
   font-size: 18px;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--el-text-color-primary);
 }
 
 .feature-content {
@@ -414,15 +416,15 @@ watch(() => regionStore.selectedRegion, async () => {
   gap: 16px;
   padding: 16px;
   border-radius: 8px;
-  background: #fafbfc;
+  background: var(--el-fill-color-light);
   cursor: pointer;
   transition: all 0.3s ease;
   border: 1px solid transparent;
 }
 
 .feature-item:hover {
-  background: #f5f7fa;
-  border-color: #e4e7ed;
+  background: var(--el-fill-color);
+  border-color: var(--el-border-color-light);
   transform: translateX(4px);
 }
 
@@ -443,17 +445,17 @@ watch(() => regionStore.selectedRegion, async () => {
 .feature-item-title {
   font-size: 15px;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--el-text-color-primary);
   margin-bottom: 4px;
 }
 
 .feature-item-desc {
   font-size: 13px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
 }
 
 .feature-item-arrow {
-  color: #c0c4cc;
+  color: var(--el-text-color-placeholder);
   transition: all 0.3s ease;
   flex-shrink: 0;
 }
@@ -470,7 +472,7 @@ watch(() => regionStore.selectedRegion, async () => {
 }
 
 .info-card {
-  background: white;
+  background: var(--el-bg-color);
   border-radius: 12px;
   padding: 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
@@ -491,20 +493,20 @@ watch(() => regionStore.selectedRegion, async () => {
 
 .info-label {
   font-size: 13px;
-  color: #6c757d;
+  color: var(--el-text-color-secondary);
   font-weight: 500;
 }
 
 .info-value {
   font-size: 15px;
-  color: #2c3e50;
+  color: var(--el-text-color-primary);
   font-weight: 600;
 }
 
 .info-divider {
   width: 1px;
   height: 40px;
-  background: #e4e7ed;
+  background: var(--el-border-color-light);
 }
 
 /* 响应式设计 */

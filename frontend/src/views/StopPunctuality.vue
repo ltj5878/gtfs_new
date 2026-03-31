@@ -3,9 +3,9 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-content">
-        <el-button :icon="ArrowLeft" @click="goHome" style="margin-bottom:8px">返回首页</el-button>
-        <h1>站点准点率分析</h1>
-        <p>分析各个公交站点的准点率情况和延误分布</p>
+        <el-button :icon="ArrowLeft" @click="goHome" style="margin-bottom:8px">{{ $t('common.backHome') }}</el-button>
+        <h1>{{ $t('stopPunctuality.title') }}</h1>
+        <p>{{ $t('stopPunctuality.subtitle') }}</p>
       </div>
       <div class="header-actions">
         <el-button
@@ -14,13 +14,13 @@
           @click="refreshData"
           :icon="Refresh"
         >
-          刷新数据
+          {{ $t('common.refresh') }}
         </el-button>
         <el-button
           @click="exportData"
           :icon="Download"
         >
-          导出报表
+          {{ $t('common.export') }}
         </el-button>
       </div>
     </div>
@@ -31,7 +31,7 @@
         <el-col :span="6">
           <el-input
             v-model="filters.stopName"
-            placeholder="搜索站点名称"
+            :placeholder="$t('stopPunctuality.searchPlaceholder')"
             :prefix-icon="Search"
             clearable
             @input="handleSearch"
@@ -40,42 +40,42 @@
         <el-col :span="6">
           <el-select
             v-model="filters.timeRange"
-            placeholder="时间范围"
+            :placeholder="$t('routePunctuality.timeRange')"
             @change="handleTimeRangeChange"
             style="width: 100%"
           >
-            <el-option label="最近7天" value="7" />
-            <el-option label="最近30天" value="30" />
-            <el-option label="最近90天" value="90" />
+            <el-option :label="$t('routePunctuality.last7Days')" value="7" />
+            <el-option :label="$t('routePunctuality.last30Days')" value="30" />
+            <el-option :label="$t('routePunctuality.last90Days')" value="90" />
           </el-select>
         </el-col>
         <el-col :span="6">
           <el-select
             v-model="filters.sortBy"
-            placeholder="排序方式"
+            :placeholder="$t('routePunctuality.sortBy')"
             @change="handleSortChange"
             style="width: 100%"
           >
-            <el-option label="准点率从高到低" value="punctuality_desc" />
-            <el-option label="准点率从低到高" value="punctuality_asc" />
-            <el-option label="访问次数从多到少" value="visits_desc" />
-            <el-option label="访问次数从少到多" value="visits_asc" />
-            <el-option label="延误从少到多" value="delay_asc" />
-            <el-option label="延误从多到少" value="delay_desc" />
+            <el-option :label="$t('routePunctuality.rateHighToLow')" value="punctuality_desc" />
+            <el-option :label="$t('routePunctuality.rateLowToHigh')" value="punctuality_asc" />
+            <el-option :label="$t('stopPunctuality.visitsHighToLow')" value="visits_desc" />
+            <el-option :label="$t('stopPunctuality.visitsLowToHigh')" value="visits_asc" />
+            <el-option :label="$t('routePunctuality.delayLowToHigh')" value="delay_asc" />
+            <el-option :label="$t('routePunctuality.delayHighToLow')" value="delay_desc" />
           </el-select>
         </el-col>
         <el-col :span="6">
           <el-select
             v-model="filters.areaFilter"
-            placeholder="区域筛选"
+            :placeholder="$t('stopPunctuality.areaFilter')"
             @change="handleAreaFilter"
             clearable
             style="width: 100%"
           >
-            <el-option label="市中心" value="downtown" />
-            <el-option label="商业区" value="commercial" />
-            <el-option label="住宅区" value="residential" />
-            <el-option label="郊区" value="suburban" />
+            <el-option :label="$t('stopPunctuality.downtown')" value="downtown" />
+            <el-option :label="$t('stopPunctuality.commercial')" value="commercial" />
+            <el-option :label="$t('stopPunctuality.residential')" value="residential" />
+            <el-option :label="$t('stopPunctuality.suburban')" value="suburban" />
           </el-select>
         </el-col>
       </el-row>
@@ -85,19 +85,19 @@
     <div class="stats-overview" v-loading="loading">
       <div class="stat-item">
         <div class="stat-value">{{ filteredStops.length }}</div>
-        <div class="stat-label">显示站点</div>
+        <div class="stat-label">{{ $t('stopPunctuality.showingStops') }}</div>
       </div>
       <div class="stat-item">
         <div class="stat-value">{{ formatPunctualityRate(averagePunctualityRate) }}</div>
-        <div class="stat-label">平均准点率</div>
+        <div class="stat-label">{{ $t('stopPunctuality.avgRate') }}</div>
       </div>
       <div class="stat-item">
         <div class="stat-value">{{ totalVisits.toLocaleString() }}</div>
-        <div class="stat-label">总访访问数</div>
+        <div class="stat-label">{{ $t('stopPunctuality.totalVisits') }}</div>
       </div>
       <div class="stat-item">
         <div class="stat-value">{{ formatDelay(averageDelay) }}</div>
-        <div class="stat-label">平均延误</div>
+        <div class="stat-label">{{ $t('stopPunctuality.avgDelay') }}</div>
       </div>
     </div>
 
@@ -105,7 +105,7 @@
     <el-card class="stops-table-card">
       <template #header>
         <div class="table-header">
-          <h3>站点列表</h3>
+          <h3>{{ $t('stopPunctuality.stopList') }}</h3>
           <div class="table-actions">
             <el-input-number
               v-model="pagination.pageSize"
@@ -115,7 +115,7 @@
               @change="handlePageSizeChange"
               style="width: 120px"
             />
-            <span class="page-size-label">条/页</span>
+            <span class="page-size-label">{{ $t('stopPunctuality.perPage') }}</span>
           </div>
         </div>
       </template>
@@ -126,7 +126,7 @@
         stripe
         @sort-change="handleTableSort"
       >
-        <el-table-column prop="stop_name" label="站点名称" min-width="200" sortable>
+        <el-table-column prop="stop_name" :label="$t('stopPunctuality.stopName')" min-width="200" sortable>
           <template #default="{ row }">
             <div class="stop-info">
               <div class="stop-name">
@@ -138,7 +138,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="avg_punctuality_rate" label="准点率" width="120" sortable="custom">
+        <el-table-column prop="avg_punctuality_rate" :label="$t('stopPunctuality.rate')" width="120" sortable="custom">
           <template #default="{ row }">
             <div class="punctuality-cell">
               <el-progress
@@ -152,13 +152,13 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="total_visits" label="访问次数" width="120" sortable="custom">
+        <el-table-column prop="total_visits" :label="$t('stopPunctuality.visits')" width="120" sortable="custom">
           <template #default="{ row }">
             <span class="visits-count">{{ (row.total_visits || 0).toLocaleString() }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="avg_delay_minutes" label="平均延误" width="150" sortable="custom" align="center">
+        <el-table-column prop="avg_delay_minutes" :label="$t('stopPunctuality.avgDelay')" width="150" sortable="custom" align="center">
           <template #default="{ row }">
             <div class="delay-cell">
               <el-icon class="delay-icon" :class="getDelayClass(row.avg_delay_minutes || 0)">
@@ -169,7 +169,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="max_delay_minutes" label="最大延误" width="120" sortable="custom">
+        <el-table-column prop="max_delay_minutes" :label="$t('stopPunctuality.maxDelay')" width="120" sortable="custom">
           <template #default="{ row }">
             <span class="max-delay">{{ formatDelay(row.max_delay_minutes || 0) }}</span>
           </template>
@@ -177,27 +177,27 @@
 
         <el-table-column min-width="260">
           <template #header>
-            <span style="padding-left: 48px;">准点分布</span>
+            <span style="padding-left: 48px;">{{ $t('stopPunctuality.distribution') }}</span>
           </template>
           <template #default="{ row }">
             <div class="punctuality-distribution">
-              <div class="dist-item" :title="`准点: ${row.on_time_visits || 0}次`">
-                <span class="dist-name on-time-text">准点</span>
+              <div class="dist-item" :title="`${$t('common.onTime')}: ${row.on_time_visits || 0}`">
+                <span class="dist-name on-time-text">{{ $t('common.onTime') }}</span>
                 <div class="dist-bar on-time" :style="{ width: getDistribution(row).onTime + '%' }"></div>
                 <span class="dist-label">{{ getDistribution(row).onTime }}%</span>
               </div>
-              <div class="dist-item" :title="`延误: ${row.late_visits || 0}次`">
-                <span class="dist-name late-text">延误</span>
+              <div class="dist-item" :title="`${$t('common.late')}: ${row.late_visits || 0}`">
+                <span class="dist-name late-text">{{ $t('common.late') }}</span>
                 <div class="dist-bar late" :style="{ width: getDistribution(row).late + '%' }"></div>
                 <span class="dist-label">{{ getDistribution(row).late }}%</span>
               </div>
-              <div class="dist-item" :title="`严重延误: ${row.very_late_visits || 0}次`">
-                <span class="dist-name very-late-text">严重延误</span>
+              <div class="dist-item" :title="`${$t('common.veryLate')}: ${row.very_late_visits || 0}`">
+                <span class="dist-name very-late-text">{{ $t('common.veryLate') }}</span>
                 <div class="dist-bar very-late" :style="{ width: getDistribution(row).veryLate + '%' }"></div>
                 <span class="dist-label">{{ getDistribution(row).veryLate }}%</span>
               </div>
-              <div class="dist-item" :title="`提前: ${row.early_visits || 0}次`">
-                <span class="dist-name early-text">提前</span>
+              <div class="dist-item" :title="`${$t('common.early')}: ${row.early_visits || 0}`">
+                <span class="dist-name early-text">{{ $t('common.early') }}</span>
                 <div class="dist-bar early" :style="{ width: getDistribution(row).early + '%' }"></div>
                 <span class="dist-label">{{ getDistribution(row).early }}%</span>
               </div>
@@ -205,28 +205,28 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="last_stat_date" label="最后统计" width="120">
+        <el-table-column prop="last_stat_date" :label="$t('stopPunctuality.lastStat')" width="120">
           <template #default="{ row }">
             <span class="stat-date">{{ formatDate(row.last_stat_date) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="位置信息" width="150">
+        <el-table-column :label="$t('stopPunctuality.locationInfo')" width="150">
           <template #default="{ row }">
             <div class="location-info" v-if="row.stop_lat && row.stop_lon">
               <div class="coords">{{ formatCoordinates(row.stop_lat, row.stop_lon) }}</div>
               <div class="location-actions">
                 <el-button type="text" size="small" @click="viewOnMap(row)">
                   <el-icon><MapLocation /></el-icon>
-                  地图
+                  {{ $t('common.map') }}
                 </el-button>
               </div>
             </div>
-            <span v-else class="no-location">位置未知</span>
+            <span v-else class="no-location">{{ $t('common.unknownLocation') }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column :label="$t('stopPunctuality.operation')" width="100" fixed="right">
           <template #default="{ row }">
             <el-button
               type="primary"
@@ -234,7 +234,7 @@
               size="small"
               @click="viewStopDetail(row)"
             >
-              详情
+              {{ $t('common.detail') }}
             </el-button>
           </template>
         </el-table-column>
@@ -259,6 +259,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { usePunctualityStore } from '../stores/punctualityStore'
 import { useRegionStore } from '@/stores/regionStore'
 import {
@@ -268,6 +269,7 @@ import { ElMessage } from 'element-plus'
 
 // Store
 const router = useRouter()
+const { t } = useI18n()
 const punctualityStore = usePunctualityStore()
 const regionStore = useRegionStore()
 
@@ -358,7 +360,7 @@ const fetchData = async () => {
 
     await punctualityStore.fetchStopPunctuality(params)
   } catch (err) {
-    ElMessage.error('获取站点准点率数据失败')
+    ElMessage.error(t('stopPunctuality.fetchFailed'))
   }
 }
 
@@ -367,9 +369,9 @@ const refreshData = async () => {
     refreshing.value = true
     await punctualityStore.refreshPunctualityData()
     await fetchData()
-    ElMessage.success('数据刷新成功')
+    ElMessage.success(t('common.refreshSuccess'))
   } catch (err) {
-    ElMessage.error('刷新数据失败')
+    ElMessage.error(t('common.refreshFailed'))
   } finally {
     refreshing.value = false
   }
@@ -426,11 +428,16 @@ const viewOnMap = (stop) => {
 const exportData = () => {
   const stops = filteredStops.value
   if (!stops.length) {
-    ElMessage.warning('没有可导出的数据')
+    ElMessage.warning(t('stopPunctuality.noExportData'))
     return
   }
 
-  const headers = ['站点ID', '站点名称', '纬度', '经度', '准点率(%)', '总访问次数', '准点次数', '提前次数', '延误次数', '严重延误次数', '平均延误(分钟)', '最大延误(分钟)', '最后统计日期']
+  const headers = [
+    t('stopPunctuality.csvStopId'), t('stopPunctuality.csvStopName'), t('stopPunctuality.csvLat'), t('stopPunctuality.csvLon'),
+    t('stopPunctuality.csvRate'), t('stopPunctuality.csvTotalVisits'), t('stopPunctuality.csvOnTime'),
+    t('stopPunctuality.csvEarly'), t('stopPunctuality.csvLate'), t('stopPunctuality.csvVeryLate'),
+    t('stopPunctuality.csvAvgDelay'), t('stopPunctuality.csvMaxDelay'), t('stopPunctuality.csvLastStat')
+  ]
   const rows = stops.map(s => [
     s.stop_id,
     s.stop_name || '',
@@ -455,11 +462,11 @@ const exportData = () => {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `站点准点率_${new Date().toISOString().slice(0, 10)}.csv`
+  link.download = `stop-punctuality_${new Date().toISOString().slice(0, 10)}.csv`
   link.click()
   URL.revokeObjectURL(url)
 
-  ElMessage.success(`已导出 ${stops.length} 个站点数据`)
+  ElMessage.success(t('stopPunctuality.exported', { count: stops.length }))
 }
 
 // 工具方法
@@ -468,9 +475,9 @@ const formatPunctualityRate = (rate) => {
 }
 
 const formatDelay = (minutes) => {
-  if (!minutes || minutes === 0) return '准点'
-  if (minutes < 0) return `提前 ${Math.abs(minutes).toFixed(1)} 分钟`
-  return `延误 ${minutes.toFixed(1)} 分钟`
+  if (!minutes || minutes === 0) return t('format.onTimeLabel')
+  if (minutes < 0) return t('format.earlyLabel', { n: Math.abs(minutes).toFixed(1) })
+  return t('format.delayLabel', { n: minutes.toFixed(1) })
 }
 
 const formatDate = (dateStr) => {
@@ -479,7 +486,7 @@ const formatDate = (dateStr) => {
 }
 
 const formatCoordinates = (lat, lng) => {
-  if (!lat || !lng) return '未知位置'
+  if (!lat || !lng) return t('common.unknownLocation')
   return `${lat.toFixed(4)}, ${lng.toFixed(4)}`
 }
 

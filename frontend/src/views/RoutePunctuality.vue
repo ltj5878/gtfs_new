@@ -3,9 +3,9 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-content">
-        <el-button :icon="ArrowLeft" @click="goHome" style="margin-bottom:8px">返回首页</el-button>
-        <h1>线路准点率分析</h1>
-        <p>详细分析每条公交线路的准点率和延误情况</p>
+        <el-button :icon="ArrowLeft" @click="goHome" style="margin-bottom:8px">{{ $t('common.backHome') }}</el-button>
+        <h1>{{ $t('routePunctuality.title') }}</h1>
+        <p>{{ $t('routePunctuality.subtitle') }}</p>
       </div>
       <div class="header-actions">
         <el-button
@@ -14,13 +14,13 @@
           @click="refreshData"
           :icon="Refresh"
         >
-          刷新数据
+          {{ $t('common.refresh') }}
         </el-button>
         <el-button
           @click="exportData"
           :icon="Download"
         >
-          导出报表
+          {{ $t('common.export') }}
         </el-button>
       </div>
     </div>
@@ -31,7 +31,7 @@
         <el-col :span="6">
           <el-input
             v-model="filters.routeName"
-            placeholder="搜索线路名称"
+            :placeholder="$t('routePunctuality.searchPlaceholder')"
             :prefix-icon="Search"
             clearable
             @input="handleSearch"
@@ -40,22 +40,22 @@
         <el-col :span="6">
           <el-select
             v-model="filters.timeRange"
-            placeholder="时间范围"
+            :placeholder="$t('routePunctuality.timeRange')"
             @change="handleTimeRangeChange"
             style="width: 100%"
           >
-            <el-option label="最近7天" value="7" />
-            <el-option label="最近30天" value="30" />
-            <el-option label="最近90天" value="90" />
+            <el-option :label="$t('routePunctuality.last7Days')" value="7" />
+            <el-option :label="$t('routePunctuality.last30Days')" value="30" />
+            <el-option :label="$t('routePunctuality.last90Days')" value="90" />
           </el-select>
         </el-col>
         <el-col :span="6" v-if="filters.timeRange === 'custom'">
           <el-date-picker
             v-model="filters.customDateRange"
             type="daterange"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
+            range-separator="-"
+            start-placeholder=""
+            end-placeholder=""
             @change="handleCustomDateChange"
             style="width: 100%"
           />
@@ -63,16 +63,16 @@
         <el-col :span="6">
           <el-select
             v-model="filters.sortBy"
-            placeholder="排序方式"
+            :placeholder="$t('routePunctuality.sortBy')"
             @change="handleSortChange"
             style="width: 100%"
           >
-            <el-option label="准点率从高到低" value="punctuality_desc" />
-            <el-option label="准点率从低到高" value="punctuality_asc" />
-            <el-option label="班次从多到少" value="trips_desc" />
-            <el-option label="班次从少到多" value="trips_asc" />
-            <el-option label="延误从少到多" value="delay_asc" />
-            <el-option label="延误从多到少" value="delay_desc" />
+            <el-option :label="$t('routePunctuality.rateHighToLow')" value="punctuality_desc" />
+            <el-option :label="$t('routePunctuality.rateLowToHigh')" value="punctuality_asc" />
+            <el-option :label="$t('routePunctuality.tripsHighToLow')" value="trips_desc" />
+            <el-option :label="$t('routePunctuality.tripsLowToHigh')" value="trips_asc" />
+            <el-option :label="$t('routePunctuality.delayLowToHigh')" value="delay_asc" />
+            <el-option :label="$t('routePunctuality.delayHighToLow')" value="delay_desc" />
           </el-select>
         </el-col>
       </el-row>
@@ -82,19 +82,19 @@
     <div class="stats-overview" v-loading="loading">
       <div class="stat-item">
         <div class="stat-value">{{ filteredRoutes.length }}</div>
-        <div class="stat-label">显示线路</div>
+        <div class="stat-label">{{ $t('routePunctuality.showingRoutes') }}</div>
       </div>
       <div class="stat-item">
         <div class="stat-value">{{ formatPunctualityRate(averagePunctualityRate) }}</div>
-        <div class="stat-label">平均准点率</div>
+        <div class="stat-label">{{ $t('routePunctuality.avgRate') }}</div>
       </div>
       <div class="stat-item">
         <div class="stat-value">{{ totalTrips.toLocaleString() }}</div>
-        <div class="stat-label">总班次</div>
+        <div class="stat-label">{{ $t('routePunctuality.totalTrips') }}</div>
       </div>
       <div class="stat-item">
         <div class="stat-value">{{ formatDelay(averageDelay) }}</div>
-        <div class="stat-label">平均延误</div>
+        <div class="stat-label">{{ $t('routePunctuality.avgDelay') }}</div>
       </div>
     </div>
 
@@ -102,7 +102,7 @@
     <el-card class="routes-table-card">
       <template #header>
         <div class="table-header">
-          <h3>线路列表</h3>
+          <h3>{{ $t('routePunctuality.routeList') }}</h3>
           <div class="table-actions">
             <el-input-number
               v-model="pagination.pageSize"
@@ -112,7 +112,7 @@
               @change="handlePageSizeChange"
               style="width: 120px"
             />
-            <span class="page-size-label">条/页</span>
+            <span class="page-size-label">{{ $t('routePunctuality.perPage') }}</span>
           </div>
         </div>
       </template>
@@ -124,9 +124,9 @@
         @sort-change="handleTableSort"
       >
         <template #empty>
-          <el-empty description="暂无准点率数据，请确认数据收集服务已启动" />
+          <el-empty :description="$t('routePunctuality.noData')" />
         </template>
-        <el-table-column prop="route_short_name" label="线路" min-width="200" sortable>
+        <el-table-column prop="route_short_name" :label="$t('routePunctuality.route')" min-width="200" sortable>
           <template #default="{ row }">
             <div class="route-name">
               <div class="route-short">{{ row.route_short_name || row.route_id }}</div>
@@ -135,7 +135,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="avg_punctuality_rate" label="准点率" width="120" sortable="custom">
+        <el-table-column prop="avg_punctuality_rate" :label="$t('routePunctuality.rate')" width="120" sortable="custom">
           <template #default="{ row }">
             <div class="punctuality-cell">
               <el-progress
@@ -149,13 +149,13 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="total_trips" label="总班次" width="100" sortable="custom">
+        <el-table-column prop="total_trips" :label="$t('routePunctuality.totalTrips')" width="100" sortable="custom">
           <template #default="{ row }">
             <span class="trips-count">{{ (row.total_trips || 0).toLocaleString() }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column prop="avg_delay_minutes" label="平均延误" width="150" sortable="custom" align="center">
+        <el-table-column prop="avg_delay_minutes" :label="$t('routePunctuality.avgDelay')" width="150" sortable="custom" align="center">
           <template #default="{ row }">
             <div class="delay-cell">
               <el-icon class="delay-icon" :class="getDelayClass(row.avg_delay_minutes || 0)">
@@ -166,7 +166,7 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="max_delay_minutes" label="最大延误" width="150" sortable="custom">
+        <el-table-column prop="max_delay_minutes" :label="$t('routePunctuality.maxDelay')" width="150" sortable="custom">
           <template #default="{ row }">
             <span class="max-delay" style="white-space: nowrap;">{{ formatDelay(row.max_delay_minutes || 0) }}</span>
           </template>
@@ -174,27 +174,27 @@
 
         <el-table-column min-width="260">
           <template #header>
-            <span style="padding-left: 48px;">准点分布</span>
+            <span style="padding-left: 48px;">{{ $t('routePunctuality.distribution') }}</span>
           </template>
           <template #default="{ row }">
             <div class="punctuality-distribution">
-              <div class="dist-item" :title="`准点: ${row.on_time_trips || 0}班`">
-                <span class="dist-name on-time-text">准点</span>
+              <div class="dist-item" :title="`${$t('common.onTime')}: ${row.on_time_trips || 0}`">
+                <span class="dist-name on-time-text">{{ $t('common.onTime') }}</span>
                 <div class="dist-bar on-time" :style="{ width: getDistribution(row).onTime + '%' }"></div>
                 <span class="dist-label">{{ getDistribution(row).onTime }}%</span>
               </div>
-              <div class="dist-item" :title="`延误: ${row.late_trips || 0}班`">
-                <span class="dist-name late-text">延误</span>
+              <div class="dist-item" :title="`${$t('common.late')}: ${row.late_trips || 0}`">
+                <span class="dist-name late-text">{{ $t('common.late') }}</span>
                 <div class="dist-bar late" :style="{ width: getDistribution(row).late + '%' }"></div>
                 <span class="dist-label">{{ getDistribution(row).late }}%</span>
               </div>
-              <div class="dist-item" :title="`严重延误: ${row.very_late_trips || 0}班`">
-                <span class="dist-name very-late-text">严重延误</span>
+              <div class="dist-item" :title="`${$t('common.veryLate')}: ${row.very_late_trips || 0}`">
+                <span class="dist-name very-late-text">{{ $t('common.veryLate') }}</span>
                 <div class="dist-bar very-late" :style="{ width: getDistribution(row).veryLate + '%' }"></div>
                 <span class="dist-label">{{ getDistribution(row).veryLate }}%</span>
               </div>
-              <div class="dist-item" :title="`提前: ${row.early_trips || 0}班`">
-                <span class="dist-name early-text">提前</span>
+              <div class="dist-item" :title="`${$t('common.early')}: ${row.early_trips || 0}`">
+                <span class="dist-name early-text">{{ $t('common.early') }}</span>
                 <div class="dist-bar early" :style="{ width: getDistribution(row).early + '%' }"></div>
                 <span class="dist-label">{{ getDistribution(row).early }}%</span>
               </div>
@@ -202,13 +202,13 @@
           </template>
         </el-table-column>
 
-        <el-table-column prop="last_stat_date" label="统计时间" width="120">
+        <el-table-column prop="last_stat_date" :label="$t('routePunctuality.statTime')" width="120">
           <template #default="{ row }">
             <span class="stat-date">{{ formatDate(row.last_stat_date) }}</span>
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column :label="$t('routePunctuality.operation')" width="100" fixed="right">
           <template #default="{ row }">
             <el-button
               type="primary"
@@ -216,7 +216,7 @@
               size="small"
               @click="viewRouteDetail(row)"
             >
-              详情
+              {{ $t('common.detail') }}
             </el-button>
           </template>
         </el-table-column>
@@ -241,6 +241,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { usePunctualityStore } from '../stores/punctualityStore'
 import { useRegionStore } from '@/stores/regionStore'
 import {
@@ -250,6 +251,7 @@ import { ElMessage } from 'element-plus'
 
 // Store
 const router = useRouter()
+const { t } = useI18n()
 const punctualityStore = usePunctualityStore()
 const regionStore = useRegionStore()
 
@@ -347,7 +349,7 @@ const fetchData = async () => {
 
     await punctualityStore.fetchRoutePunctuality(params)
   } catch (err) {
-    ElMessage.error('获取线路准点率数据失败')
+    ElMessage.error(t('routePunctuality.fetchFailed'))
   }
 }
 
@@ -356,9 +358,9 @@ const refreshData = async () => {
     refreshing.value = true
     await punctualityStore.refreshPunctualityData()
     await fetchData()
-    ElMessage.success('数据刷新成功')
+    ElMessage.success(t('common.refreshSuccess'))
   } catch (err) {
-    ElMessage.error('刷新数据失败')
+    ElMessage.error(t('common.refreshFailed'))
   } finally {
     refreshing.value = false
   }
@@ -413,12 +415,17 @@ const viewRouteDetail = (route) => {
 const exportData = () => {
   const routes = filteredRoutes.value
   if (!routes.length) {
-    ElMessage.warning('没有可导出的数据')
+    ElMessage.warning(t('routePunctuality.noExportData'))
     return
   }
 
   // CSV 表头
-  const headers = ['线路ID', '线路简称', '线路全称', '准点率(%)', '总班次', '准点班次', '提前班次', '延误班次', '严重延误班次', '平均延误(分钟)', '最大延误(分钟)', '最后统计日期']
+  const headers = [
+    t('routePunctuality.csvRouteId'), t('routePunctuality.csvShortName'), t('routePunctuality.csvLongName'),
+    t('routePunctuality.csvRate'), t('routePunctuality.csvTrips'), t('routePunctuality.csvOnTime'),
+    t('routePunctuality.csvEarly'), t('routePunctuality.csvLate'), t('routePunctuality.csvVeryLate'),
+    t('routePunctuality.csvAvgDelay'), t('routePunctuality.csvMaxDelay'), t('routePunctuality.csvLastStat')
+  ]
   const rows = routes.map(r => [
     r.route_id,
     r.route_short_name || '',
@@ -443,11 +450,11 @@ const exportData = () => {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
-  link.download = `线路准点率_${new Date().toISOString().slice(0, 10)}.csv`
+  link.download = `route-punctuality_${new Date().toISOString().slice(0, 10)}.csv`
   link.click()
   URL.revokeObjectURL(url)
 
-  ElMessage.success(`已导出 ${routes.length} 条线路数据`)
+  ElMessage.success(t('routePunctuality.exported', { count: routes.length }))
 }
 
 // 工具方法
@@ -456,9 +463,9 @@ const formatPunctualityRate = (rate) => {
 }
 
 const formatDelay = (minutes) => {
-  if (!minutes || minutes === 0) return '准点'
-  if (minutes < 0) return `提前 ${Math.abs(minutes).toFixed(1)} 分钟`
-  return `延误 ${minutes.toFixed(1)} 分钟`
+  if (!minutes || minutes === 0) return t('format.onTimeLabel')
+  if (minutes < 0) return t('format.earlyLabel', { n: Math.abs(minutes).toFixed(1) })
+  return t('format.delayLabel', { n: minutes.toFixed(1) })
 }
 
 const formatDate = (dateStr) => {

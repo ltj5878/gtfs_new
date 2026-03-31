@@ -55,7 +55,10 @@
       "Bash(./start.sh start:*)",
       "Bash(grep -n \"localStorage\\\\|sessionStorage\" frontend/src/stores/*.js frontend/src/api/*.js)",
       "Bash(git -C /Users/lvtongjie/Documents/code/bs/gtfs_new log --oneline -5 -- \"文档/新增功能.md\")",
-      "Bash(git -C /Users/lvtongjie/Documents/code/bs/gtfs_new show HEAD:文档/新增功能.md)"
+      "Bash(git -C /Users/lvtongjie/Documents/code/bs/gtfs_new show HEAD:文档/新增功能.md)",
+      "mcp__filesystem__read_multiple_files",
+      "Bash(/usr/local/bin/psql --version)",
+      "Read(//opt/homebrew/**)"
     ],
     "deny": [],
     "ask": []

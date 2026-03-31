@@ -2,7 +2,7 @@
   <div class="route-detail-page">
     <div v-loading="routeStore.loading" class="detail-content">
       <div v-if="routeStore.currentRoute" class="route-detail">
-        <el-page-header @back="$router.back()" title="返回">
+        <el-page-header @back="$router.back()" :title="$t('common.back')">
           <template #content>
             <div class="route-title">
               <div class="route-badge" :style="{ backgroundColor: `#${routeStore.currentRoute.route_color || '005596'}` }">
@@ -17,7 +17,7 @@
                 :class="{ 'is-favorited': routeFavorited }"
                 :size="22"
                 @click.stop="handleFavorite"
-                :title="routeFavorited ? '取消收藏' : '收藏此线路'"
+                :title="routeFavorited ? $t('common.unfavorite') : $t('common.favoriteRoute')"
               >
                 <Star />
               </el-icon>
@@ -31,24 +31,24 @@
           <el-col :xs="24">
             <el-card>
               <template #header>
-                <span>线路信息</span>
+                <span>{{ $t('routeDetail.routeInfo') }}</span>
               </template>
               <el-descriptions :column="1" border>
-                <el-descriptions-item label="线路ID">{{ routeStore.currentRoute.route_id }}</el-descriptions-item>
-                <el-descriptions-item label="线路名称">{{ routeStore.currentRoute.route_long_name }}</el-descriptions-item>
-                <el-descriptions-item label="线路编号">{{ routeStore.currentRoute.route_short_name }}</el-descriptions-item>
-                <el-descriptions-item label="线路类型">{{ getRouteTypeName(routeStore.currentRoute.route_type) }}</el-descriptions-item>
-                <el-descriptions-item v-if="routeStore.currentRoute.category" label="类别">
+                <el-descriptions-item :label="$t('routeDetail.routeId')">{{ routeStore.currentRoute.route_id }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('routeDetail.routeName')">{{ routeStore.currentRoute.route_long_name }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('routeDetail.routeShortName')">{{ routeStore.currentRoute.route_short_name }}</el-descriptions-item>
+                <el-descriptions-item :label="$t('routeDetail.routeType')">{{ getRouteTypeName(routeStore.currentRoute.route_type) }}</el-descriptions-item>
+                <el-descriptions-item v-if="routeStore.currentRoute.category" :label="$t('routeDetail.category')">
                   <el-tooltip :content="routeStore.currentRoute.category_description" placement="top">
                     <span>{{ routeStore.currentRoute.category_text || routeStore.currentRoute.category }}</span>
                   </el-tooltip>
                 </el-descriptions-item>
-                <el-descriptions-item v-if="routeStore.currentRoute.subcategory" label="子类别">
+                <el-descriptions-item v-if="routeStore.currentRoute.subcategory" :label="$t('routeDetail.subcategory')">
                   <el-tooltip :content="routeStore.currentRoute.subcategory_description" placement="top">
                     <span>{{ routeStore.currentRoute.subcategory_text || routeStore.currentRoute.subcategory }}</span>
                   </el-tooltip>
                 </el-descriptions-item>
-                <el-descriptions-item v-if="routeStore.currentRoute.running_way" label="运行方式">
+                <el-descriptions-item v-if="routeStore.currentRoute.running_way" :label="$t('routeDetail.runningWay')">
                   <el-tooltip :content="routeStore.currentRoute.running_way_description" placement="top">
                     <span>{{ routeStore.currentRoute.running_way_text || routeStore.currentRoute.running_way }}</span>
                   </el-tooltip>
@@ -62,14 +62,14 @@
           <el-col :xs="24" :lg="12">
             <el-card class="stops-card">
               <template #header>
-                <span>站点列表</span>
+                <span>{{ $t('routeDetail.stopList') }}</span>
               </template>
               <div v-loading="loadingStops">
                 <el-timeline v-if="routeStore.stops.length > 0">
                   <el-timeline-item
                     v-for="(stop, index) in routeStore.stops"
                     :key="stop.stop_id"
-                    :timestamp="`站点 ${index + 1}`"
+                    :timestamp="$t('routeDetail.stopIndex', { n: index + 1 })"
                   >
                     <el-card shadow="hover" class="stop-item" @click="handleStopClick(stop)">
                       <div class="stop-item-content">
@@ -79,7 +79,7 @@
                     </el-card>
                   </el-timeline-item>
                 </el-timeline>
-                <el-empty v-else description="暂无站点信息" />
+                <el-empty v-else :description="$t('routeDetail.noStopInfo')" />
               </div>
             </el-card>
           </el-col>
@@ -88,7 +88,7 @@
             <el-card class="map-card">
               <template #header>
                 <div class="map-card-header">
-                  <span>线路地图</span>
+                  <span>{{ $t('routeDetail.routeMap') }}</span>
                   <el-radio-group v-if="routeStore.directions.length > 0" v-model="selectedDirection" @change="handleDirectionChange" size="small">
                     <el-radio-button
                       v-for="dir in routeStore.directions"
@@ -104,7 +104,7 @@
                 <div id="route-map" class="route-map"></div>
                 <div v-if="loadingMap" class="map-loading">
                   <el-icon class="is-loading"><Loading /></el-icon>
-                  <p>加载地图中...</p>
+                  <p>{{ $t('routeDetail.loadingMap') }}</p>
                 </div>
               </div>
             </el-card>
@@ -117,6 +117,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useRouteStore } from '@/stores/routeStore'
 import { useRegionStore } from '@/stores/regionStore'
@@ -127,6 +128,7 @@ import 'leaflet/dist/leaflet.css'
 import { Loading, Star } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const routeStore = useRouteStore()
@@ -142,7 +144,7 @@ const routeFavorited = computed(() =>
 
 const handleFavorite = async () => {
   if (!authStore.isLoggedIn) {
-    ElMessage.warning('请先登录后再收藏')
+    ElMessage.warning(t('common.loginFirst'))
     return
   }
   if (!routeStore.currentRoute) return
@@ -154,7 +156,7 @@ const handleFavorite = async () => {
       item_name: routeStore.currentRoute.route_long_name || routeStore.currentRoute.route_short_name || routeStore.currentRoute.route_id
     })
   } catch (e) {
-    ElMessage.error('操作失败，请重试')
+    ElMessage.error(t('common.operationFailed'))
   }
 }
 
@@ -165,19 +167,19 @@ const map = ref(null)
 const markersLayer = ref(null)
 const routeLineLayer = ref(null)
 
-const routeTypeNames = {
-  0: '轻轨/地铁',
-  1: '地铁',
-  2: '铁路',
-  3: '公交',
-  4: '轮渡',
-  5: '有轨电车',
-  6: '缆车',
-  7: '索道'
-}
+const routeTypeNames = computed(() => ({
+  0: t('routeType.0'),
+  1: t('routeType.1'),
+  2: t('routeType.2'),
+  3: t('routeType.3'),
+  4: t('routeType.4'),
+  5: t('routeType.5'),
+  6: t('routeType.6'),
+  7: t('routeType.7')
+}))
 
 const getRouteTypeName = (type) => {
-  return routeTypeNames[type] || '未知'
+  return routeTypeNames.value[type] || t('common.unknown')
 }
 
 const loadRouteStops = async (directionId = null) => {
@@ -284,7 +286,7 @@ const drawRouteOnMap = () => {
           .bindPopup(`
             <div style="min-width: 150px;">
               <strong>${stop.stop_name}</strong><br>
-              <small>站点 ${index + 1}</small><br>
+              <small>${t('routeDetail.stopIndex', { n: index + 1 })}</small><br>
               <small>编号: ${stop.stop_code || 'N/A'}</small>
             </div>
           `)

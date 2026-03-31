@@ -1,17 +1,17 @@
 <template>
   <div class="stops-page">
     <div class="page-header">
-      <h1>站点列表</h1>
+      <h1>{{ $t('stopList.title') }}</h1>
       <div class="toolbar">
         <SearchBar
           v-model="searchKeyword"
-          placeholder="搜索站点名称..."
+          :placeholder="$t('stopList.searchPlaceholder')"
           @search="handleSearch"
           class="toolbar-search"
         />
         <el-select
           v-model="selectedAgency"
-          placeholder="运营机构"
+          :placeholder="$t('stopList.agencyPlaceholder')"
           clearable
           @change="handleFilter"
           style="width: 160px"
@@ -29,7 +29,7 @@
     <el-divider />
 
     <div v-loading="stopStore.loading" class="stops-content">
-      <el-empty v-if="!stopStore.loading && stopStore.stops.length === 0" description="暂无站点数据" />
+      <el-empty v-if="!stopStore.loading && stopStore.stops.length === 0" :description="$t('stopList.noData')" />
 
       <div v-else class="stops-grid">
         <StopCard
