@@ -21,6 +21,13 @@
               >
                 <Star />
               </el-icon>
+              <!-- 订阅告警按钮 -->
+              <SubscribeButton
+                v-if="authStore.isLoggedIn && routeStore.currentRoute"
+                :region="regionStore.selectedRegion"
+                :route-id="routeStore.currentRoute.route_id"
+                :route-name="routeStore.currentRoute.route_long_name || routeStore.currentRoute.route_short_name"
+              />
             </div>
           </template>
         </el-page-header>
@@ -127,6 +134,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { Loading, Star } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import SubscribeButton from '@/components/SubscribeButton.vue'
 
 const { t } = useI18n()
 const route = useRoute()

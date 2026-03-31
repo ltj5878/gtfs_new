@@ -2,8 +2,28 @@
   <div class="admin-page">
     <div class="page-header">
       <h1>运维监控看板</h1>
-      <el-button :icon="Refresh" @click="loadAll" :loading="loading" size="small">刷新</el-button>
+      <div class="header-actions">
+        <el-button :icon="Bell" @click="handleCheckPunctuality" :loading="checkingAlerts" size="small">检查准点率告警</el-button>
+        <el-button :icon="ChatDotRound" type="warning" @click="announcementVisible = true" size="small">发布公告</el-button>
+        <el-button :icon="Refresh" @click="loadAll" :loading="loading" size="small">刷新</el-button>
+      </div>
     </div>
+
+    <!-- 发布公告对话框 -->
+    <el-dialog v-model="announcementVisible" title="发布系统公告" width="500px">
+      <el-form label-position="top">
+        <el-form-item label="公告标题">
+          <el-input v-model="announcementForm.title" placeholder="请输入公告标题" maxlength="100" show-word-limit />
+        </el-form-item>
+        <el-form-item label="公告内容">
+          <el-input v-model="announcementForm.content" type="textarea" :rows="4" placeholder="请输入公告内容" maxlength="500" show-word-limit />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="announcementVisible = false">取消</el-button>
+        <el-button type="primary" :loading="publishingAnnouncement" @click="handlePublishAnnouncement">发布</el-button>
+      </template>
+    </el-dialog>
 
     <el-divider />
 
@@ -189,9 +209,10 @@ import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
 import {
   Refresh, DataLine, Grid, Connection, Warning,
-  CircleCheck, CircleClose, QuestionFilled
+  CircleCheck, CircleClose, QuestionFilled, Bell, ChatDotRound
 } from '@element-plus/icons-vue'
 import { getDbStats, getApiHealth, getDataFreshness } from '@/api/admin.js'
+import { publishAnnouncement, checkPunctualityAlerts } from '@/api/notification.js'
 
 const loading = ref(false)
 const loadingDb = ref(false)
@@ -201,6 +222,42 @@ const loadingFreshness = ref(false)
 const dbStats = ref({ db_size: '', db_bytes: 0, tables: [], active_connections: 0 })
 const apiHealth = ref({ total_calls_24h: 0, error_calls_24h: 0, stats: [], recent_errors: [] })
 const freshness = ref([])
+
+// 公告相关
+const announcementVisible = ref(false)
+const announcementForm = ref({ title: '', content: '' })
+const publishingAnnouncement = ref(false)
+const checkingAlerts = ref(false)
+
+const handlePublishAnnouncement = async () => {
+  if (!announcementForm.value.title.trim()) {
+    ElMessage.warning('请输入公告标题')
+    return
+  }
+  publishingAnnouncement.value = true
+  try {
+    const data = await publishAnnouncement(announcementForm.value)
+    ElMessage.success(data?.message || '公告发布成功')
+    announcementVisible.value = false
+    announcementForm.value = { title: '', content: '' }
+  } catch (e) {
+    ElMessage.error(e.message || '发布失败')
+  } finally {
+    publishingAnnouncement.value = false
+  }
+}
+
+const handleCheckPunctuality = async () => {
+  checkingAlerts.value = true
+  try {
+    const data = await checkPunctualityAlerts()
+    ElMessage.success(data?.message || '检查完成')
+  } catch (e) {
+    ElMessage.error(e.message || '检查失败')
+  } finally {
+    checkingAlerts.value = false
+  }
+}
 
 const pieChartRef = ref(null)
 let pieChart = null
@@ -313,6 +370,11 @@ onMounted(() => {
   margin: 0;
   font-size: 28px;
   font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .metric-row {

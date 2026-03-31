@@ -18,7 +18,7 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`
     }
     // 自动附加当前选中的地区参数（排除 /regions 和 /health 接口）
-    const skipRegionPaths = ['/regions', '/health', '/auth', '/favorites', '/admin', '/users']
+    const skipRegionPaths = ['/regions', '/health', '/auth', '/favorites', '/admin', '/users', '/notifications', '/subscriptions']
     const shouldSkip = skipRegionPaths.some(p => config.url?.startsWith(p))
     if (!shouldSkip) {
       const regionStore = useRegionStore()

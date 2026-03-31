@@ -146,6 +146,7 @@ const actionOptions = computed(() => [
   { value: 'reset_password', label: t('auditLog.actionResetPassword') },
   { value: 'change_password', label: t('auditLog.actionChangePassword') },
   { value: 'refresh_punctuality', label: t('auditLog.actionRefreshPunctuality') },
+  { value: 'publish_announcement', label: t('auditLog.actionPublishAnnouncement') },
 ])
 
 // 操作类型 → 标签颜色
@@ -161,6 +162,7 @@ const actionTagType = (action) => {
     reset_password: 'warning',
     change_password: 'warning',
     refresh_punctuality: '',
+    publish_announcement: 'warning',
   }
   return map[action] || 'info'
 }
@@ -178,6 +180,7 @@ const actionLabel = (action) => {
     reset_password: t('auditLog.actionResetPassword'),
     change_password: t('auditLog.actionChangePassword'),
     refresh_punctuality: t('auditLog.actionRefreshPunctuality'),
+    publish_announcement: t('auditLog.actionPublishAnnouncement'),
   }
   return map[action] || action
 }

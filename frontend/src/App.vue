@@ -40,6 +40,7 @@
         </el-menu>
         <div class="header-right">
           <RegionSelector />
+          <NotificationBell v-if="authStore.isLoggedIn" />
           <el-button
             size="small"
             text
@@ -82,7 +83,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { TrendCharts, User, Sunny, Moon } from '@element-plus/icons-vue'
@@ -90,7 +91,9 @@ import { useAuthStore } from '@/stores/authStore.js'
 import { useRegionStore } from '@/stores/regionStore.js'
 import { useFavoriteStore } from '@/stores/favoriteStore.js'
 import { useThemeStore } from '@/stores/themeStore.js'
+import { useNotificationStore } from '@/stores/notificationStore.js'
 import RegionSelector from '@/components/RegionSelector.vue'
+import NotificationBell from '@/components/NotificationBell.vue'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import en from 'element-plus/es/locale/lang/en'
 
@@ -101,6 +104,7 @@ const authStore = useAuthStore()
 const regionStore = useRegionStore()
 const favoriteStore = useFavoriteStore()
 const themeStore = useThemeStore()
+const notificationStore = useNotificationStore()
 
 // Element Plus 语言切换
 const elementLocale = computed(() => currentLocale.value === 'en' ? en : zhCn)
@@ -112,11 +116,18 @@ const toggleLocale = () => {
   localStorage.setItem('locale', next)
 }
 
-// 页面刷新后若已登录，自动拉取收藏列表
+// 页面刷新后若已登录，自动拉取收藏列表和未读通知数
+let _notificationTimer = null
 onMounted(() => {
   if (authStore.isLoggedIn) {
     favoriteStore.fetchFavorites()
+    notificationStore.fetchUnreadCount()
+    _notificationTimer = setInterval(() => notificationStore.fetchUnreadCount(), 60000)
   }
+})
+
+onUnmounted(() => {
+  if (_notificationTimer) clearInterval(_notificationTimer)
 })
 
 const activeMenu = computed(() => {
