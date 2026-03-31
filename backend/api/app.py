@@ -1191,12 +1191,13 @@ def refresh_punctuality_data():
             total_trips = _rand.randint(80, 300)
             on_time_pct = punctuality_rate / 100
             early_pct = _rand.uniform(0.05, 0.15)
-            late_pct = (1 - on_time_pct - early_pct) * 0.7
-            very_late_pct = (1 - on_time_pct - early_pct) * 0.3
+            remaining_pct = max(0, 1 - on_time_pct - early_pct)
+            late_pct = remaining_pct * 0.7
+            very_late_pct = remaining_pct * 0.3
             on_time_trips = int(total_trips * on_time_pct)
             early_trips = int(total_trips * early_pct)
-            late_trips = int(total_trips * late_pct)
-            very_late_trips = total_trips - on_time_trips - early_trips - late_trips
+            late_trips = max(0, int(total_trips * late_pct))
+            very_late_trips = max(0, total_trips - on_time_trips - early_trips - late_trips)
             avg_delay = _rand.uniform(1.0, 8.0) if on_time_pct < 0.9 else _rand.uniform(0.5, 3.0)
             max_delay = avg_delay * _rand.uniform(2.5, 5.0)
 
@@ -1240,12 +1241,13 @@ def refresh_punctuality_data():
             total_visits = _rand.randint(100, 800)
             on_time_pct = punctuality_rate / 100
             early_pct = _rand.uniform(0.08, 0.18)
-            late_pct = (1 - on_time_pct - early_pct) * 0.75
-            very_late_pct = (1 - on_time_pct - early_pct) * 0.25
+            remaining_pct = max(0, 1 - on_time_pct - early_pct)
+            late_pct = remaining_pct * 0.75
+            very_late_pct = remaining_pct * 0.25
             on_time_visits = int(total_visits * on_time_pct)
             early_visits = int(total_visits * early_pct)
-            late_visits = int(total_visits * late_pct)
-            very_late_visits = total_visits - on_time_visits - early_visits - late_visits
+            late_visits = max(0, int(total_visits * late_pct))
+            very_late_visits = max(0, total_visits - on_time_visits - early_visits - late_visits)
             avg_delay = _rand.uniform(1.2, 6.5)
             max_delay = avg_delay * _rand.uniform(2.0, 4.0)
 

@@ -50,7 +50,12 @@
       "Bash(npx vue-tsc:*)",
       "Bash(npx vite:*)",
       "Bash(md5 /Users/lvtongjie/Documents/code/bs/gtfs_new/frontend/src/views/PunctualityTrends.vue)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(./start.sh stop:*)",
+      "Bash(./start.sh start:*)",
+      "Bash(grep -n \"localStorage\\\\|sessionStorage\" frontend/src/stores/*.js frontend/src/api/*.js)",
+      "Bash(git -C /Users/lvtongjie/Documents/code/bs/gtfs_new log --oneline -5 -- \"文档/新增功能.md\")",
+      "Bash(git -C /Users/lvtongjie/Documents/code/bs/gtfs_new show HEAD:文档/新增功能.md)"
     ],
     "deny": [],
     "ask": []
