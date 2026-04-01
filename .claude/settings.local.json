@@ -59,7 +59,12 @@
       "mcp__filesystem__read_multiple_files",
       "Bash(/usr/local/bin/psql --version)",
       "Read(//opt/homebrew/**)",
-      "Bash(gemini --version)"
+      "Bash(gemini --version)",
+      "Bash(grep -r \"Blob\\\\|createObjectURL\\\\|download\\\\|csv\\\\|xlsx\\\\|jsPDF\\\\|export\" /Users/lvtongjie/Documents/code/bs/gtfs_new/frontend/src --include=*.vue --include=*.js)",
+      "Bash(npm list:*)",
+      "Bash(npm search:*)",
+      "Read(//System/Library/Fonts/**)",
+      "Read(//System/Library/Fonts/Supplemental/**)"
     ],
     "deny": [],
     "ask": []

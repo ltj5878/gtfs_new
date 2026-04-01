@@ -106,6 +106,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/export',
+      name: 'data-export',
+      component: () => import('@/views/DataExport.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/admin',
       name: 'admin',
       component: () => import('@/views/AdminDashboard.vue'),
