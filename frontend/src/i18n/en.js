@@ -286,6 +286,8 @@ export default {
       subtitle: 'Start from a selected stop, estimate reachable stops across time bands, and draw isochrone polygons on the map.',
       controls: 'Controls',
       results: 'Preview',
+      selectAgency: 'Select Agency',
+      allAgencies: 'All Agencies',
       selectStop: 'Origin Stop',
       selectStopPlaceholder: 'Search stop name',
       selectStopRequired: 'Select an origin stop first',

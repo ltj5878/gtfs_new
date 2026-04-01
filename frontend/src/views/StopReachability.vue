@@ -25,6 +25,30 @@
           <div class="section-heading">{{ $t('analysis.reachability.controls') }}</div>
 
           <div class="field-block">
+            <label class="field-label">{{ $t('analysis.reachability.selectAgency') }}</label>
+            <el-select
+              v-model="form.agencyId"
+              clearable
+              filterable
+              :loading="loadingAgencies"
+              :placeholder="$t('stopList.agencyPlaceholder')"
+              style="width: 100%"
+              @change="handleAgencyChange"
+            >
+              <el-option
+                :label="$t('analysis.reachability.allAgencies')"
+                value=""
+              />
+              <el-option
+                v-for="agency in agencies"
+                :key="agency.agency_id"
+                :label="agency.agency_name"
+                :value="agency.agency_id"
+              />
+            </el-select>
+          </div>
+
+          <div class="field-block">
             <label class="field-label">{{ $t('analysis.reachability.selectStop') }}</label>
             <el-select
               v-model="form.stopId"
@@ -35,9 +59,11 @@
               :placeholder="$t('analysis.reachability.selectStopPlaceholder')"
               :remote-method="handleStopSearch"
               :loading="searchingStops"
+              popper-class="reachability-stop-select-dropdown"
               style="width: 100%"
               @change="handleStopChange"
               @visible-change="handleStopDropdown"
+              @clear="handleStopClear"
             >
               <el-option
                 v-for="stop in stopOptions"
@@ -183,6 +209,7 @@ import { Loading, Location, MapLocation, Search, Timer } from '@element-plus/ico
 import { ElMessage } from 'element-plus'
 import { getReachability } from '@/api/analysis'
 import { getStops } from '@/api/stops'
+import { getAgencies } from '@/api/common'
 import { useRegionStore } from '@/stores/regionStore'
 
 const { t } = useI18n()
@@ -190,6 +217,8 @@ const regionStore = useRegionStore()
 
 const DEFAULT_CENTER = [37.7749, -122.4194]
 const DEFAULT_ZOOM = 12
+const STOP_PAGE_SIZE = 100
+const STOP_DROPDOWN_BOTTOM_GAP = 24
 const LAYER_STYLES = [
   { limit: 15, color: '#4ade80', labelKey: 'analysis.reachability.min15' },
   { limit: 30, color: '#facc15', labelKey: 'analysis.reachability.min30' },
@@ -198,6 +227,7 @@ const LAYER_STYLES = [
 ]
 
 const form = reactive({
+  agencyId: '',
   stopId: '',
   depart: '08:00:00',
   maxMinutes: 60
@@ -215,9 +245,16 @@ const map = ref(null)
 const markerLayer = ref(null)
 const polygonLayer = ref(null)
 
+const agencies = ref([])
+const loadingAgencies = ref(false)
 const stopOptions = ref([])
 const selectedStop = ref(null)
 const searchingStops = ref(false)
+const stopKeyword = ref('')
+const stopPage = ref(1)
+const stopHasMore = ref(true)
+const stopDropdownVisible = ref(false)
+const stopDropdownScrollElement = ref(null)
 const loading = ref(false)
 const hasSearched = ref(false)
 const result = ref(null)
@@ -263,15 +300,47 @@ const mergeStopOptions = (stops = []) => {
   stopOptions.value = Array.from(merged.values())
 }
 
-const fetchStopOptions = async (keyword = '') => {
+const fetchAgencies = async () => {
+  loadingAgencies.value = true
+  try {
+    const data = await getAgencies()
+    agencies.value = Array.isArray(data) ? data : []
+  } catch (error) {
+    console.error('加载运营机构失败:', error)
+    agencies.value = []
+  } finally {
+    loadingAgencies.value = false
+  }
+}
+
+const fetchStopOptions = async ({ keyword = stopKeyword.value, reset = false } = {}) => {
+  if (searchingStops.value) {
+    return
+  }
+
+  const normalizedKeyword = keyword.trim()
+  const page = reset ? 1 : stopPage.value
+
+  if (!reset && !stopHasMore.value) {
+    return
+  }
+
   searchingStops.value = true
   try {
     const data = await getStops({
-      page: 1,
-      page_size: keyword ? 30 : 20,
-      search: keyword || undefined
+      page,
+      page_size: STOP_PAGE_SIZE,
+      search: normalizedKeyword || undefined,
+      agency_id: form.agencyId || undefined
     })
-    mergeStopOptions(data?.stops || [])
+    const stops = data?.stops || []
+    mergeStopOptions(reset ? stops : [...stopOptions.value, ...stops])
+
+    const pagination = data?.pagination || {}
+    const currentPage = Number(pagination.page || page)
+    const totalPages = Number(pagination.total_pages || 0)
+    stopPage.value = currentPage + 1
+    stopHasMore.value = totalPages > 0 && currentPage < totalPages
   } catch (error) {
     console.error('加载站点选项失败:', error)
   } finally {
@@ -280,17 +349,94 @@ const fetchStopOptions = async (keyword = '') => {
 }
 
 const handleStopSearch = (query) => {
-  fetchStopOptions(query)
+  stopKeyword.value = query.trim()
+  stopPage.value = 1
+  stopHasMore.value = true
+  fetchStopOptions({ keyword: stopKeyword.value, reset: true })
 }
 
-const handleStopDropdown = (visible) => {
-  if (visible && stopOptions.value.length === 0) {
-    fetchStopOptions('')
+const detachStopDropdownScroll = () => {
+  if (stopDropdownScrollElement.value) {
+    stopDropdownScrollElement.value.removeEventListener('scroll', handleStopDropdownScroll)
+    stopDropdownScrollElement.value = null
   }
+}
+
+const attachStopDropdownScroll = async () => {
+  detachStopDropdownScroll()
+  await nextTick()
+
+  const dropdown = document.querySelector('.reachability-stop-select-dropdown')
+  const scrollElement = dropdown?.querySelector('.el-select-dropdown__wrap')
+    || dropdown?.querySelector('.el-scrollbar__wrap')
+
+  if (scrollElement) {
+    scrollElement.addEventListener('scroll', handleStopDropdownScroll, { passive: true })
+    stopDropdownScrollElement.value = scrollElement
+  }
+}
+
+const handleStopDropdownScroll = (event) => {
+  const target = event.target
+  if (!target || searchingStops.value || !stopHasMore.value) {
+    return
+  }
+
+  const reachedBottom = target.scrollTop + target.clientHeight >= target.scrollHeight - STOP_DROPDOWN_BOTTOM_GAP
+  if (reachedBottom) {
+    fetchStopOptions({ keyword: stopKeyword.value, reset: false })
+  }
+}
+
+const handleStopDropdown = async (visible) => {
+  stopDropdownVisible.value = visible
+
+  if (visible) {
+    await attachStopDropdownScroll()
+    if (stopOptions.value.length === 0) {
+      stopKeyword.value = ''
+      stopPage.value = 1
+      stopHasMore.value = true
+      fetchStopOptions({ keyword: '', reset: true })
+    }
+    return
+  }
+
+  detachStopDropdownScroll()
 }
 
 const handleStopChange = (stopId) => {
   selectedStop.value = stopOptions.value.find(stop => stop.stop_id === stopId) || null
+}
+
+const clearAnalysisState = async () => {
+  result.value = null
+  hasSearched.value = false
+  analyzedParams.value = null
+  clearMapLayers()
+  await resetMapView()
+}
+
+const handleAgencyChange = async () => {
+  form.stopId = ''
+  selectedStop.value = null
+  stopOptions.value = []
+  stopKeyword.value = ''
+  stopPage.value = 1
+  stopHasMore.value = true
+  await clearAnalysisState()
+
+  if (stopDropdownVisible.value) {
+    fetchStopOptions({ keyword: '', reset: true })
+  }
+}
+
+const handleStopClear = () => {
+  stopKeyword.value = ''
+  stopPage.value = 1
+  stopHasMore.value = true
+  selectedStop.value = null
+  fetchStopOptions({ keyword: '', reset: true })
 }
 
 const getLayerStyle = (minutes) => {
@@ -523,15 +669,16 @@ const analyzeReachability = async () => {
 }
 
 watch(() => regionStore.selectedRegion, async () => {
+  form.agencyId = ''
   form.stopId = ''
   selectedStop.value = null
   stopOptions.value = []
-  result.value = null
-  hasSearched.value = false
-  analyzedParams.value = null
-  clearMapLayers()
-  await resetMapView()
-  fetchStopOptions('')
+  stopKeyword.value = ''
+  stopPage.value = 1
+  stopHasMore.value = true
+  await clearAnalysisState()
+  await fetchAgencies()
+  fetchStopOptions({ keyword: '', reset: true })
 })
 
 watch(() => form.stopId, (value) => {
@@ -543,10 +690,12 @@ watch(() => form.stopId, (value) => {
 onMounted(async () => {
   initMap()
   await resetMapView()
-  fetchStopOptions('')
+  await fetchAgencies()
+  fetchStopOptions({ keyword: '', reset: true })
 })
 
 onBeforeUnmount(() => {
+  detachStopDropdownScroll()
   if (map.value) {
     map.value.remove()
     map.value = null

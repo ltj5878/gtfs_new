@@ -300,6 +300,8 @@ export default {
       subtitle: '从指定站点出发，分析不同时间范围内可到达的站点，并在地图上绘制等时圈。',
       controls: '分析参数',
       results: '结果预览',
+      selectAgency: '选择运营机构',
+      allAgencies: '全部机构',
       selectStop: '选择起点站',
       selectStopPlaceholder: '搜索站点名称',
       selectStopRequired: '请先选择起点站',
