@@ -58,6 +58,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/playback',
+      name: 'vehicle-playback',
+      component: () => import('@/views/VehiclePlayback.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/punctuality',
       name: 'punctuality-overview',
       component: () => import('@/views/PunctualityOverview.vue'),

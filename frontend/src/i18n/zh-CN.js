@@ -53,6 +53,7 @@ export default {
     stopHeatmap: '站点热力图',
     mapView: '地图视图',
     routeSchedule: '运营时间分析',
+    vehiclePlayback: '历史回放',
     punctuality: '准点率',
     routePunctuality: '线路准点率',
     stopPunctuality: '站点准点率',
@@ -683,6 +684,16 @@ export default {
     publishSuccess: '公告发布成功',
     checkPunctuality: '检查准点率告警',
     checkSuccess: '检查完成，新增 {n} 条告警',
+  },
+
+  // 历史数据回放
+  playback: {
+    selectDate: '选择日期',
+    play: '播放',
+    pause: '暂停',
+    loading: '加载车辆历史数据...',
+    vehicleCount: '{n} 辆车',
+    totalPoints: '共 {n} 个位置点',
   },
 
   // 线路运营时间分析

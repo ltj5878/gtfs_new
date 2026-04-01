@@ -860,6 +860,57 @@ def get_realtime_vehicles():
         return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
 
 
+@app.route('/api/realtime/vehicles/dates', methods=['GET'])
+def get_vehicle_history_dates():
+    """获取有历史车辆位置数据的日期列表"""
+    try:
+        region = request.args.get('region', 'sf')
+        rows = execute_query(
+            """SELECT DISTINCT DATE(position_timestamp) AS date
+               FROM realtime_vehicle_positions
+               WHERE region = %s
+               ORDER BY date DESC""",
+            (region,)
+        )
+        dates = [str(r['date']) for r in rows]
+        return jsonify(success_response(dates))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/realtime/vehicles/history', methods=['GET'])
+def get_vehicle_history():
+    """获取指定日期的车辆历史位置数据（用于回放）"""
+    try:
+        region = request.args.get('region', 'sf')
+        date = request.args.get('date', '').strip()
+        if not date:
+            return jsonify(error_response("缺少 date 参数", 400)), 400
+
+        rows = execute_query(
+            """SELECT vehicle_id, route_id, latitude, longitude, bearing, speed,
+                      position_timestamp
+               FROM realtime_vehicle_positions
+               WHERE region = %s AND DATE(position_timestamp) = %s
+               ORDER BY position_timestamp""",
+            (region, date)
+        )
+        for r in rows:
+            if r.get('position_timestamp'):
+                r['position_timestamp'] = r['position_timestamp'].isoformat()
+            if r.get('latitude'):
+                r['latitude'] = float(r['latitude'])
+            if r.get('longitude'):
+                r['longitude'] = float(r['longitude'])
+            if r.get('bearing'):
+                r['bearing'] = float(r['bearing'])
+            if r.get('speed'):
+                r['speed'] = float(r['speed'])
+        return jsonify(success_response(rows))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
 @app.route('/api/realtime/delays', methods=['GET'])
 def get_realtime_delays():
     """获取实时延误信息"""

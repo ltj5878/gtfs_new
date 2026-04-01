@@ -51,6 +51,7 @@ export default {
     stopHeatmap: 'Stop Heatmap',
     mapView: 'Map View',
     routeSchedule: 'Schedule Analysis',
+    vehiclePlayback: 'Vehicle Playback',
     punctuality: 'Punctuality',
     routePunctuality: 'Route Punctuality',
     stopPunctuality: 'Stop Punctuality',
@@ -656,6 +657,16 @@ export default {
     publishSuccess: 'Announcement published',
     checkPunctuality: 'Check Punctuality Alerts',
     checkSuccess: 'Done, {n} new alerts generated',
+  },
+
+  // Vehicle Playback
+  playback: {
+    selectDate: 'Select Date',
+    play: 'Play',
+    pause: 'Pause',
+    loading: 'Loading vehicle history...',
+    vehicleCount: '{n} vehicles',
+    totalPoints: '{n} total points',
   },
 
   // Route Schedule Analysis
