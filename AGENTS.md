@@ -1,34 +1,25 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-This repository has a Flask backend and a Vue 3 frontend.
-
-- `backend/api/app.py`: backend entrypoint.
-- `backend/core/`: shared config and PostgreSQL helpers.
-- `backend/business_logic/`: punctuality and speed calculations.
-- `backend/data_acquisition/`: GTFS download and import tools.
-- `backend/services/` and `backend/scripts/`: long-running collectors and utility scripts.
-- `backend/database/`: base schema and feature SQL files.
-- `backend/tests/`: script-style verification tools.
-- `frontend/src/views`, `frontend/src/components`, `frontend/src/stores`, `frontend/src/api`: UI pages, reusable components, Pinia stores, and API clients.
-- `gtfs_data/`: local GTFS ZIP files; keep out of Git.
+This repository is split into a Flask backend and a Vue 3 frontend. Use `backend/api/` for HTTP routes, `backend/core/` for config and PostgreSQL helpers, `backend/business_logic/` for calculations, `backend/data_acquisition/` for GTFS fetch/import flows, `backend/services/` and `backend/scripts/` for collectors and utilities, and `backend/database/` for schema SQL. Frontend code lives in `frontend/src/`: `views/` for pages, `components/` for shared UI, `stores/` for Pinia state, `api/` for Axios clients, `router/` for navigation, and `i18n/` for locale strings. Keep local GTFS ZIPs in `gtfs_data/`; do not commit them.
 
 ## Build, Test, and Development Commands
-- `python3 -m venv .venv && source .venv/bin/activate && pip install -r backend/requirements.txt`: set up backend dependencies.
-- `cd frontend && npm install`: install frontend packages.
-- `./start.sh start`: start frontend and backend together; use `stop`, `status`, or `restart` as needed.
-- `cd backend && PORT=5001 python3 -m api.app`: run only the API.
-- `cd frontend && npm run dev`: run only the Vite app.
+- `pip3 install -r backend/requirements.txt`: install backend dependencies.
+- `cd frontend && npm install`: install frontend dependencies.
+- `./start.sh start|stop|status|restart`: manage both apps locally; backend runs on `:5001`, frontend on `:5173`.
+- `cd backend && python3 -m api.app`: run only the API.
+- `cd frontend && npm run dev`: run the Vite dev server.
 - `cd frontend && npm run build && npm run preview`: build and preview the production frontend.
+- `createdb gtfs_db && psql gtfs_db -f backend/database/schema.sql`: initialize the base database schema.
 
 ## Coding Style & Naming Conventions
-Use 4-space indentation in Python and follow PEP 8. Add type hints in new or modified Python code. Use 2-space indentation in Vue and JavaScript, prefer single quotes, and follow the existing Composition API patterns. Name Vue components with `PascalCase` such as `RouteCard.vue`; use `camelCase` for stores and utility modules such as `routeStore.js`.
+Follow PEP 8 in Python with 4-space indentation, `snake_case` modules, and type hints in new or changed code. Frontend files follow Vue 3 Composition API with `<script setup>`, 2-space indentation, single quotes, and no semicolons. Name components and view files in `PascalCase` such as `RouteDetail.vue`; keep stores in `camelCase` with the `xxxStore.js` suffix. Existing code uses Chinese comments and labels; keep new inline comments brief and consistent.
 
 ## Testing Guidelines
-Testing is integration-oriented rather than a strict unit-test suite. Run `cd backend && python3 tests/test_api_quick.py` for a basic API smoke test and `cd backend && python3 tests/test_punctuality.py` for punctuality validation. Ensure PostgreSQL is running and the backend is available at `http://localhost:5001` before executing these scripts.
+Testing is script-based, not a formal `pytest` suite. Run `cd backend && python3 tests/test_api_quick.py` for API smoke coverage and `cd backend && python3 tests/test_punctuality.py` for punctuality logic and endpoint checks. Use `check_db.py` or `check_data_detail.py` when changing schema or generated data. Start PostgreSQL and the backend first.
 
 ## Commit & Pull Request Guidelines
-Recent history favors short, scope-first Chinese commit subjects such as `路线准点率` or `用户管理`, with occasional typed prefixes like `fix:` and `docs:`. Keep commits focused and descriptive. Pull requests should include a concise summary, database or API impact, screenshots for UI changes, and the exact verification commands you ran.
+Recent commits use short Chinese change summaries such as `数据回放` and `操作记录+显示`. Keep commit subjects concise, specific, and focused on one change. For pull requests, include a short summary, affected modules, any SQL or config changes, frontend screenshots for UI updates, and the exact commands you ran to verify the change.
 
 ## Security & Configuration Tips
-Do not commit real credentials, generated GTFS data, logs, or frontend build output. Use environment variables such as `SF_511_API_KEY`, `MTA_API_KEY`, and `TFNSW_API_KEY`, or keep local secrets in `backend/config.local.json`.
+Copy `backend/config.example.json` to a local `backend/config.json` and never commit secrets. `backend/core/config.py` also supports environment-variable overrides such as `SF_511_API_KEY` and `TFNSW_API_KEY`. Do not commit GTFS archives, local logs, or generated frontend build output.
