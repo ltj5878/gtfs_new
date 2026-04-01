@@ -138,7 +138,7 @@ export default {
     dataType: '数据类型',
     dataTypeValue: 'GTFS 静态 + 实时数据',
     updateFrequency: '更新频率',
-    updateFrequencyValue: '每周更新',
+    updateFrequencyValue: '每日更新',
   },
 
   // 地区

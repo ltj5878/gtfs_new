@@ -165,20 +165,20 @@ const fetchExportData = async (item) => {
     case 'routePunctuality': {
       const list = await getRoutePunctuality({ days: item.days, limit: 1000 }) || []
       const headers = [t('dataExportPage.hRouteId'), t('dataExportPage.hShortName'), t('dataExportPage.hLongName'), t('dataExportPage.hRate'), t('dataExportPage.hTrips'), t('dataExportPage.hOnTime'), t('dataExportPage.hLate'), t('dataExportPage.hVeryLate'), t('dataExportPage.hAvgDelay')]
-      const rows = list.map(r => [r.route_id, r.route_short_name || '', r.route_long_name || '', (r.avg_punctuality_rate || 0).toFixed(1), r.total_trips || 0, r.on_time_trips || 0, r.late_trips || 0, r.very_late_trips || 0, (r.avg_delay_minutes || 0).toFixed(1)])
+      const rows = list.map(r => [r.route_id, r.route_short_name || '', r.route_long_name || '', Number(r.avg_punctuality_rate || 0).toFixed(1), r.total_trips || 0, r.on_time_trips || 0, r.late_trips || 0, r.very_late_trips || 0, Number(r.avg_delay_minutes || 0).toFixed(1)])
       return { headers, rows, filename: `route_punctuality_${region}_${item.days}d_${date}` }
     }
     case 'stopPunctuality': {
       const list = await getStopPunctuality({ days: item.days, limit: 10000 }) || []
       const headers = [t('dataExportPage.hStopId'), t('dataExportPage.hStopName'), t('dataExportPage.hRate'), t('dataExportPage.hVisits'), t('dataExportPage.hAvgDelay')]
-      const rows = list.map(s => [s.stop_id, s.stop_name || '', (s.avg_punctuality_rate || 0).toFixed(1), s.total_visits || 0, (s.avg_delay_minutes || 0).toFixed(1)])
+      const rows = list.map(s => [s.stop_id, s.stop_name || '', Number(s.avg_punctuality_rate || 0).toFixed(1), s.total_visits || 0, Number(s.avg_delay_minutes || 0).toFixed(1)])
       return { headers, rows, filename: `stop_punctuality_${region}_${item.days}d_${date}` }
     }
     case 'trends': {
       const { getRoutePunctuality: getTrends } = await import('@/api/punctuality.js')
       const list = await getTrends({ days: item.days, limit: 1000 }) || []
       const headers = [t('dataExportPage.hDate'), t('dataExportPage.hRate'), t('dataExportPage.hTrips')]
-      const rows = list.map(r => [r.stat_date || '', (r.avg_punctuality_rate || r.punctuality_rate || 0).toFixed(1), r.total_trips || 0])
+      const rows = list.map(r => [r.stat_date || '', Number(r.avg_punctuality_rate || r.punctuality_rate || 0).toFixed(1), r.total_trips || 0])
       return { headers, rows, filename: `punctuality_trends_${region}_${item.days}d_${date}` }
     }
     case 'auditLogs': {
