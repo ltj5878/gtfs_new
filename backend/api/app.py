@@ -911,6 +911,59 @@ def get_vehicle_history():
         return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
 
 
+@app.route('/api/realtime/vehicles/sync', methods=['POST'])
+def sync_vehicle_history():
+    """同步车辆历史数据：为当前地区生成前一天的模拟位置数据"""
+    import subprocess
+    from datetime import datetime, timedelta
+    try:
+        region = request.args.get('region', 'sf')
+        yesterday = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+
+        # 检查前一天是否已有数据
+        count = execute_query(
+            """SELECT COUNT(*) AS cnt FROM realtime_vehicle_positions
+               WHERE region = %s AND DATE(position_timestamp) = %s""",
+            (region, yesterday)
+        )
+        if count and count[0]['cnt'] > 0:
+            return jsonify(success_response({
+                'message': f'{yesterday} 已有数据，无需重复生成',
+                'date': yesterday,
+                'total_points': count[0]['cnt'],
+                'skipped': True
+            }))
+
+        # 调用生成脚本
+        script_path = os.path.join(os.path.dirname(__file__), '..', 'scripts', 'generate_vehicle_history.py')
+        result = subprocess.run(
+            [sys.executable, script_path, '--region', region, '--date', yesterday, '--trips-per-hour', '20'],
+            capture_output=True, text=True, timeout=120
+        )
+
+        if result.returncode != 0:
+            return jsonify(error_response(f"生成失败: {result.stderr}", 500)), 500
+
+        # 查询生成的数据量
+        count = execute_query(
+            """SELECT COUNT(*) AS cnt FROM realtime_vehicle_positions
+               WHERE region = %s AND DATE(position_timestamp) = %s""",
+            (region, yesterday)
+        )
+        total = count[0]['cnt'] if count else 0
+
+        return jsonify(success_response({
+            'message': f'成功生成 {yesterday} 的车辆历史数据',
+            'date': yesterday,
+            'total_points': total,
+            'skipped': False
+        }))
+    except subprocess.TimeoutExpired:
+        return jsonify(error_response("生成超时，请稍后重试", 500)), 500
+    except Exception as e:
+        return jsonify(error_response(f"同步失败: {str(e)}", 500)), 500
+
+
 @app.route('/api/realtime/delays', methods=['GET'])
 def get_realtime_delays():
     """获取实时延误信息"""

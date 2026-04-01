@@ -667,6 +667,9 @@ export default {
     loading: 'Loading vehicle history...',
     vehicleCount: '{n} vehicles',
     totalPoints: '{n} total points',
+    syncData: 'Sync Data',
+    syncSuccess: 'Synced successfully, {n} points generated',
+    syncFailed: 'Sync failed, please try again later',
   },
 
   // Route Schedule Analysis

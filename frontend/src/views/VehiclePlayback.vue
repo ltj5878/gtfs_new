@@ -28,6 +28,14 @@
           <el-option label="4x" :value="4" />
           <el-option label="8x" :value="8" />
         </el-select>
+        <el-button
+          :icon="Refresh"
+          size="small"
+          :loading="syncing"
+          @click="syncData"
+        >
+          {{ $t('playback.syncData') }}
+        </el-button>
       </div>
       <div class="control-info">
         <span class="time-display" v-if="dataLoaded">{{ currentTimeStr }}</span>
@@ -69,8 +77,9 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { ElMessage } from 'element-plus'
 import { useRegionStore } from '@/stores/regionStore.js'
-import { VideoPlay, VideoPause, Loading } from '@element-plus/icons-vue'
+import { VideoPlay, VideoPause, Loading, Refresh } from '@element-plus/icons-vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import apiClient from '@/api/index.js'
@@ -90,6 +99,7 @@ const COLORS = ['#409eff', '#67c23a', '#e6a23c', '#f56c6c', '#9c27b0', '#00bcd4'
 const selectedDate = ref('')
 const availableDates = ref([])
 const loading = ref(false)
+const syncing = ref(false)
 const playing = ref(false)
 const speed = ref(1)
 const currentMinute = ref(0)
@@ -189,10 +199,10 @@ const renderFrame = () => {
   markersLayer.clearLayers()
 
   const cur = currentMinute.value
-  // 显示当前时间 ±1 分钟内的车辆（取每辆车最新位置）
+  // 显示当前时间 ±2 分钟内的车辆（取每辆车最新位置）
   const vehicleLatest = {}
   for (const p of allPoints.value) {
-    if (p.minute >= cur - 1 && p.minute <= cur + 1) {
+    if (p.minute >= cur - 2 && p.minute <= cur + 2) {
       if (!vehicleLatest[p.vehicle_id] || p.minute > vehicleLatest[p.vehicle_id].minute) {
         vehicleLatest[p.vehicle_id] = p
       }
@@ -252,6 +262,20 @@ const handleSliderInput = () => {
 
 const handleDateChange = () => {
   loadData()
+}
+
+const syncData = async () => {
+  syncing.value = true
+  try {
+    const res = await apiClient.post('/realtime/vehicles/sync')
+    ElMessage.success(t('playback.syncSuccess', { n: res.total_points || 0 }))
+    // 重新加载日期列表和数据
+    await loadDates()
+  } catch (e) {
+    ElMessage.error(t('playback.syncFailed'))
+  } finally {
+    syncing.value = false
+  }
 }
 
 // 倍速变化时重启播放

@@ -3,6 +3,10 @@
 生成模拟车辆历史位置数据
 基于 GTFS 静态数据（routes + stops + stop_times）生成沿途位置序列
 用于历史数据回放功能
+
+优化策略：
+- 覆盖全天运营时段（6:00-23:00），按小时分桶选取 trip
+- 每个小时至少选 15 个 trip，确保任何一分钟都有 10+ 辆车在线
 """
 
 import sys
@@ -36,34 +40,52 @@ def calc_bearing(lat1, lon1, lat2, lon2):
     return (angle + 360) % 360
 
 
-def generate_history(region, date_str, max_trips=50):
-    """为指定地区和日期生成车辆历史位置数据"""
+def generate_history(region, date_str, trips_per_hour=15):
+    """为指定地区和日期生成车辆历史位置数据
+
+    策略：将 6:00-23:00 按小时分桶，每个小时随机选取 trips_per_hour 个 trip，
+    确保全天每个时刻都有足够车辆在线。
+    """
     Database.initialize()
     target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
 
-    print(f"正在为 {region} 地区生成 {date_str} 的车辆历史数据...")
+    print(f"正在为 {region} 地区生成 {date_str} 的车辆历史数据（每小时 {trips_per_hour} 个 trip）...")
 
-    # 获取有站点坐标的 trip + stop_times 数据
-    trips = execute_query("""
-        SELECT DISTINCT t.trip_id, t.route_id
-        FROM trips t
-        JOIN stop_times st ON t.region = st.region AND t.trip_id = st.trip_id
-        JOIN stops s ON st.region = s.region AND st.stop_id = s.stop_id
-        WHERE t.region = %s AND s.stop_lat IS NOT NULL AND s.stop_lon IS NOT NULL
-        LIMIT %s
-    """, (region, max_trips))
+    # 按小时分桶选取 trip，确保全天覆盖
+    all_trips = []
+    for hour in range(6, 23):
+        hour_start = f"{hour:02d}:00:00"
+        hour_end = f"{hour + 1:02d}:00:00"
+        trips = execute_query("""
+            WITH trip_first_dep AS (
+                SELECT t.trip_id, t.route_id,
+                       MIN(st.departure_time) AS first_dep
+                FROM trips t
+                JOIN stop_times st ON t.region = st.region AND t.trip_id = st.trip_id
+                JOIN stops s ON st.region = s.region AND st.stop_id = s.stop_id
+                WHERE t.region = %s AND s.stop_lat IS NOT NULL AND s.stop_lon IS NOT NULL
+                GROUP BY t.trip_id, t.route_id
+            )
+            SELECT trip_id, route_id FROM trip_first_dep
+            WHERE first_dep >= %s AND first_dep < %s
+            ORDER BY random()
+            LIMIT %s
+        """, (region, hour_start, hour_end, trips_per_hour))
+        all_trips.extend(trips)
+        if trips:
+            print(f"  {hour:02d}:00 时段选取了 {len(trips)} 个 trip")
 
-    if not trips:
+    if not all_trips:
         print("未找到可用的 trip 数据")
         return
 
-    print(f"找到 {len(trips)} 个 trip，开始生成位置数据...")
+    print(f"共选取 {len(all_trips)} 个 trip，开始生成位置数据...")
 
     conn = Database.get_connection()
     cursor = conn.cursor()
     total_points = 0
 
-    for idx, trip in enumerate(trips):
+    for idx, trip in enumerate(all_trips):
         trip_id = trip['trip_id']
         route_id = trip['route_id']
         vehicle_id = f"V_{region}_{idx:04d}"
@@ -125,9 +147,9 @@ def generate_history(region, date_str, max_trips=50):
                       ts, 2))
                 total_points += 1
 
-        if (idx + 1) % 10 == 0:
+        if (idx + 1) % 20 == 0:
             conn.commit()
-            print(f"  已处理 {idx + 1}/{len(trips)} 个 trip，累计 {total_points} 个位置点")
+            print(f"  已处理 {idx + 1}/{len(all_trips)} 个 trip，累计 {total_points} 个位置点")
 
     conn.commit()
     Database.return_connection(conn)
@@ -138,7 +160,18 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='生成模拟车辆历史位置数据')
     parser.add_argument('--region', default='sf', help='地区代码 (sf/nyc/sydney)')
     parser.add_argument('--date', default=datetime.now().strftime('%Y-%m-%d'), help='日期 (YYYY-MM-DD)')
-    parser.add_argument('--max-trips', type=int, default=50, help='最大 trip 数量')
+    parser.add_argument('--trips-per-hour', type=int, default=15, help='每小时选取的 trip 数')
+    parser.add_argument('--clean', action='store_true', help='清除已有数据后重新生成')
     args = parser.parse_args()
 
-    generate_history(args.region, args.date, args.max_trips)
+    if args.clean:
+        Database.initialize()
+        conn = Database.get_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM realtime_vehicle_positions WHERE region = %s", (args.region,))
+        deleted = cursor.rowcount
+        conn.commit()
+        Database.return_connection(conn)
+        print(f"已清除 {args.region} 的 {deleted} 条历史数据")
+
+    generate_history(args.region, args.date, args.trips_per_hour)

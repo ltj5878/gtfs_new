@@ -694,6 +694,9 @@ export default {
     loading: '加载车辆历史数据...',
     vehicleCount: '{n} 辆车',
     totalPoints: '共 {n} 个位置点',
+    syncData: '同步数据',
+    syncSuccess: '同步成功，共生成 {n} 个位置点',
+    syncFailed: '同步失败，请稍后重试',
   },
 
   // 线路运营时间分析
