@@ -35,24 +35,24 @@
               <span class="feature-title">{{ $t('home.routesAndStops') }}</span>
             </div>
             <div class="feature-content">
-              <div class="feature-item" @click="$router.push('/routes')">
-                <div class="feature-item-icon" style="background-color: #e3f2fd;">
-                  <el-icon :size="20" color="#409eff"><Guide /></el-icon>
+              <div class="feature-item" @click="$router.push('/heatmap')">
+                <div class="feature-item-icon" style="background-color: #fee2e2;">
+                  <el-icon :size="20" color="#ef4444"><DataLine /></el-icon>
                 </div>
                 <div class="feature-item-text">
-                  <div class="feature-item-title">{{ $t('home.browseRoutes') }}</div>
-                  <div class="feature-item-desc">{{ $t('home.browseRoutesDesc') }}</div>
+                  <div class="feature-item-title">{{ $t('home.stopHeatmap') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.stopHeatmapDesc') }}</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
 
-              <div class="feature-item" @click="$router.push('/stops')">
+              <div class="feature-item" @click="$router.push('/playback')">
                 <div class="feature-item-icon" style="background-color: #e8f5e9;">
-                  <el-icon :size="20" color="#67c23a"><Location /></el-icon>
+                  <el-icon :size="20" color="#16a34a"><Timer /></el-icon>
                 </div>
                 <div class="feature-item-text">
-                  <div class="feature-item-title">{{ $t('home.findStops') }}</div>
-                  <div class="feature-item-desc">{{ $t('home.findStopsDesc') }}</div>
+                  <div class="feature-item-title">{{ $t('home.vehiclePlayback') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.vehiclePlaybackDesc') }}</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
@@ -64,6 +64,17 @@
                 <div class="feature-item-text">
                   <div class="feature-item-title">{{ $t('home.mapView') }}</div>
                   <div class="feature-item-desc">{{ $t('home.mapViewDesc') }}</div>
+                </div>
+                <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
+              </div>
+
+              <div class="feature-item" @click="$router.push('/schedule')">
+                <div class="feature-item-icon" style="background-color: #ede9fe;">
+                  <el-icon :size="20" color="#7c3aed"><Timer /></el-icon>
+                </div>
+                <div class="feature-item-text">
+                  <div class="feature-item-title">{{ $t('home.routeSchedule') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.routeScheduleDesc') }}</div>
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
