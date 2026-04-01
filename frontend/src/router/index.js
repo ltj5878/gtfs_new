@@ -46,6 +46,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/heatmap',
+      name: 'stop-heatmap',
+      component: () => import('@/views/StopHeatmap.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/punctuality',
       name: 'punctuality-overview',
       component: () => import('@/views/PunctualityOverview.vue'),

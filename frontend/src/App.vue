@@ -18,6 +18,8 @@
             <template #title>{{ $t('nav.routesAndStops') }}</template>
             <el-menu-item index="/routes">{{ $t('common.routes') }}</el-menu-item>
             <el-menu-item index="/stops">{{ $t('common.stops') }}</el-menu-item>
+            <el-menu-item index="/map">{{ $t('nav.mapView') }}</el-menu-item>
+            <el-menu-item index="/heatmap">{{ $t('nav.stopHeatmap') }}</el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="/tools">
             <template #title>{{ $t('nav.travelTools') }}</template>
@@ -136,6 +138,7 @@ const activeMenu = computed(() => {
   if (path.startsWith('/punctuality')) return path
   if (path.startsWith('/routes')) return '/routes'
   if (path.startsWith('/stops')) return '/stops'
+  if (path.startsWith('/heatmap')) return '/heatmap'
   if (path.startsWith('/favorites')) return '/favorites'
   if (path.startsWith('/planner')) return '/planner/transfer'
   if (path.startsWith('/compare')) return '/compare/routes'

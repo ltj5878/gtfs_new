@@ -48,6 +48,8 @@ export default {
     transferPlanner: 'Transfer Planner',
     routeCompare: 'Route Compare',
     dataExport: 'Data Export',
+    stopHeatmap: 'Stop Heatmap',
+    mapView: 'Map View',
     punctuality: 'Punctuality',
     routePunctuality: 'Route Punctuality',
     stopPunctuality: 'Stop Punctuality',
@@ -653,6 +655,25 @@ export default {
     publishSuccess: 'Announcement published',
     checkPunctuality: 'Check Punctuality Alerts',
     checkSuccess: 'Done, {n} new alerts generated',
+  },
+
+  // Stop Heatmap
+  heatmap: {
+    period: 'Period',
+    allDay: 'All Day',
+    morning: 'Morning Peak (6-9)',
+    evening: 'Evening Peak (17-20)',
+    allTypes: 'All Route Types',
+    tram: 'Tram',
+    subway: 'Subway',
+    rail: 'Rail',
+    bus: 'Bus',
+    ferry: 'Ferry',
+    cableCar: 'Cable Car',
+    refresh: 'Refresh',
+    loading: 'Loading stop frequency data...',
+    stopCount: '{n} stops',
+    maxFreq: 'Max frequency {n} trips/day',
   },
 
   // Data Export Center

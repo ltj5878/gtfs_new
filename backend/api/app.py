@@ -447,6 +447,48 @@ def get_stop_routes(stop_id):
         return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
 
 
+@app.route('/api/stops/frequency', methods=['GET'])
+def get_stop_frequency():
+    """获取各站点的服务频率（班次密度），用于热力图展示"""
+    try:
+        region = request.args.get('region', 'sf')
+        period = request.args.get('period', 'all').strip()
+        route_type = request.args.get('route_type', '').strip()
+
+        where_clauses = ["s.region = %s"]
+        params = [region]
+
+        # 时段筛选
+        if period == 'morning':
+            where_clauses.append("st.departure_time >= '06:00:00' AND st.departure_time < '09:00:00'")
+        elif period == 'evening':
+            where_clauses.append("st.departure_time >= '17:00:00' AND st.departure_time < '20:00:00'")
+
+        # 线路类型筛选
+        join_routes = ""
+        if route_type != '':
+            join_routes = "JOIN routes r ON t.region = r.region AND t.route_id = r.route_id"
+            where_clauses.append("r.route_type = %s")
+            params.append(int(route_type))
+
+        where_sql = " AND ".join(where_clauses)
+
+        query = f"""
+            SELECT s.stop_id, s.stop_name, s.stop_lat, s.stop_lon, COUNT(*) AS frequency
+            FROM stops s
+            JOIN stop_times st ON s.region = st.region AND s.stop_id = st.stop_id
+            JOIN trips t ON st.region = t.region AND st.trip_id = t.trip_id
+            {join_routes}
+            WHERE {where_sql}
+            GROUP BY s.stop_id, s.stop_name, s.stop_lat, s.stop_lon
+            ORDER BY frequency DESC
+        """
+        rows = execute_query(query, tuple(params))
+        return jsonify(success_response(rows))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
 @app.route('/api/trips', methods=['GET'])
 def get_trips():
     """获取班次信息，支持按线路筛选"""

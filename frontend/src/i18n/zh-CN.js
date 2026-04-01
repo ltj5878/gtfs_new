@@ -50,6 +50,8 @@ export default {
     transferPlanner: '换乘规划',
     routeCompare: '线路对比',
     dataExport: '数据导出',
+    stopHeatmap: '站点热力图',
+    mapView: '地图视图',
     punctuality: '准点率',
     routePunctuality: '线路准点率',
     stopPunctuality: '站点准点率',
@@ -680,6 +682,25 @@ export default {
     publishSuccess: '公告发布成功',
     checkPunctuality: '检查准点率告警',
     checkSuccess: '检查完成，新增 {n} 条告警',
+  },
+
+  // 站点热力图
+  heatmap: {
+    period: '时段',
+    allDay: '全天',
+    morning: '早高峰 (6-9时)',
+    evening: '晚高峰 (17-20时)',
+    allTypes: '全部线路类型',
+    tram: '有轨电车',
+    subway: '地铁',
+    rail: '铁路',
+    bus: '公交',
+    ferry: '轮渡',
+    cableCar: '缆车',
+    refresh: '刷新',
+    loading: '加载站点频率数据...',
+    stopCount: '共 {n} 个站点',
+    maxFreq: '最高频率 {n} 班次/天',
   },
 
   // 数据导出中心
