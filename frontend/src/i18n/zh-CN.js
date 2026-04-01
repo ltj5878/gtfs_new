@@ -142,6 +142,8 @@ export default {
     stopPunctualityDesc: '各站点到达准点率趋势与排名',
     punctualityTrends: '准点率趋势总览',
     punctualityTrendsDesc: '多维度趋势图表与排名对比',
+    dataExport: '数据导出',
+    dataExportDesc: '导出准点率、站点、线路与相关分析数据',
     dataSource: '数据来源',
     coverageArea: '覆盖区域',
     dataType: '数据类型',

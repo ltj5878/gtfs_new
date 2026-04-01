@@ -29,13 +29,13 @@
             <el-menu-item index="/planner/transfer">{{ $t('nav.transferPlanner') }}</el-menu-item>
             <el-menu-item index="/analysis/reachability">{{ $t('nav.stopReachability') }}</el-menu-item>
             <el-menu-item index="/compare/routes">{{ $t('nav.routeCompare') }}</el-menu-item>
-            <el-menu-item index="/export">{{ $t('nav.dataExport') }}</el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="/punctuality">
             <template #title>{{ $t('nav.punctuality') }}</template>
             <el-menu-item index="/punctuality/routes">{{ $t('nav.routePunctuality') }}</el-menu-item>
             <el-menu-item index="/punctuality/stops">{{ $t('nav.stopPunctuality') }}</el-menu-item>
             <el-menu-item index="/punctuality/trends">{{ $t('nav.punctualityTrends') }}</el-menu-item>
+            <el-menu-item index="/export">{{ $t('nav.dataExport') }}</el-menu-item>
           </el-sub-menu>
           <el-sub-menu v-if="authStore.isAdmin" index="/manage">
             <template #title>{{ $t('nav.manage') }}</template>

@@ -137,6 +137,8 @@ export default {
     stopPunctualityDesc: 'Stop arrival punctuality trends',
     punctualityTrends: 'Punctuality Trends',
     punctualityTrendsDesc: 'Multi-dimensional trend charts',
+    dataExport: 'Data Export',
+    dataExportDesc: 'Export punctuality, stop, route, and analysis data',
     dataSource: 'Data Source',
     coverageArea: 'Coverage Area',
     dataType: 'Data Type',

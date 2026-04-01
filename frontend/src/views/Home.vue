@@ -188,6 +188,17 @@
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
+
+              <div class="feature-item" @click="navigate('/export')">
+                <div class="feature-item-icon" style="background-color: #fff7e6;">
+                  <el-icon :size="20" color="#d48806"><Document /></el-icon>
+                </div>
+                <div class="feature-item-text">
+                  <div class="feature-item-title">{{ $t('home.dataExport') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.dataExportDesc') }}</div>
+                </div>
+                <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
+              </div>
             </div>
           </div>
         </el-col>
@@ -238,7 +249,8 @@ import {
   ArrowRight,
   Star,
   Promotion,
-  DataAnalysis
+  DataAnalysis,
+  Document
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
