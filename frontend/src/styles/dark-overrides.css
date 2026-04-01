@@ -16,7 +16,8 @@ html.dark .stop-punctuality-detail,
 html.dark .admin-page,
 html.dark .user-management-page,
 html.dark .favorites-page,
-html.dark .map-view {
+html.dark .map-view,
+html.dark .reachability-page {
   background: var(--el-bg-color-page) !important;
 }
 
@@ -28,8 +29,22 @@ html.dark .compare-block,
 html.dark .plan-card,
 html.dark .stat-card,
 html.dark .feature-card,
-html.dark .info-card {
+html.dark .info-card,
+html.dark .summary-item,
+html.dark .panel-section,
+html.dark .map-stage,
+html.dark .toolbar-pill,
+html.dark .result-item {
   background: var(--el-bg-color) !important;
+}
+
+html.dark .panel-section,
+html.dark .summary-item,
+html.dark .map-stage,
+html.dark .toolbar-pill,
+html.dark .result-item,
+html.dark .map-canvas {
+  border-color: var(--el-border-color-light) !important;
 }
 
 /* 标题文字颜色 */
@@ -39,7 +54,12 @@ html.dark .welcome-title,
 html.dark .feature-title,
 html.dark .compare-block-title,
 html.dark .table-header h3,
-html.dark .page-header h1 {
+html.dark .page-header h1,
+html.dark .page-title,
+html.dark .summary-value,
+html.dark .field-label,
+html.dark .result-name,
+html.dark .origin-card-name {
   color: var(--el-text-color-primary) !important;
 }
 
@@ -78,8 +98,31 @@ html.dark .plan-index,
 html.dark .info-label,
 html.dark .welcome-subtitle,
 html.dark .favorite-time,
-html.dark .from-routes-title {
+html.dark .from-routes-title,
+html.dark .page-subtitle,
+html.dark .summary-label,
+html.dark .section-heading,
+html.dark .legend-item,
+html.dark .result-id,
+html.dark .result-minutes,
+html.dark .toolbar-pill,
+html.dark .map-overlay,
+html.dark .stop-option-id {
   color: var(--el-text-color-secondary) !important;
+}
+
+html.dark .origin-card {
+  background: rgba(64, 158, 255, 0.12) !important;
+}
+
+html.dark .origin-card-label,
+html.dark .field-value,
+html.dark .eyebrow {
+  color: var(--el-color-primary) !important;
+}
+
+html.dark .map-overlay {
+  background: rgba(0, 0, 0, 0.38) !important;
 }
 
 /* 列表项背景 */
