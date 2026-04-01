@@ -42,12 +42,15 @@ import { reactive, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/authStore.js'
 import { useRegionStore } from '@/stores/regionStore.js'
-import { Guide, Location, TrendCharts, DataLine, Document, Grid, EditPen } from '@element-plus/icons-vue'
+import { Guide, Location, TrendCharts, DataLine, Document, Grid, EditPen, OfficeBuilding, Star, Bell } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getRoutes } from '@/api/routes.js'
 import { getStops } from '@/api/stops.js'
 import { getRoutePunctuality, getStopPunctuality } from '@/api/punctuality.js'
 import { getAuditLogs } from '@/api/audit.js'
+import { getAgencies } from '@/api/common.js'
+import { getFavorites } from '@/api/favorites.js'
+import { getNotifications } from '@/api/notification.js'
 import { exportCSV, exportExcel } from '@/utils/exportHelper.js'
 
 const { t } = useI18n()
@@ -85,6 +88,24 @@ const exportItems = reactive([
     get name() { return t('dataExportPage.trends') },
     get desc() { return t('dataExportPage.trendsDesc') },
     hasDays: true, days: 30, loading: false,
+  },
+  {
+    key: 'agencies', icon: OfficeBuilding, iconBg: '#e0f2f1', iconColor: '#009688',
+    get name() { return t('dataExportPage.agencies') },
+    get desc() { return t('dataExportPage.agenciesDesc') },
+    hasDays: false, loading: false,
+  },
+  {
+    key: 'favorites', icon: Star, iconBg: '#fff8e1', iconColor: '#f0a020',
+    get name() { return t('dataExportPage.favorites') },
+    get desc() { return t('dataExportPage.favoritesDesc') },
+    hasDays: false, loading: false,
+  },
+  {
+    key: 'announcements', icon: Bell, iconBg: '#fce4ec', iconColor: '#e91e63',
+    get name() { return t('dataExportPage.announcements') },
+    get desc() { return t('dataExportPage.announcementsDesc') },
+    hasDays: false, loading: false,
   },
   ...(authStore.isAdmin ? [{
     key: 'auditLogs', icon: EditPen, iconBg: '#fff3e0', iconColor: '#ff9800',
@@ -164,6 +185,26 @@ const fetchExportData = async (item) => {
       const headers = ['ID', t('dataExportPage.hUser'), t('dataExportPage.hAction'), t('dataExportPage.hTarget'), t('dataExportPage.hDetail'), t('dataExportPage.hIp'), t('dataExportPage.hTime')]
       const rows = list.map(r => [r.id, r.username || '', r.action, r.target || '', typeof r.detail === 'object' ? JSON.stringify(r.detail) : (r.detail || ''), r.ip_address || '', r.created_at || ''])
       return { headers, rows, filename: `audit_logs_${item.days}d_${date}` }
+    }
+    case 'agencies': {
+      const list = await getAgencies() || []
+      const headers = [t('dataExportPage.hAgencyId'), t('dataExportPage.hAgencyName'), t('dataExportPage.hAgencyUrl'), t('dataExportPage.hAgencyTimezone')]
+      const rows = list.map(a => [a.agency_id || '', a.agency_name || '', a.agency_url || '', a.agency_timezone || ''])
+      return { headers, rows, filename: `agencies_${region}_${date}` }
+    }
+    case 'favorites': {
+      const list = await getFavorites() || []
+      const headers = [t('dataExportPage.hFavRegion'), t('dataExportPage.hFavType'), t('dataExportPage.hFavId'), t('dataExportPage.hFavName'), t('dataExportPage.hFavTime')]
+      const rows = list.map(f => [f.region || '', f.item_type || '', f.item_id || '', f.item_name || '', f.created_at || ''])
+      return { headers, rows, filename: `favorites_${date}` }
+    }
+    case 'announcements': {
+      const res = await getNotifications({ page: 1, page_size: 10000 })
+      const all = res?.items || []
+      const list = all.filter(n => n.type === 'announcement')
+      const headers = ['ID', t('dataExportPage.hAnnTitle'), t('dataExportPage.hAnnContent'), t('dataExportPage.hAnnRead'), t('dataExportPage.hTime')]
+      const rows = list.map(n => [n.id, n.title || '', n.content || '', n.is_read ? '✓' : '✗', n.created_at || ''])
+      return { headers, rows, filename: `announcements_${date}` }
     }
     default:
       return { headers: [], rows: [], filename: 'export' }
