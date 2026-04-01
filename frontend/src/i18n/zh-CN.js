@@ -48,6 +48,7 @@ export default {
     travelTools: '出行工具',
     favorites: '我的收藏',
     transferPlanner: '换乘规划',
+    stopReachability: '站点可达性分析',
     routeCompare: '线路对比',
     dataExport: '数据导出',
     stopHeatmap: '站点热力图',
@@ -124,6 +125,8 @@ export default {
     myFavoritesDesc: '查看已收藏的线路和站点',
     transferPlanner: '换乘规划',
     transferPlannerDesc: '输入起终点，智能规划换乘路线',
+    stopReachability: '站点可达性分析',
+    stopReachabilityDesc: '从单个站点出发查看不同时间层级的可达范围',
     routeCompare: '线路对比',
     routeCompareDesc: '并排对比多条线路的站点与信息',
     punctualityAnalysis: '准点率分析',
@@ -282,6 +285,34 @@ export default {
     destination: '（终点）',
     stopsLoadFailed: '站点列表加载失败',
     sameStopError: '起点和终点不能相同',
+  },
+
+  analysis: {
+    reachability: {
+      eyebrow: 'Isochrone',
+      title: '站点可达性分析',
+      subtitle: '从指定站点出发，分析不同时间范围内可到达的站点，并在地图上绘制等时圈。',
+      controls: '分析参数',
+      results: '结果预览',
+      selectStop: '选择起点站',
+      selectStopPlaceholder: '搜索站点名称',
+      selectStopRequired: '请先选择起点站',
+      departTime: '出发时间',
+      maxMinutes: '最大时间（分钟）',
+      analyze: '开始分析',
+      legend: '图例',
+      min15: '15 分钟内',
+      min30: '30 分钟内',
+      min45: '45 分钟内',
+      min60: '60 分钟内',
+      reachableCount: '可达站点数',
+      noResult: '未找到可达站点，请尝试其他站点或延长时间',
+      awaitingAnalysis: '选择起点站并开始分析',
+      paramsChanged: '参数已变更，请重新分析以刷新地图结果',
+      originStop: '起点站',
+      mapWaiting: '等待分析结果',
+      loading: '正在计算可达范围...'
+    }
   },
 
   // 线路对比

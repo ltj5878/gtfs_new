@@ -27,6 +27,7 @@
             <template #title>{{ $t('nav.travelTools') }}</template>
             <el-menu-item index="/favorites">{{ $t('nav.favorites') }}</el-menu-item>
             <el-menu-item index="/planner/transfer">{{ $t('nav.transferPlanner') }}</el-menu-item>
+            <el-menu-item index="/analysis/reachability">{{ $t('nav.stopReachability') }}</el-menu-item>
             <el-menu-item index="/compare/routes">{{ $t('nav.routeCompare') }}</el-menu-item>
             <el-menu-item index="/export">{{ $t('nav.dataExport') }}</el-menu-item>
           </el-sub-menu>
@@ -145,6 +146,7 @@ const activeMenu = computed(() => {
   if (path.startsWith('/playback')) return '/playback'
   if (path.startsWith('/favorites')) return '/favorites'
   if (path.startsWith('/planner')) return '/planner/transfer'
+  if (path.startsWith('/analysis')) return '/analysis/reachability'
   if (path.startsWith('/compare')) return '/compare/routes'
   if (path.startsWith('/export')) return '/export'
   if (path.startsWith('/admin/audit')) return '/admin/audit-logs'

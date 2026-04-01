@@ -2606,6 +2606,41 @@ def plan_transfer():
         return jsonify(error_response(f"换乘规划失败: {str(e)}", 500)), 500
 
 
+@app.route('/api/analysis/reachability', methods=['GET'])
+def get_stop_reachability():
+    """站点可达性分析接口"""
+    stop_id = request.args.get('stop_id', '').strip()
+    region = request.args.get('region', '').strip()
+    max_min = request.args.get('max_min', 60, type=int)
+    depart = request.args.get('depart', '08:00:00').strip()
+
+    if not stop_id:
+        return jsonify(error_response('缺少必要参数：stop_id', 400)), 400
+    if not region:
+        return jsonify(error_response('缺少必要参数：region', 400)), 400
+
+    if max_min is None:
+        max_min = 60
+
+    try:
+        from business_logic.reachability import find_reachable_stops
+        result = find_reachable_stops(
+            origin_stop_id=stop_id,
+            region=region,
+            max_minutes=max_min,
+            depart_time=depart
+        )
+
+        if 'error' in result:
+            return jsonify(error_response(result['error'], 400)), 400
+
+        return jsonify(success_response(result))
+    except ValueError as e:
+        return jsonify(error_response(f'参数错误: {str(e)}', 400)), 400
+    except Exception as e:
+        return jsonify(error_response(f'站点可达性分析失败: {str(e)}', 500)), 500
+
+
 @app.errorhandler(404)
 def not_found(error):
     """404 错误处理"""

@@ -111,6 +111,17 @@
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
+
+              <div class="feature-item" @click="$router.push('/analysis/reachability')">
+                <div class="feature-item-icon" style="background-color: #dbeafe;">
+                  <el-icon :size="20" color="#2563eb"><MapLocation /></el-icon>
+                </div>
+                <div class="feature-item-text">
+                  <div class="feature-item-title">{{ $t('home.stopReachability') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.stopReachabilityDesc') }}</div>
+                </div>
+                <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
+              </div>
             </div>
           </div>
         </el-col>

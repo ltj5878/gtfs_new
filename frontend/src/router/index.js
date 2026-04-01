@@ -118,6 +118,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/analysis/reachability',
+      name: 'stop-reachability',
+      component: () => import('@/views/StopReachability.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/compare/routes',
       name: 'route-compare',
       component: () => import('@/views/RouteCompare.vue'),

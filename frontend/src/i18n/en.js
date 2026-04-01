@@ -46,6 +46,7 @@ export default {
     travelTools: 'Travel Tools',
     favorites: 'Favorites',
     transferPlanner: 'Transfer Planner',
+    stopReachability: 'Stop Reachability',
     routeCompare: 'Route Compare',
     dataExport: 'Data Export',
     stopHeatmap: 'Stop Heatmap',
@@ -119,6 +120,8 @@ export default {
     myFavoritesDesc: 'View your saved routes and stops',
     transferPlanner: 'Transfer Planner',
     transferPlannerDesc: 'Plan optimal transfer routes',
+    stopReachability: 'Stop Reachability',
+    stopReachabilityDesc: 'Explore stop access ranges across different time bands',
     routeCompare: 'Route Compare',
     routeCompareDesc: 'Compare multiple routes side by side',
     punctualityAnalysis: 'Punctuality Analysis',
@@ -268,6 +271,34 @@ export default {
     destination: '(Destination)',
     stopsLoadFailed: 'Failed to load stops',
     sameStopError: 'Origin and destination cannot be the same',
+  },
+
+  analysis: {
+    reachability: {
+      eyebrow: 'Isochrone',
+      title: 'Stop Reachability',
+      subtitle: 'Start from a selected stop, estimate reachable stops across time bands, and draw isochrone polygons on the map.',
+      controls: 'Controls',
+      results: 'Preview',
+      selectStop: 'Origin Stop',
+      selectStopPlaceholder: 'Search stop name',
+      selectStopRequired: 'Select an origin stop first',
+      departTime: 'Departure Time',
+      maxMinutes: 'Max Minutes',
+      analyze: 'Run Analysis',
+      legend: 'Legend',
+      min15: 'Within 15 min',
+      min30: 'Within 30 min',
+      min45: 'Within 45 min',
+      min60: 'Within 60 min',
+      reachableCount: 'Reachable Stops',
+      noResult: 'No reachable stops found. Try another stop or a longer time range.',
+      awaitingAnalysis: 'Select a stop and run the analysis',
+      paramsChanged: 'Parameters changed. Run the analysis again to refresh the map.',
+      originStop: 'Origin',
+      mapWaiting: 'Waiting for analysis',
+      loading: 'Calculating reachability...'
+    }
   },
 
   compare: {
