@@ -52,6 +52,7 @@ export default {
     dataExport: '数据导出',
     stopHeatmap: '站点热力图',
     mapView: '地图视图',
+    routeSchedule: '运营时间分析',
     punctuality: '准点率',
     routePunctuality: '线路准点率',
     stopPunctuality: '站点准点率',
@@ -682,6 +683,23 @@ export default {
     publishSuccess: '公告发布成功',
     checkPunctuality: '检查准点率告警',
     checkSuccess: '检查完成，新增 {n} 条告警',
+  },
+
+  // 线路运营时间分析
+  schedule: {
+    title: '线路运营时间分析',
+    subtitle: '展示每条线路的首末班时间、发车间隔分布、高峰/平峰班次密度对比',
+    route: '线路',
+    routeName: '线路名称',
+    firstDeparture: '首班',
+    lastDeparture: '末班',
+    totalTrips: '总班次',
+    morningPeak: '早高峰(7-9)',
+    eveningPeak: '晚高峰(17-19)',
+    offPeak: '平峰',
+    peakRatio: '高峰占比',
+    trips: '班次',
+    noData: '暂无数据',
   },
 
   // 站点热力图

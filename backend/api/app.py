@@ -603,6 +603,90 @@ def get_trip_stop_times(trip_id):
         return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
 
 
+@app.route('/api/routes/schedule-summary', methods=['GET'])
+def get_routes_schedule_summary():
+    """获取所有线路的运营时间摘要（首末班 + 班次数 + 高峰密度）"""
+    try:
+        region = request.args.get('region', 'sf')
+        rows = execute_query("""
+            SELECT
+                t.route_id,
+                r.route_short_name,
+                r.route_long_name,
+                MIN(st.departure_time) AS first_departure,
+                MAX(st.departure_time) AS last_departure,
+                COUNT(DISTINCT st.trip_id) AS total_trips,
+                COUNT(DISTINCT st.trip_id) FILTER (
+                    WHERE CAST(SPLIT_PART(st.departure_time, ':', 1) AS INTEGER) %% 24 BETWEEN 7 AND 9
+                ) AS morning_peak_trips,
+                COUNT(DISTINCT st.trip_id) FILTER (
+                    WHERE CAST(SPLIT_PART(st.departure_time, ':', 1) AS INTEGER) %% 24 BETWEEN 17 AND 19
+                ) AS evening_peak_trips
+            FROM stop_times st
+            JOIN trips t ON st.region = t.region AND st.trip_id = t.trip_id
+            JOIN routes r ON t.region = r.region AND t.route_id = r.route_id
+            WHERE t.region = %s AND st.stop_sequence = 1
+            GROUP BY t.route_id, r.route_short_name, r.route_long_name
+            ORDER BY total_trips DESC
+        """, (region,))
+        return jsonify(success_response(rows))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/routes/<route_id>/schedule-analysis', methods=['GET'])
+def get_route_schedule_analysis(route_id):
+    """获取单条线路运营时间分析：首末班、24小时班次分布"""
+    try:
+        region = request.args.get('region', 'sf')
+
+        # 各小时班次分布（用 %% 24 处理超过24小时的 GTFS 时间）
+        rows = execute_query("""
+            SELECT
+                CAST(SPLIT_PART(st.departure_time, ':', 1) AS INTEGER) %% 24 AS hour,
+                COUNT(DISTINCT st.trip_id) AS trip_count
+            FROM stop_times st
+            JOIN trips t ON st.region = t.region AND st.trip_id = t.trip_id
+            WHERE t.route_id = %s AND t.region = %s AND st.stop_sequence = 1
+            GROUP BY hour ORDER BY hour
+        """, (route_id, region))
+
+        # 首末班时间
+        first_last = execute_query_one("""
+            SELECT
+                MIN(st.departure_time) AS first_departure,
+                MAX(st.departure_time) AS last_departure,
+                COUNT(DISTINCT st.trip_id) AS total_trips
+            FROM stop_times st
+            JOIN trips t ON st.region = t.region AND st.trip_id = t.trip_id
+            WHERE t.route_id = %s AND t.region = %s AND st.stop_sequence = 1
+        """, (route_id, region))
+
+        # 构建 24 小时分布
+        hourly = {}
+        for r in rows:
+            h = int(r['hour']) if r['hour'] is not None else 0
+            hourly[h] = r['trip_count']
+
+        distribution = [{'hour': h, 'trip_count': hourly.get(h, 0)} for h in range(24)]
+
+        morning_peak = sum(hourly.get(h, 0) for h in range(7, 10))
+        evening_peak = sum(hourly.get(h, 0) for h in range(17, 20))
+        total = first_last['total_trips'] or 0
+
+        return jsonify(success_response({
+            'first_departure': first_last['first_departure'] if first_last else None,
+            'last_departure': first_last['last_departure'] if first_last else None,
+            'total_trips': total,
+            'morning_peak': morning_peak,
+            'evening_peak': evening_peak,
+            'off_peak': max(0, total - morning_peak - evening_peak),
+            'hourly_distribution': distribution,
+        }))
+    except Exception as e:
+        return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
+
+
 @app.route('/api/routes/<route_id>/shapes', methods=['GET'])
 def get_route_shapes(route_id):
     """获取指定线路的所有轨迹"""

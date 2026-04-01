@@ -50,6 +50,7 @@ export default {
     dataExport: 'Data Export',
     stopHeatmap: 'Stop Heatmap',
     mapView: 'Map View',
+    routeSchedule: 'Schedule Analysis',
     punctuality: 'Punctuality',
     routePunctuality: 'Route Punctuality',
     stopPunctuality: 'Stop Punctuality',
@@ -655,6 +656,23 @@ export default {
     publishSuccess: 'Announcement published',
     checkPunctuality: 'Check Punctuality Alerts',
     checkSuccess: 'Done, {n} new alerts generated',
+  },
+
+  // Route Schedule Analysis
+  schedule: {
+    title: 'Route Schedule Analysis',
+    subtitle: 'First/last departure, headway distribution, peak vs off-peak density',
+    route: 'Route',
+    routeName: 'Route Name',
+    firstDeparture: 'First',
+    lastDeparture: 'Last',
+    totalTrips: 'Total Trips',
+    morningPeak: 'AM Peak(7-9)',
+    eveningPeak: 'PM Peak(17-19)',
+    offPeak: 'Off-Peak',
+    peakRatio: 'Peak Ratio',
+    trips: 'Trips',
+    noData: 'No data',
   },
 
   // Stop Heatmap
