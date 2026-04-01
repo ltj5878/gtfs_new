@@ -6,7 +6,15 @@
         <p>{{ $t('auditLog.subtitle') }}</p>
       </div>
       <div class="header-actions">
-        <el-button type="primary" :loading="loading" :icon="Refresh" @click="fetchData">
+        <el-select v-model="exportDays" style="width: 120px" size="small">
+          <el-option :label="$t('auditLog.last7Days')" :value="7" />
+          <el-option :label="$t('auditLog.last30Days')" :value="30" />
+          <el-option :label="$t('auditLog.last90Days')" :value="90" />
+        </el-select>
+        <el-button :icon="Download" @click="handleExport" :loading="exporting" size="small">
+          {{ $t('auditLog.export') }}
+        </el-button>
+        <el-button type="primary" :loading="loading" :icon="Refresh" @click="fetchData" size="small">
           {{ $t('auditLog.search') }}
         </el-button>
       </div>
@@ -36,6 +44,8 @@
             :placeholder="$t('auditLog.searchUsername')"
             :prefix-icon="Search"
             clearable
+            @keyup.enter="() => { page = 1; fetchData() }"
+            @clear="() => { page = 1; fetchData() }"
           />
         </el-col>
         <el-col :xs="24" :sm="8">
@@ -116,7 +126,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Refresh, Search } from '@element-plus/icons-vue'
+import { Refresh, Search, Download } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getAuditLogs } from '@/api/audit.js'
 
@@ -133,6 +143,56 @@ const filters = ref({
   username: '',
   dateRange: null,
 })
+
+const exportDays = ref(7)
+const exporting = ref(false)
+
+// 导出审计日志为 CSV
+const handleExport = async () => {
+  exporting.value = true
+  try {
+    const now = new Date()
+    const start = new Date(now.getTime() - exportDays.value * 86400000)
+    const pad = (n) => String(n).padStart(2, '0')
+    const startStr = `${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())} 00:00:00`
+
+    const res = await getAuditLogs({ page: 1, page_size: 10000, start_time: startStr })
+    const data = res?.data || res
+    const rows = data.list || []
+    if (!rows.length) {
+      ElMessage.warning(t('auditLog.noData'))
+      return
+    }
+
+    const headers = ['ID', t('auditLog.username'), t('auditLog.action'), t('auditLog.target'), t('auditLog.detail'), t('auditLog.ipAddress'), t('auditLog.time')]
+    const csvRows = rows.map(r => [
+      r.id,
+      r.username || '',
+      actionLabel(r.action),
+      r.target || '',
+      typeof r.detail === 'object' ? JSON.stringify(r.detail) : (r.detail || ''),
+      r.ip_address || '',
+      formatTime(r.created_at),
+    ])
+
+    const csvContent = '\uFEFF' + [headers, ...csvRows].map(row =>
+      row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
+    ).join('\n')
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `audit-logs_${exportDays.value}d_${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+    ElMessage.success(t('auditLog.exportSuccess', { count: rows.length }))
+  } catch {
+    ElMessage.error(t('auditLog.exportFailed'))
+  } finally {
+    exporting.value = false
+  }
+}
 
 // 操作类型选项
 const actionOptions = computed(() => [
@@ -267,6 +327,12 @@ onMounted(fetchData)
   margin: 0;
   color: var(--el-text-color-secondary);
   font-size: 14px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .filter-card {
