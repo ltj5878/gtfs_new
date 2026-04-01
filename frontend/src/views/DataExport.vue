@@ -30,9 +30,6 @@
             <el-button size="small" type="success" @click="doExport(item, 'excel')" :loading="item.loading === 'excel'">
               <el-icon><Grid /></el-icon> Excel
             </el-button>
-            <el-button size="small" type="danger" @click="doExport(item, 'pdf')" :loading="item.loading === 'pdf'">
-              <el-icon><Printer /></el-icon> PDF
-            </el-button>
           </div>
         </div>
       </div>
@@ -45,13 +42,13 @@ import { reactive, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/authStore.js'
 import { useRegionStore } from '@/stores/regionStore.js'
-import { Guide, Location, TrendCharts, DataLine, Document, Grid, Printer, EditPen } from '@element-plus/icons-vue'
+import { Guide, Location, TrendCharts, DataLine, Document, Grid, EditPen } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getRoutes } from '@/api/routes.js'
 import { getStops } from '@/api/stops.js'
 import { getRoutePunctuality, getStopPunctuality } from '@/api/punctuality.js'
 import { getAuditLogs } from '@/api/audit.js'
-import { exportCSV, exportExcel, exportPDF } from '@/utils/exportHelper.js'
+import { exportCSV, exportExcel } from '@/utils/exportHelper.js'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -106,10 +103,8 @@ const doExport = async (item, format) => {
       ElMessage.warning(t('dataExportPage.noData'))
       return
     }
-    const title = item.name + ` (${regionStore.selectedRegion})`
     if (format === 'csv') exportCSV(headers, rows, filename)
     else if (format === 'excel') exportExcel(headers, rows, filename, item.name)
-    else if (format === 'pdf') await exportPDF(headers, rows, filename, title)
     ElMessage.success(t('dataExportPage.exportSuccess', { count: rows.length }))
   } catch (e) {
     console.error('导出失败:', e)

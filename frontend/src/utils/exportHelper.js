@@ -4,37 +4,14 @@
  */
 
 import * as XLSX from 'xlsx'
-import jsPDF from 'jspdf'
+import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
-// 中文字体 Base64 缓存
-let _fontBase64 = null
-let _fontLoadPromise = null
-
-/**
- * 预加载中文字体（返回 Promise，可多次调用）
- */
-function loadChineseFont() {
-  if (_fontBase64) return Promise.resolve(_fontBase64)
-  if (_fontLoadPromise) return _fontLoadPromise
-  _fontLoadPromise = fetch('/fonts/STHeiti-Subset.ttf')
-    .then(res => {
-      if (!res.ok) throw new Error('font fetch failed')
-      return res.arrayBuffer()
-    })
-    .then(buf => {
-      const bytes = new Uint8Array(buf)
-      let binary = ''
-      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i])
-      _fontBase64 = btoa(binary)
-      return _fontBase64
-    })
-    .catch(err => {
-      console.warn('中文字体加载失败:', err)
-      _fontLoadPromise = null // 允许重试
-      return null
-    })
-  return _fontLoadPromise
+function escapePdfText(value) {
+  return String(value ?? '').replace(/[^\x20-\x7E]/g, char => {
+    const code = char.codePointAt(0)
+    return code ? `\\u${code.toString(16).padStart(4, '0')}` : ''
+  })
 }
 
 /**
@@ -73,33 +50,30 @@ export function exportExcel(headers, rows, filename, sheetName = 'Sheet1') {
  * 导出 PDF 文件（支持中文）
  */
 export async function exportPDF(headers, rows, filename, title = '') {
-  // 先尝试加载中文字体
-  const fontData = await loadChineseFont()
-
   const doc = new jsPDF({ orientation: 'landscape' })
+  const normalizeCell = (value) => escapePdfText(value)
+  const pdfHeaders = headers.map(normalizeCell)
+  const pdfRows = rows.map(row => row.map(normalizeCell))
+  const pdfTitle = normalizeCell(title)
 
-  // 注册中文字体
-  if (fontData) {
-    doc.addFileToVFS('STHeiti-Subset.ttf', fontData)
-    doc.addFont('STHeiti-Subset.ttf', 'STHeiti', 'normal')
-    doc.setFont('STHeiti')
-  }
-
-  if (title) {
+  if (pdfTitle) {
     doc.setFontSize(14)
-    doc.text(title, 14, 15)
+    doc.text(pdfTitle, 14, 15)
   }
 
   autoTable(doc, {
-    head: [headers],
-    body: rows,
-    startY: title ? 22 : 10,
+    head: [pdfHeaders],
+    body: pdfRows,
+    startY: pdfTitle ? 22 : 10,
     styles: {
       fontSize: 8,
       cellPadding: 2,
-      font: fontData ? 'STHeiti' : 'helvetica',
+      font: 'helvetica',
     },
-    headStyles: { fillColor: [64, 158, 255] },
+    headStyles: {
+      fillColor: [64, 158, 255],
+      fontStyle: 'normal',
+    },
     margin: { left: 10, right: 10 },
   })
 

@@ -1,0 +1,192 @@
+Total messages: 37 (Errors: 3, Warnings: 32)
+Returning 36 messages for level "info"
+
+[ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/favicon.ico:0
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[ERROR] jsPDF PubSub Error No unicode cmap for font Error: No unicode cmap for font
+    at t2.registerTTF (http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:14279:961)
+    at new t2 (http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:14267:63)
+    at t2.open (http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:14270:12)
+    at http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:13960:92
+    at Object.<anonymous> (http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:13961:8)
+    at j.publish (http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7661:17)
+    at Object.pe2 (http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:8124:16)
+    at E.y2.addFont (http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:8677:155)
+    at exportPDF (http://localhost:5173/src/utils/exportHelper.js?t=1775016546547:84:9)
+    at async Proxy.doExport (http://localhost:5173/src/views/DataExport.vue?t=1775016546547:75:32) @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7470
+[ERROR] jsPDF PubSub Error Cannot read properties of undefined (reading 'widths') TypeError: Cannot read properties of undefined (reading 'widths')
+    at e.pdfEscape16 (http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:14028:43)
+    at i2 (http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:14078:48)
+    at Object.<anonymous> (http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:14084:187)
+    at j.publish (http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7661:17)
+    at E.y2.__private__.text.y2.text (http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:8511:140)
+    at exportPDF (http://localhost:5173/src/utils/exportHelper.js?t=1775016546547:90:9)
+    at async Proxy.doExport (http://localhost:5173/src/views/DataExport.vue?t=1775016546547:75:32) @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7470
+[WARNING] Unable to look up font label for font 'STHeiti', 'bold'. Refer to getFontList() for available fonts. @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7468
+[WARNING] Unable to look up font label for font 'STHeiti', 'bold'. Refer to getFontList() for available fonts. @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7468
+[WARNING] Unable to look up font label for font 'STHeiti', 'bold'. Refer to getFontList() for available fonts. @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7468
+[WARNING] Unable to look up font label for font 'STHeiti', 'bold'. Refer to getFontList() for available fonts. @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7468
+[WARNING] Unable to look up font label for font 'STHeiti', 'bold'. Refer to getFontList() for available fonts. @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7468
+[WARNING] Unable to look up font label for font 'STHeiti', 'bold'. Refer to getFontList() for available fonts. @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7468
+[WARNING] Unable to look up font label for font 'STHeiti', 'bold'. Refer to getFontList() for available fonts. @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7468
+[WARNING] Unable to look up font label for font 'STHeiti', 'bold'. Refer to getFontList() for available fonts. @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7468
+[WARNING] Unable to look up font label for font 'STHeiti', 'bold'. Refer to getFontList() for available fonts. @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7468
+[WARNING] Unable to look up font label for font 'STHeiti', 'bold'. Refer to getFontList() for available fonts. @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7468
+[WARNING] Unable to look up font label for font 'STHeiti', 'bold'. Refer to getFontList() for available fonts. @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7468
+[WARNING] Unable to look up font label for font 'STHeiti', 'bold'. Refer to getFontList() for available fonts. @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7468
+[WARNING] Unable to look up font label for font 'STHeiti', 'bold'. Refer to getFontList() for available fonts. @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7468
+[WARNING] Unable to look up font label for font 'STHeiti', 'bold'. Refer to getFontList() for available fonts. @ http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:7468
+[ERROR] 导出失败: TypeError: Cannot read properties of undefined (reading 'widths')
+    at zt.getCharWidthsArray (http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:13861:211)
+    at zt.getStringUnitWidth (http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:13866:152)
+    at t2.getTextWidth (http://localhost:5173/node_modules/.vite/deps/jspdf.js?v=1c988bd2:10009:17)
+    at DocHandler2.getTextWidth (http://localhost:5173/node_modules/.vite/deps/jspdf-autotable.js?v=1c988bd2:130:33)
+    at http://localhost:5173/node_modules/.vite/deps/jspdf-autotable.js?v=1c988bd2:271:16
+    at Array.map (<anonymous>)
+    at getStringWidth (http://localhost:5173/node_modules/.vite/deps/jspdf-autotable.js?v=1c988bd2:270:33)
+    at http://localhost:5173/node_modules/.vite/deps/jspdf-autotable.js?v=1c988bd2:1052:27
+    at Array.forEach (<anonymous>)
+    at calculate (http://localhost:5173/node_modules/.vite/deps/jspdf-autotable.js?v=1c988bd2:1043:19) @ http://localhost:5173/src/views/DataExport.vue?t=1775016546547:77
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
+[WARNING] Vue received a Component that was made a reactive object. This can lead to unnecessary performance overhead and should be avoided by marking the component with `markRaw` or using `shallowRef` instead of `ref`.
+Component that was made reactive: [object Object] Proxy(Object) at <ElIcon>
+at <DataExport>
+at <RouterView>
+at <ElMain>
+at <ElContainer>
+at <ElConfigProvider>
+at <App> [Object, Object, Object, Object, Object, Object, Object] @ http://localhost:5173/node_modules/.vite/deps/element-plus.js?v=1c988bd2:38316
