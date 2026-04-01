@@ -52,6 +52,7 @@ import { getAgencies } from '@/api/common.js'
 import { getFavorites } from '@/api/favorites.js'
 import { getNotifications } from '@/api/notification.js'
 import { exportCSV, exportExcel } from '@/utils/exportHelper.js'
+import { trackAudit } from '@/api/audit.js'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -127,6 +128,12 @@ const doExport = async (item, format) => {
     if (format === 'csv') exportCSV(headers, rows, filename)
     else if (format === 'excel') exportExcel(headers, rows, filename, item.name)
     ElMessage.success(t('dataExportPage.exportSuccess', { count: rows.length }))
+    // 记录数据导出审计日志
+    trackAudit('export_data', item.key, {
+      format,
+      rows: rows.length,
+      region: regionStore.selectedRegion
+    }).catch(() => {})
   } catch (e) {
     console.error('导出失败:', e)
     ElMessage.error(t('dataExportPage.exportFailed'))

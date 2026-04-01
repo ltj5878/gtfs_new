@@ -166,4 +166,16 @@ router.beforeEach((to, _from) => {
   }
 })
 
+// 页面访问审计记录
+router.afterEach((to) => {
+  // 排除登录页（未登录状态）
+  if (to.name === 'login') return
+  const token = localStorage.getItem('auth_token')
+  if (!token) return
+  // 异步上报，不阻塞页面渲染
+  import('@/api/audit.js').then(({ trackAudit }) => {
+    trackAudit('page_visit', to.path, { name: to.name || '' }).catch(() => {})
+  }).catch(() => {})
+})
+
 export default router

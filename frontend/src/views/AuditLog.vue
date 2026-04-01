@@ -84,7 +84,12 @@
 
         <el-table-column prop="action" :label="$t('auditLog.action')" width="130">
           <template #default="{ row }">
-            <el-tag :type="actionTagType(row.action)" size="small">
+            <el-tag
+              :type="actionTagType(row.action)"
+              :color="actionCustomColor(row.action)"
+              :style="actionCustomColor(row.action) ? { borderColor: actionCustomColor(row.action), color: '#fff' } : {}"
+              size="small"
+            >
               {{ actionLabel(row.action) }}
             </el-tag>
           </template>
@@ -207,6 +212,9 @@ const actionOptions = computed(() => [
   { value: 'change_password', label: t('auditLog.actionChangePassword') },
   { value: 'refresh_punctuality', label: t('auditLog.actionRefreshPunctuality') },
   { value: 'publish_announcement', label: t('auditLog.actionPublishAnnouncement') },
+  { value: 'page_visit', label: t('auditLog.actionPageVisit') },
+  { value: 'sync_data', label: t('auditLog.actionSyncData') },
+  { value: 'export_data', label: t('auditLog.actionExportData') },
 ])
 
 // 操作类型 → 标签颜色
@@ -223,8 +231,20 @@ const actionTagType = (action) => {
     change_password: 'warning',
     refresh_punctuality: '',
     publish_announcement: 'warning',
+    page_visit: '',
+    sync_data: 'success',
+    export_data: '',
   }
   return map[action] || 'info'
+}
+
+// 新增操作类型 → 自定义背景色（仅 page_visit / export_data 使用独特颜色）
+const actionCustomColor = (action) => {
+  const map = {
+    page_visit: '#a8b5c5',   // 浅灰蓝
+    export_data: '#f59e0b',  // 琥珀色
+  }
+  return map[action] || ''
 }
 
 // 操作类型 → 显示文字
@@ -241,6 +261,9 @@ const actionLabel = (action) => {
     change_password: t('auditLog.actionChangePassword'),
     refresh_punctuality: t('auditLog.actionRefreshPunctuality'),
     publish_announcement: t('auditLog.actionPublishAnnouncement'),
+    page_visit: t('auditLog.actionPageVisit'),
+    sync_data: t('auditLog.actionSyncData'),
+    export_data: t('auditLog.actionExportData'),
   }
   return map[action] || action
 }

@@ -952,6 +952,15 @@ def sync_vehicle_history():
         )
         total = count[0]['cnt'] if count else 0
 
+        # 记录同步操作审计日志
+        user = _get_current_user()
+        if user:
+            record_audit_log(
+                user_id=user['user_id'], username=user['username'],
+                action='sync_data', target=f'vehicles:{region}',
+                detail={'date': yesterday, 'total_points': total}
+            )
+
         return jsonify(success_response({
             'message': f'成功生成 {yesterday} 的车辆历史数据',
             'date': yesterday,
@@ -2543,6 +2552,30 @@ def update_user_password(user_id: int):
         return jsonify(success_response({"message": "密码修改成功"}))
     except Exception as e:
         return jsonify(error_response(f"修改失败: {str(e)}", 500)), 500
+
+
+# ==================== 前端行为追踪接口 ====================
+
+@app.route('/api/audit/track', methods=['POST'])
+def audit_track():
+    """前端行为追踪接口（页面访问、数据导出等）"""
+    user = _get_current_user()
+    if not user:
+        return jsonify(error_response('未登录', 401)), 401
+    data = request.get_json() or {}
+    action = data.get('action')
+    # 只允许特定 action 类型，防止滥用
+    allowed = ('page_visit', 'export_data')
+    if action not in allowed:
+        return jsonify(error_response('不支持的操作类型', 400)), 400
+    record_audit_log(
+        user_id=user['user_id'],
+        username=user['username'],
+        action=action,
+        target=data.get('target'),
+        detail=data.get('detail')
+    )
+    return jsonify(success_response(None))
 
 
 # ==================== 换乘规划接口 ====================

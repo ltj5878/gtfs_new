@@ -658,6 +658,9 @@ export default {
     actionChangePassword: '修改密码',
     actionRefreshPunctuality: '刷新准点率',
     actionPublishAnnouncement: '发布公告',
+    actionPageVisit: '页面访问',
+    actionSyncData: '同步数据',
+    actionExportData: '数据导出',
   },
 
   // 通知与订阅

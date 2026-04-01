@@ -631,6 +631,9 @@ export default {
     actionChangePassword: 'Change Password',
     actionRefreshPunctuality: 'Refresh Punctuality',
     actionPublishAnnouncement: 'Publish Announcement',
+    actionPageVisit: 'Page Visit',
+    actionSyncData: 'Sync Data',
+    actionExportData: 'Data Export',
   },
 
   // Notifications & Subscriptions
