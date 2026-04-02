@@ -65,6 +65,57 @@
           </el-col>
         </el-row>
 
+        <!-- 票价信息 -->
+        <el-row v-if="fareData && fareData.fares && fareData.fares.length > 0" :gutter="20" style="margin-top: 20px;">
+          <el-col :xs="24">
+            <el-card v-loading="loadingFares">
+              <template #header>
+                <span>{{ $t('routeDetail.fareInfo') }}</span>
+              </template>
+              <div v-for="(fare, idx) in fareData.fares" :key="fare.fare_id" class="fare-block">
+                <div v-if="fareData.fares.length > 1" class="fare-block-title">
+                  {{ $t('routeDetail.fareInfo') }} {{ idx + 1 }}
+                </div>
+                <!-- 成人票价突出显示 -->
+                <div class="fare-adult">
+                  <span class="fare-adult-label">{{ $t('routeDetail.adultFare') }}</span>
+                  <span class="fare-adult-price">{{ fare.currency_type === 'USD' ? '$' : fare.currency_type }} {{ fare.price.toFixed(2) }}</span>
+                </div>
+                <!-- 付款和换乘信息 -->
+                <div class="fare-extra">
+                  <el-tag size="small" type="info">
+                    {{ fare.payment_method === 0 ? $t('routeDetail.payOnBoard') : $t('routeDetail.payInAdvance') }}
+                  </el-tag>
+                  <el-tag v-if="fare.transfers !== null" size="small" type="info">
+                    {{ fare.transfers === 0 ? $t('routeDetail.noTransfer') : $t('routeDetail.transferCount', { n: fare.transfers }) }}
+                  </el-tag>
+                </div>
+                <!-- 各乘客类别比价表格 -->
+                <el-table v-if="fare.rider_categories && fare.rider_categories.length" :data="fare.rider_categories" size="small" stripe style="margin-top: 12px;">
+                  <el-table-column prop="description" :label="$t('routeDetail.riderType')" />
+                  <el-table-column :label="$t('routeDetail.price')" width="120" align="right">
+                    <template #default="{ row }">
+                      <span :class="{ 'fare-free': row.price === 0, 'fare-discount': row.price > 0 && row.price < fare.price }">
+                        {{ row.price === 0 ? $t('routeDetail.free') : (fare.currency_type === 'USD' ? '$' : fare.currency_type) + ' ' + row.price.toFixed(2) }}
+                      </span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column :label="$t('routeDetail.discount')" width="100" align="center">
+                    <template #default="{ row }">
+                      <el-tag v-if="row.price === 0" type="success" size="small">{{ $t('routeDetail.free') }}</el-tag>
+                      <el-tag v-else-if="row.price < fare.price" type="warning" size="small">
+                        -{{ Math.round((1 - row.price / fare.price) * 100) }}%
+                      </el-tag>
+                      <span v-else>-</span>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <el-divider v-if="idx < fareData.fares.length - 1" />
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+
         <el-row :gutter="20" class="content-row">
           <el-col :xs="24" :lg="12">
             <el-card class="stops-card">
@@ -135,6 +186,7 @@ import 'leaflet/dist/leaflet.css'
 import { Loading, Star } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import SubscribeButton from '@/components/SubscribeButton.vue'
+import { getRouteFares } from '@/api/routes.js'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -174,6 +226,20 @@ const loadingMap = ref(false)
 const map = ref(null)
 const markersLayer = ref(null)
 const routeLineLayer = ref(null)
+
+// 票价数据
+const fareData = ref(null)
+const loadingFares = ref(false)
+const loadFares = async () => {
+  loadingFares.value = true
+  try {
+    fareData.value = await getRouteFares(route.params.id)
+  } catch {
+    // 票价不可用不影响页面
+  } finally {
+    loadingFares.value = false
+  }
+}
 
 const routeTypeNames = computed(() => ({
   0: t('routeType.0'),
@@ -337,6 +403,7 @@ onMounted(async () => {
     routeStore.clearCurrentRoute()
 
     await routeStore.fetchRouteById(route.params.id)
+    loadFares()  // 独立加载票价，不阻塞主流程
     await routeStore.fetchRouteDirections(route.params.id)
 
     if (routeStore.directions.length > 0) {
@@ -475,6 +542,52 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+/* 票价信息 */
+.fare-block {
+  margin-bottom: 8px;
+}
+
+.fare-block-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #606266;
+  margin-bottom: 8px;
+}
+
+.fare-adult {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.fare-adult-label {
+  font-size: 14px;
+  color: #606266;
+}
+
+.fare-adult-price {
+  font-size: 28px;
+  font-weight: 700;
+  color: #409eff;
+}
+
+.fare-extra {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.fare-free {
+  color: #67c23a;
+  font-weight: 600;
+}
+
+.fare-discount {
+  color: #e6a23c;
+  font-weight: 600;
 }
 
 /* 响应式设计 */

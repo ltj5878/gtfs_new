@@ -213,6 +213,16 @@ export default {
     stopIndex: '站点 {n}',
     noStopInfo: '暂无站点信息',
     loadingMap: '加载地图中...',
+    fareInfo: '票价信息',
+    adultFare: '成人票价',
+    payOnBoard: '上车付费',
+    payInAdvance: '提前购票',
+    noTransfer: '不可换乘',
+    transferCount: '可换乘 {n} 次',
+    riderType: '乘客类型',
+    price: '票价',
+    discount: '折扣',
+    free: '免费',
   },
 
   // 站点详情页

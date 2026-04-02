@@ -748,6 +748,77 @@ def get_route_shapes(route_id):
         return jsonify(error_response(f"查询失败: {str(e)}", 500)), 500
 
 
+@app.route('/api/routes/<route_id>/fares', methods=['GET'])
+def get_route_fares(route_id):
+    """获取指定线路的票价信息（含各乘客类别差异价）"""
+    try:
+        region = request.args.get('region')
+
+        # 查询该线路关联的所有票价
+        fare_query = """
+            SELECT DISTINCT fa.fare_id, fa.price, fa.currency_type,
+                   fa.payment_method, fa.transfers, fa.transfer_duration
+            FROM fare_attributes fa
+            JOIN fare_rules fr ON fa.region = fr.region AND fa.fare_id = fr.fare_id
+            WHERE fr.route_id = %s
+        """
+        params = [route_id]
+        if region:
+            fare_query += " AND fa.region = %s"
+            params.append(region)
+        fare_query += " ORDER BY fa.price"
+
+        fares = execute_query(fare_query, tuple(params))
+        if not fares:
+            return jsonify(success_response({'route_id': route_id, 'fares': []}))
+
+        # 收集所有 fare_id，批量查询乘客类别票价
+        fare_ids = [f['fare_id'] for f in fares]
+        cat_query = """
+            SELECT frc.fare_id, frc.rider_category_id,
+                   rc.rider_category_description, frc.price
+            FROM fare_rider_categories frc
+            JOIN rider_categories rc ON frc.region = rc.region
+              AND frc.rider_category_id = rc.rider_category_id
+            WHERE frc.fare_id IN %s
+        """
+        cat_params = [tuple(fare_ids)]
+        if region:
+            cat_query += " AND frc.region = %s"
+            cat_params.append(region)
+        cat_query += " ORDER BY frc.fare_id, frc.price"
+
+        categories = execute_query(cat_query, tuple(cat_params))
+
+        # 按 fare_id 分组乘客类别
+        cat_map = {}
+        for c in categories:
+            fid = c['fare_id']
+            if fid not in cat_map:
+                cat_map[fid] = []
+            cat_map[fid].append({
+                'rider_category_id': c['rider_category_id'],
+                'description': c['rider_category_description'],
+                'price': float(c['price'])
+            })
+
+        result = {
+            'route_id': route_id,
+            'fares': [{
+                'fare_id': f['fare_id'],
+                'price': float(f['price']),
+                'currency_type': f['currency_type'],
+                'payment_method': f['payment_method'],
+                'transfers': f['transfers'],
+                'transfer_duration': f['transfer_duration'],
+                'rider_categories': cat_map.get(f['fare_id'], [])
+            } for f in fares]
+        }
+        return jsonify(success_response(result))
+    except Exception as e:
+        return jsonify(error_response(f"查询票价失败: {str(e)}", 500)), 500
+
+
 @app.route('/api/shapes/<shape_id>', methods=['GET'])
 def get_shape(shape_id):
     """获取线路轨迹"""

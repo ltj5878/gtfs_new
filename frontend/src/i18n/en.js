@@ -203,6 +203,16 @@ export default {
     stopIndex: 'Stop {n}',
     noStopInfo: 'No stop information',
     loadingMap: 'Loading map...',
+    fareInfo: 'Fare Information',
+    adultFare: 'Adult Fare',
+    payOnBoard: 'Pay on Board',
+    payInAdvance: 'Pay in Advance',
+    noTransfer: 'No Transfer',
+    transferCount: '{n} Transfer(s)',
+    riderType: 'Rider Type',
+    price: 'Price',
+    discount: 'Discount',
+    free: 'Free',
   },
 
   stopDetail: {

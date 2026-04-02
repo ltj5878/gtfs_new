@@ -42,3 +42,12 @@ export const getRouteStops = (routeId, directionId = null) => {
 export const getRouteDirections = (routeId) => {
   return apiClient.get(`/routes/${routeId}/directions`)
 }
+
+/**
+ * 获取线路票价信息（含各乘客类别差异价）
+ * @param {string} routeId - 线路ID
+ * @returns {Promise}
+ */
+export const getRouteFares = (routeId) => {
+  return apiClient.get(`/routes/${routeId}/fares`)
+}
