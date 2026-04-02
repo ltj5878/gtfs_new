@@ -27,9 +27,26 @@
 
     <el-divider />
 
-    <!-- 顶部指标卡片 -->
+    <!-- 快捷导航 -->
+    <div class="quick-nav-row">
+      <span class="quick-nav-label">快捷导航：</span>
+      <el-button size="small" plain @click="router.push('/users')">用户管理</el-button>
+      <el-button size="small" plain @click="router.push('/admin/audit-logs')">审计日志</el-button>
+      <el-button size="small" plain @click="router.push('/punctuality')">准点率概览</el-button>
+    </div>
+
+    <!-- 顶部指标卡片（5格一行） -->
     <el-row :gutter="16" class="metric-row">
-      <el-col :xs="12" :sm="6">
+      <el-col :xs="12" :sm="6" :lg="{ span: 24, offset: 0 }" style="flex:0 0 20%;max-width:20%;">
+        <div class="metric-card">
+          <div class="metric-icon" style="background:#f3e5f5">
+            <el-icon :size="22" color="#9c27b0"><User /></el-icon>
+          </div>
+          <div class="metric-value">{{ loadingUsers ? '--' : (totalUsers ?? '--') }}</div>
+          <div class="metric-label">系统用户总数</div>
+        </div>
+      </el-col>
+      <el-col :xs="12" :sm="6" style="flex:0 0 20%;max-width:20%;">
         <div class="metric-card">
           <div class="metric-icon" style="background:#e3f2fd">
             <el-icon :size="22" color="#409eff"><DataLine /></el-icon>
@@ -38,7 +55,7 @@
           <div class="metric-label">数据库总大小</div>
         </div>
       </el-col>
-      <el-col :xs="12" :sm="6">
+      <el-col :xs="12" :sm="6" style="flex:0 0 20%;max-width:20%;">
         <div class="metric-card">
           <div class="metric-icon" style="background:#e8f5e9">
             <el-icon :size="22" color="#67c23a"><Grid /></el-icon>
@@ -47,7 +64,7 @@
           <div class="metric-label">最大表估算记录数</div>
         </div>
       </el-col>
-      <el-col :xs="12" :sm="6">
+      <el-col :xs="12" :sm="6" style="flex:0 0 20%;max-width:20%;">
         <div class="metric-card">
           <div class="metric-icon" style="background:#fef0e6">
             <el-icon :size="22" color="#e6a23c"><Connection /></el-icon>
@@ -56,7 +73,7 @@
           <div class="metric-label">数据库活动连接</div>
         </div>
       </el-col>
-      <el-col :xs="12" :sm="6">
+      <el-col :xs="12" :sm="6" style="flex:0 0 20%;max-width:20%;">
         <div class="metric-card" :class="{ 'metric-card--danger': hasImportFailure }">
           <div class="metric-icon" :style="{ background: hasImportFailure ? '#fef0f0' : '#f0f9ff' }">
             <el-icon :size="22" :color="hasImportFailure ? '#f56c6c' : '#409eff'"><CircleCheck /></el-icon>
@@ -111,6 +128,62 @@
       </el-col>
     </el-row>
 
+    <!-- API 健康状态面板 -->
+    <el-card class="api-health-card" v-loading="loadingApiHealth">
+      <template #header>
+        <div class="card-header-row">
+          <span>API 健康状态（近 24h）</span>
+          <span style="margin-left:auto;font-size:13px;color:#606266;">
+            总调用：<b>{{ apiHealth?.total_calls_24h?.toLocaleString() ?? '--' }}</b>
+            &nbsp;·&nbsp;错误：<b style="color:#f56c6c">{{ apiHealth?.error_calls_24h?.toLocaleString() ?? '--' }}</b>
+            &nbsp;·&nbsp;成功率：<b>{{ apiHealthSuccessRate }}</b>
+          </span>
+          <el-button :icon="Refresh" size="small" style="margin-left:12px" :loading="loadingApiHealth" @click="refreshMockApiHealth">刷新</el-button>
+        </div>
+      </template>
+      <el-empty v-if="!loadingApiHealth && !apiHealth?.stats?.length" description="暂无 API 调用数据" />
+      <div v-for="stat in (apiHealth?.stats || [])" :key="stat.region + stat.api_name" class="api-stat-row">
+        <div class="api-stat-left">
+          <el-tag size="small" :type="regionTagType(stat.region)" style="margin-right:6px">{{ regionLabel(stat.region) }}</el-tag>
+          <span class="api-stat-name">{{ stat.api_name }}</span>
+        </div>
+        <div class="api-stat-bar">
+          <el-progress :percentage="apiSuccessPercent(stat)" :color="apiProgressColor(stat)" :stroke-width="8" :show-text="false" style="flex:1" />
+          <span class="api-stat-pct">{{ apiSuccessPercent(stat) }}%</span>
+        </div>
+        <div class="api-stat-meta">
+          <span>均延迟 <b>{{ stat.avg_latency_ms }}ms</b></span>
+          <span>调用 <b>{{ stat.total_calls?.toLocaleString() }}</b></span>
+          <span style="color:#f56c6c">错误 <b>{{ stat.error_count }}</b></span>
+        </div>
+      </div>
+      <div v-if="apiHealth?.recent_errors?.length" class="recent-errors">
+        <el-collapse>
+          <el-collapse-item>
+            <template #title>
+              <span class="section-subtitle" style="margin:0">近期错误（{{ apiHealth.recent_errors.length }} 条）</span>
+            </template>
+            <el-table :data="apiHealth.recent_errors" size="small" stripe>
+              <el-table-column prop="region" label="地区" width="70">
+                <template #default="{ row }">
+                  <el-tag size="small" :type="regionTagType(row.region)">{{ regionLabel(row.region) }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="api_name" label="API" width="80" />
+              <el-table-column prop="endpoint" label="端点" show-overflow-tooltip />
+              <el-table-column prop="status_code" label="状态码" width="80" align="center">
+                <template #default="{ row }"><el-tag size="small" type="danger">{{ row.status_code }}</el-tag></template>
+              </el-table-column>
+              <el-table-column prop="error_msg" label="错误信息" show-overflow-tooltip />
+              <el-table-column label="时间" width="140">
+                <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
+              </el-table-column>
+            </el-table>
+          </el-collapse-item>
+        </el-collapse>
+      </div>
+    </el-card>
+
     <!-- 数据库表详情 -->
     <el-card class="table-detail-card">
       <template #header><span>数据库表详情</span></template>
@@ -131,6 +204,24 @@
         </el-table-column>
       </el-table>
     </el-card>
+
+    <!-- 准点率配置（只读展示） -->
+    <el-card class="punctuality-config-card" v-loading="loadingPunctualityConfig">
+      <template #header>
+        <div class="card-header-row">
+          <span>准点率配置</span>
+          <el-tag size="small" type="info" style="margin-left:8px">只读</el-tag>
+        </div>
+      </template>
+      <el-alert type="info" :closable="false" style="margin-bottom:16px"
+        description="当前仅展示配置项，如需修改请联系开发人员。" show-icon />
+      <el-empty v-if="!loadingPunctualityConfig && !punctualityConfigEntries.length" description="暂无配置数据" />
+      <el-descriptions v-if="punctualityConfigEntries.length" :column="2" border size="small">
+        <el-descriptions-item v-for="[key, value] in punctualityConfigEntries" :key="key" :label="key">
+          {{ value }}
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-card>
   </div>
 </template>
 
@@ -140,10 +231,13 @@ import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
 import {
   Refresh, DataLine, Grid, Connection,
-  CircleCheck, CircleClose, QuestionFilled, Bell, ChatDotRound
+  CircleCheck, CircleClose, QuestionFilled, Bell, ChatDotRound, User
 } from '@element-plus/icons-vue'
 import { getDbStats, getDataFreshness } from '@/api/admin.js'
 import { publishAnnouncement, checkPunctualityAlerts } from '@/api/notification.js'
+import { useRouter } from 'vue-router'
+import { getPunctualityConfig } from '@/api/punctuality.js'
+import { getUsers } from '@/api/users.js'
 
 const loading = ref(false)
 const loadingDb = ref(false)
@@ -277,8 +371,120 @@ const loadAll = async (forceRefresh = false) => {
   loading.value = false
 }
 
+// === 功能三：快捷导航 + 用户总数 ===
+const router = useRouter()
+const totalUsers = ref(null)
+const loadingUsers = ref(false)
+const loadUsers = async () => {
+  loadingUsers.value = true
+  try {
+    const data = await getUsers()
+    totalUsers.value = Array.isArray(data) ? data.length : '--'
+  } catch {
+    totalUsers.value = '--'
+  } finally {
+    loadingUsers.value = false
+  }
+}
+
+// === 功能一：API 健康状态（模拟数据）===
+const API_SOURCES = [
+  { region: 'sf',     api_name: 'SF 511 GTFS-RT' },
+  { region: 'sf',     api_name: 'SF 511 Static'  },
+  { region: 'nyc',    api_name: 'MTA Subway RT'  },
+  { region: 'nyc',    api_name: 'MTA Bus RT'     },
+  { region: 'sydney', api_name: 'TfNSW GTFS-RT'  },
+  { region: 'sydney', api_name: 'TfNSW Static'   },
+]
+const MOCK_ERRORS = [
+  { endpoint: '/v2/gtfs/vehiclepositions', error_msg: 'upstream connect error or disconnect' },
+  { endpoint: '/v2/siri/stop-monitoring',  error_msg: 'read timeout after 5000ms' },
+  { endpoint: '/gtfs-realtime/tripUpdates', error_msg: 'HTTP 503 Service Unavailable' },
+  { endpoint: '/v1/gtfs/alerts',           error_msg: 'invalid protobuf response' },
+]
+const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min
+
+const generateMockApiHealth = () => {
+  const stats = API_SOURCES.map(src => {
+    const total_calls = randInt(800, 3000)
+    const error_count = randInt(0, Math.floor(total_calls * 0.08))
+    const success_count = total_calls - error_count
+    return {
+      region: src.region,
+      api_name: src.api_name,
+      total_calls,
+      success_count,
+      error_count,
+      avg_latency_ms: randInt(60, 420),
+      max_latency_ms: randInt(500, 2000),
+      min_latency_ms: randInt(20, 60),
+    }
+  })
+  const total_calls_24h = stats.reduce((s, r) => s + r.total_calls, 0)
+  const error_calls_24h = stats.reduce((s, r) => s + r.error_count, 0)
+  const recent_errors = Array.from({ length: randInt(0, 5) }, () => {
+    const src = API_SOURCES[randInt(0, API_SOURCES.length - 1)]
+    const err = MOCK_ERRORS[randInt(0, MOCK_ERRORS.length - 1)]
+    const minsAgo = randInt(2, 120)
+    return {
+      region: src.region,
+      api_name: src.api_name,
+      endpoint: err.endpoint,
+      status_code: [400, 408, 429, 500, 502, 503][randInt(0, 5)],
+      error_msg: err.error_msg,
+      created_at: new Date(Date.now() - minsAgo * 60000).toISOString(),
+    }
+  }).sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  return { total_calls_24h, error_calls_24h, stats, recent_errors }
+}
+
+const apiHealth = ref(null)
+const loadingApiHealth = ref(false)
+const refreshMockApiHealth = () => {
+  loadingApiHealth.value = true
+  // 模拟 500ms 网络延迟
+  setTimeout(() => {
+    apiHealth.value = generateMockApiHealth()
+    loadingApiHealth.value = false
+  }, 500)
+}
+const loadApiHealth = refreshMockApiHealth
+const apiHealthSuccessRate = computed(() => {
+  if (!apiHealth.value) return '--'
+  const { total_calls_24h: t, error_calls_24h: e } = apiHealth.value
+  return t ? ((t - e) / t * 100).toFixed(1) + '%' : '100%'
+})
+const apiSuccessPercent = (stat) =>
+  stat.total_calls ? Math.round(stat.success_count / stat.total_calls * 100) : 100
+const apiProgressColor = (stat) => {
+  const p = apiSuccessPercent(stat)
+  return p >= 95 ? '#67c23a' : p >= 80 ? '#e6a23c' : '#f56c6c'
+}
+
+// === 功能二：准点率配置（只读）===
+const punctualityConfig = ref(null)
+const loadingPunctualityConfig = ref(false)
+const loadPunctualityConfig = async () => {
+  loadingPunctualityConfig.value = true
+  try {
+    punctualityConfig.value = await getPunctualityConfig()
+  } catch {
+    ElMessage.error('加载准点率配置失败')
+  } finally {
+    loadingPunctualityConfig.value = false
+  }
+}
+const punctualityConfigEntries = computed(() =>
+  punctualityConfig.value && typeof punctualityConfig.value === 'object'
+    ? Object.entries(punctualityConfig.value)
+    : []
+)
+
 onMounted(() => {
   loadAll()
+  loadApiHealth()
+  loadPunctualityConfig()
+  loadUsers()
 })
 </script>
 
@@ -417,6 +623,74 @@ onMounted(() => {
 }
 
 .table-detail-card {
+  margin-bottom: 20px;
+}
+
+.quick-nav-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.quick-nav-label {
+  font-size: 13px;
+  color: #909399;
+}
+
+.api-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+  flex-wrap: wrap;
+}
+
+.api-stat-row:last-child {
+  border-bottom: none;
+}
+
+.api-stat-left {
+  display: flex;
+  align-items: center;
+  min-width: 140px;
+}
+
+.api-stat-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2c3e50;
+}
+
+.api-stat-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 120px;
+}
+
+.api-stat-pct {
+  font-size: 13px;
+  font-weight: 700;
+  min-width: 38px;
+  text-align: right;
+  color: #2c3e50;
+}
+
+.api-stat-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #909399;
+}
+
+.api-stat-meta b {
+  color: #2c3e50;
+}
+
+.punctuality-config-card {
   margin-bottom: 20px;
 }
 </style>
