@@ -1,0 +1,6 @@
+interface:
+  display_name: "GTFS 本地冒烟联调"
+  short_description: "处理本项目启动、联调、日志排查和分层验证的本地环境问题"
+  default_prompt: "Use $gtfs-local-smoke to start, verify, or troubleshoot this GTFS project locally."
+policy:
+  allow_implicit_invocation: true

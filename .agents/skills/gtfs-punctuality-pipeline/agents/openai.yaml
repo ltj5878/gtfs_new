@@ -1,0 +1,6 @@
+interface:
+  display_name: "GTFS 准点率链路"
+  short_description: "处理实时采集、准点率计算、历史回放和展示联动的核心链路"
+  default_prompt: "Use $gtfs-punctuality-pipeline to update the realtime and punctuality pipeline in this GTFS project."
+policy:
+  allow_implicit_invocation: true

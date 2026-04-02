@@ -1,0 +1,6 @@
+interface:
+  display_name: "GTFS 全栈业务切片"
+  short_description: "处理本项目后端、接口、前端和文档联动的完整业务改动"
+  default_prompt: "Use $gtfs-fullstack-slice to complete a full feature slice in this GTFS project."
+policy:
+  allow_implicit_invocation: true
