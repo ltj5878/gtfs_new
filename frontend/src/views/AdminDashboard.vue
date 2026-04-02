@@ -5,7 +5,7 @@
       <div class="header-actions">
         <el-button :icon="Bell" @click="handleCheckPunctuality" :loading="checkingAlerts" size="small">检查准点率告警</el-button>
         <el-button :icon="ChatDotRound" type="warning" @click="announcementVisible = true" size="small">发布公告</el-button>
-        <el-button :icon="Refresh" @click="loadAll" :loading="loading" size="small">刷新</el-button>
+        <el-button :icon="Refresh" @click="loadAll(true)" :loading="loading" size="small">刷新</el-button>
       </div>
     </div>
 
@@ -44,7 +44,7 @@
             <el-icon :size="22" color="#67c23a"><Grid /></el-icon>
           </div>
           <div class="metric-value">{{ largestTableRows }}</div>
-          <div class="metric-label">最大表记录数</div>
+          <div class="metric-label">最大表估算记录数</div>
         </div>
       </el-col>
       <el-col :xs="12" :sm="6">
@@ -52,19 +52,19 @@
           <div class="metric-icon" style="background:#fef0e6">
             <el-icon :size="22" color="#e6a23c"><Connection /></el-icon>
           </div>
-          <div class="metric-value">{{ apiHealth.total_calls_24h ?? '--' }}</div>
-          <div class="metric-label">24h API 调用</div>
+          <div class="metric-value">{{ activeConnections }}</div>
+          <div class="metric-label">数据库活动连接</div>
         </div>
       </el-col>
       <el-col :xs="12" :sm="6">
-        <div class="metric-card" :class="{ 'metric-card--danger': errorRate > 5 }">
-          <div class="metric-icon" :style="{ background: errorRate > 5 ? '#fef0f0' : '#f0f9ff' }">
-            <el-icon :size="22" :color="errorRate > 5 ? '#f56c6c' : '#409eff'"><Warning /></el-icon>
+        <div class="metric-card" :class="{ 'metric-card--danger': hasImportFailure }">
+          <div class="metric-icon" :style="{ background: hasImportFailure ? '#fef0f0' : '#f0f9ff' }">
+            <el-icon :size="22" :color="hasImportFailure ? '#f56c6c' : '#409eff'"><CircleCheck /></el-icon>
           </div>
-          <div class="metric-value" :style="{ color: errorRate > 5 ? '#f56c6c' : '#2c3e50' }">
-            {{ apiHealth.total_calls_24h ? errorRate + '%' : '--' }}
+          <div class="metric-value" :style="{ color: hasImportFailure ? '#f56c6c' : '#2c3e50' }">
+            {{ successfulImportRegions }}
           </div>
-          <div class="metric-label">24h 错误率</div>
+          <div class="metric-label">导入成功地区数</div>
         </div>
       </el-col>
     </el-row>
@@ -82,7 +82,7 @@
       <!-- 数据时效性 -->
       <el-col :xs="24" :md="12">
         <el-card>
-          <template #header><span>各地区数据时效</span></template>
+          <template #header><span>各地区数据</span></template>
           <div v-loading="loadingFreshness">
             <div v-for="item in freshness" :key="item.region" class="freshness-item">
               <div class="freshness-header">
@@ -110,75 +110,6 @@
         </el-card>
       </el-col>
     </el-row>
-
-    <!-- API 健康度表格 -->
-    <el-card class="api-health-card">
-      <template #header>
-        <div class="card-header-row">
-          <span>API 调用健康度（近24小时）</span>
-          <el-tag v-if="apiHealth.total_calls_24h === 0" type="info" size="small">暂无调用记录</el-tag>
-        </div>
-      </template>
-      <div v-loading="loadingApi">
-        <el-table :data="apiHealth.stats || []" stripe size="small" v-if="(apiHealth.stats || []).length > 0">
-          <el-table-column prop="region" label="地区" width="80">
-            <template #default="{ row }">
-              <el-tag :type="regionTagType(row.region)" size="small">{{ regionLabel(row.region) }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="api_name" label="API 名称" width="140" />
-          <el-table-column prop="total_calls" label="调用次数" width="90" align="right" />
-          <el-table-column prop="avg_latency_ms" label="平均延迟" width="100" align="right">
-            <template #default="{ row }">
-              <span :style="{ color: row.avg_latency_ms > 3000 ? '#f56c6c' : row.avg_latency_ms > 1000 ? '#e6a23c' : '#67c23a' }">
-                {{ row.avg_latency_ms }} ms
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column label="成功率" width="120">
-            <template #default="{ row }">
-              <el-progress
-                :percentage="Math.round(row.success_count / row.total_calls * 100)"
-                :color="row.success_count / row.total_calls > 0.95 ? '#67c23a' : '#f56c6c'"
-                :stroke-width="8"
-              />
-            </template>
-          </el-table-column>
-          <el-table-column prop="error_count" label="错误次数" width="90" align="right">
-            <template #default="{ row }">
-              <span :style="{ color: row.error_count > 0 ? '#f56c6c' : '#67c23a' }">{{ row.error_count }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="max_latency_ms" label="最大延迟" align="right">
-            <template #default="{ row }">{{ row.max_latency_ms }} ms</template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-else-if="!loadingApi" description="暂无 API 调用记录，启动准点率服务后将自动记录" />
-
-        <!-- 最近错误 -->
-        <div v-if="(apiHealth.recent_errors || []).length > 0" class="recent-errors">
-          <div class="section-subtitle">最近错误记录</div>
-          <el-table :data="apiHealth.recent_errors" size="small" stripe>
-            <el-table-column prop="region" label="地区" width="70">
-              <template #default="{ row }">
-                <el-tag :type="regionTagType(row.region)" size="small">{{ regionLabel(row.region) }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="api_name" label="API" width="120" />
-            <el-table-column prop="endpoint" label="接口" show-overflow-tooltip />
-            <el-table-column prop="status_code" label="状态码" width="80" align="center">
-              <template #default="{ row }">
-                <el-tag type="danger" size="small">{{ row.status_code }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="error_msg" label="错误信息" show-overflow-tooltip />
-            <el-table-column label="时间" width="160">
-              <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
-            </el-table-column>
-          </el-table>
-        </div>
-      </div>
-    </el-card>
 
     <!-- 数据库表详情 -->
     <el-card class="table-detail-card">
@@ -208,19 +139,17 @@ import { ref, computed, onMounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
 import { ElMessage } from 'element-plus'
 import {
-  Refresh, DataLine, Grid, Connection, Warning,
+  Refresh, DataLine, Grid, Connection,
   CircleCheck, CircleClose, QuestionFilled, Bell, ChatDotRound
 } from '@element-plus/icons-vue'
-import { getDbStats, getApiHealth, getDataFreshness } from '@/api/admin.js'
+import { getDbStats, getDataFreshness } from '@/api/admin.js'
 import { publishAnnouncement, checkPunctualityAlerts } from '@/api/notification.js'
 
 const loading = ref(false)
 const loadingDb = ref(false)
-const loadingApi = ref(false)
 const loadingFreshness = ref(false)
 
 const dbStats = ref({ db_size: '', db_bytes: 0, tables: [], active_connections: 0 })
-const apiHealth = ref({ total_calls_24h: 0, error_calls_24h: 0, stats: [], recent_errors: [] })
 const freshness = ref([])
 
 // 公告相关
@@ -272,10 +201,20 @@ const largestTableRows = computed(() => {
   return max > 0 ? max.toLocaleString() : '--'
 })
 
-const errorRate = computed(() => {
-  const total = apiHealth.value.total_calls_24h
-  if (!total) return 0
-  return Math.round(apiHealth.value.error_calls_24h / total * 100)
+const activeConnections = computed(() => Number.isFinite(Number(dbStats.value.active_connections))
+  ? Number(dbStats.value.active_connections).toLocaleString()
+  : '--')
+
+const successfulImportCount = computed(() => freshness.value.filter(item => item.last_import?.status === 'success').length)
+
+const successfulImportRegions = computed(() => {
+  if (!freshness.value.length) return '--'
+  return `${successfulImportCount.value}/${freshness.value.length}`
+})
+
+const hasImportFailure = computed(() => {
+  if (!freshness.value.length) return false
+  return freshness.value.some(item => item.last_import && item.last_import.status !== 'success')
 })
 
 const formatTime = (ts) => {
@@ -308,27 +247,16 @@ const renderPieChart = () => {
   })
 }
 
-const loadDbStats = async () => {
+const loadDbStats = async (forceRefresh = false) => {
   loadingDb.value = true
   try {
-    dbStats.value = await getDbStats()
+    dbStats.value = await getDbStats(forceRefresh ? { force_refresh: 'true' } : {})
     await nextTick()
     renderPieChart()
   } catch (e) {
     ElMessage.error('加载数据库统计失败')
   } finally {
     loadingDb.value = false
-  }
-}
-
-const loadApiHealth = async () => {
-  loadingApi.value = true
-  try {
-    apiHealth.value = await getApiHealth()
-  } catch (e) {
-    ElMessage.error('加载API健康度失败')
-  } finally {
-    loadingApi.value = false
   }
 }
 
@@ -343,9 +271,9 @@ const loadFreshness = async () => {
   }
 }
 
-const loadAll = async () => {
+const loadAll = async (forceRefresh = false) => {
   loading.value = true
-  await Promise.all([loadDbStats(), loadApiHealth(), loadFreshness()])
+  await Promise.all([loadDbStats(forceRefresh), loadFreshness()])
   loading.value = false
 }
 

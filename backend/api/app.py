@@ -2203,8 +2203,10 @@ def admin_db_stats():
     if err:
         return err
 
+    force_refresh = str(request.args.get('force_refresh', '')).strip().lower() in ('1', 'true', 'yes')
     now = _time.time()
-    if _db_stats_cache.get('data') and now - _db_stats_cache.get('ts', 0) < _DB_STATS_CACHE_TTL:
+    if (not force_refresh and _db_stats_cache.get('data')
+            and now - _db_stats_cache.get('ts', 0) < _DB_STATS_CACHE_TTL):
         return jsonify(success_response(_db_stats_cache['data']))
 
     try:
@@ -2220,7 +2222,6 @@ def admin_db_stats():
             LEFT JOIN pg_stat_user_tables s ON s.relname = t.relname
             WHERE n.nspname = 'public' AND t.relkind = 'r'
             ORDER BY total_bytes DESC
-            LIMIT 20
         """)
 
         # 数据库总大小

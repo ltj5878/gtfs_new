@@ -1,7 +1,7 @@
 import apiClient from './index.js'
 
 // 获取数据库存储统计
-export const getDbStats = () => apiClient.get('/admin/db-stats')
+export const getDbStats = (params = {}) => apiClient.get('/admin/db-stats', { params })
 
 // 获取第三方 API 健康度统计
 export const getApiHealth = () => apiClient.get('/admin/api-health')
