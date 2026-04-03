@@ -3,7 +3,7 @@
     <div class="page-header">
       <h1>{{ $t('dataQuality.title') }}</h1>
       <div class="header-actions">
-        <el-button :icon="Refresh" @click="loadData" :loading="loading" size="small">{{ $t('common.refresh') }}</el-button>
+        <el-button :icon="Refresh" @click="handleRefresh" :loading="loading || running" size="small">{{ $t('common.refresh') }}</el-button>
         <el-button type="primary" :icon="CaretRight" @click="handleRunCheck" :loading="running" size="small">
           {{ $t('dataQuality.runCheck') }}
         </el-button>
@@ -174,6 +174,20 @@ async function loadData() {
     console.error(e)
   } finally {
     loading.value = false
+  }
+}
+
+async function handleRefresh() {
+  running.value = true
+  try {
+    await runQualityCheck({ region: regionStore.selectedRegion })
+    ElMessage.success(t('dataQuality.checkComplete'))
+    await loadData()
+  } catch (e) {
+    console.error(e)
+    ElMessage.error(t('dataQuality.checkFailed'))
+  } finally {
+    running.value = false
   }
 }
 

@@ -9,22 +9,37 @@ import os
 import json
 import argparse
 import math
-from datetime import date, timedelta
+from datetime import date, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.db import Database, execute_query, execute_query_one, execute_write
 
 
-def calculate_scores(region: str, score_date: str = None):
+def _parse_score_date(score_date):
+    if isinstance(score_date, date):
+        return score_date
+    if isinstance(score_date, str):
+        return datetime.strptime(score_date, '%Y-%m-%d').date()
+    return date.today()
+
+
+def calculate_scores(region: str, score_date: str = None, route_ids=None):
     """计算指定地区所有线路的健康度评分"""
-    if score_date is None:
-        score_date = date.today().isoformat()
+    score_date_obj = _parse_score_date(score_date)
+    score_date_str = score_date_obj.isoformat()
 
     # 获取该地区所有线路
-    routes = execute_query("""
-        SELECT route_id, route_short_name, route_long_name, route_type
-        FROM routes WHERE region = %s
-    """, (region,))
+    if route_ids:
+        routes = execute_query("""
+            SELECT route_id, route_short_name, route_long_name, route_type
+            FROM routes
+            WHERE region = %s AND route_id = ANY(%s::text[])
+        """, (region, list(route_ids)))
+    else:
+        routes = execute_query("""
+            SELECT route_id, route_short_name, route_long_name, route_type
+            FROM routes WHERE region = %s
+        """, (region,))
 
     if not routes:
         print(f"⚠️ 地区 {region} 无线路数据")
@@ -61,8 +76,9 @@ def calculate_scores(region: str, score_date: str = None):
             SELECT AVG(punctuality_rate) as avg_rate
             FROM route_daily_punctuality
             WHERE route_id = %s AND region = %s
-              AND stat_date >= (CURRENT_DATE - INTERVAL '7 days')
-        """, (route_id, region))
+              AND stat_date >= (%s::date - INTERVAL '6 days')
+              AND stat_date <= %s::date
+        """, (route_id, region, score_date_str, score_date_str))
         avg_rate = float(punct_row['avg_rate']) if punct_row and punct_row['avg_rate'] else None
 
         if avg_rate is not None:
@@ -142,8 +158,9 @@ def calculate_scores(region: str, score_date: str = None):
                 COUNT(*) as total
             FROM route_daily_punctuality
             WHERE route_id = %s AND region = %s
-              AND stat_date >= (CURRENT_DATE - INTERVAL '7 days')
-        """, (route_id, region))
+              AND stat_date >= (%s::date - INTERVAL '6 days')
+              AND stat_date <= %s::date
+        """, (route_id, region, score_date_str, score_date_str))
 
         if delay_row and delay_row['total'] and delay_row['total'] > 0:
             total = delay_row['total']
@@ -180,15 +197,23 @@ def calculate_scores(region: str, score_date: str = None):
                 total_score = EXCLUDED.total_score,
                 score_detail = EXCLUDED.score_detail,
                 created_at = NOW()
-        """, (route_id, region, score_date,
+        """, (route_id, region, score_date_str,
               round(punctuality_score, 2), round(frequency_score, 2),
               round(coverage_score, 2), round(delay_dist_score, 2),
               total_score, json.dumps(detail, default=str)))
 
         scored += 1
 
-    print(f"✅ 健康度评分完成 [{region}] {score_date}")
+    print(f"✅ 健康度评分完成 [{region}] {score_date_str}")
     print(f"   共计算 {scored} 条线路")
+
+
+def calculate_score_history(region: str, days: int = 14, route_ids=None, end_date: str = None):
+    """批量回填指定时间范围的评分历史。"""
+    end_date_obj = _parse_score_date(end_date)
+    for offset in range(days):
+        target_date = date.fromordinal(end_date_obj.toordinal() - offset)
+        calculate_scores(region, target_date.isoformat(), route_ids=route_ids)
 
 
 if __name__ == '__main__':

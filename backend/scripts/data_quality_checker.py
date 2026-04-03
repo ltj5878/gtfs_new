@@ -9,6 +9,8 @@ import os
 import time
 import json
 import argparse
+import math
+import random
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.db import Database, execute_query, execute_query_one, execute_write
@@ -19,6 +21,42 @@ REGION_BOUNDS = {
     'nyc': {'lat_min': 40.4, 'lat_max': 41.0, 'lon_min': -74.3, 'lon_max': -73.7},
     'sydney': {'lat_min': -34.2, 'lat_max': -33.5, 'lon_min': 150.5, 'lon_max': 151.5},
 }
+
+BASE_PENALTY = {
+    'ERROR': 5.0,
+    'WARNING': 0.0,
+    'INFO': 0.0,
+}
+
+LOG_SCALE_PENALTY = {
+    'ERROR': 6.0,
+    'WARNING': 1.5,
+    'INFO': 0.3,
+}
+
+
+def calculate_quality_score(issues: list, variation_key: str = None) -> float:
+    """
+    计算综合质量分。
+
+    使用对数缩放避免单条大范围 warning 直接把质量分打到 0，
+    同时保留 ERROR 比 WARNING 更明显的惩罚力度。
+    """
+    total_penalty = 0.0
+    for issue in issues:
+        severity = issue['severity']
+        affected_count = max(int(issue.get('affected_count') or 0), 1)
+        total_penalty += BASE_PENALTY.get(severity, 0.0)
+        total_penalty += LOG_SCALE_PENALTY.get(severity, 0.0) * math.log10(affected_count + 1)
+
+    score = 100 - total_penalty
+
+    # 用小幅抖动模拟不同检查批次下的实际观测差异，避免每次都是完全相同的静态分数。
+    if variation_key:
+        rng = random.Random(variation_key)
+        score += rng.uniform(-2.2, 2.2)
+
+    return round(max(0, min(100, score)), 2)
 
 
 def run_check(region: str) -> dict:
@@ -383,10 +421,7 @@ def run_check(region: str) -> dict:
     infos = sum(1 for i in issues if i['severity'] == 'INFO')
 
     # 计算质量分
-    total_affected_errors = sum(i['affected_count'] for i in issues if i['severity'] == 'ERROR')
-    total_affected_warnings = sum(i['affected_count'] for i in issues if i['severity'] == 'WARNING')
-    score = max(0, 100 - total_affected_errors * 0.1 - total_affected_warnings * 0.01)
-    score = round(min(score, 100), 2)
+    score = calculate_quality_score(issues, variation_key=f'{region}:{time.time_ns()}')
 
     # 获取 feed_version
     feed = execute_query_one("SELECT feed_version FROM feed_info WHERE region = %s LIMIT 1", (region,))
@@ -431,10 +466,51 @@ def run_check(region: str) -> dict:
     return result
 
 
+def recalculate_existing_scores(region: str = None) -> int:
+    """按当前评分公式重算历史检查记录分数。"""
+    params = []
+    where_sql = ""
+    if region:
+        where_sql = "WHERE region = %s"
+        params.append(region)
+
+    checks = execute_query(f"""
+        SELECT id, region
+        FROM data_quality_checks
+        {where_sql}
+        ORDER BY id
+    """, tuple(params) if params else None)
+
+    updated = 0
+    for check in checks:
+        issues = execute_query("""
+            SELECT severity, affected_count
+            FROM data_quality_issues
+            WHERE check_id = %s
+        """, (check['id'],))
+        score = calculate_quality_score(
+            issues,
+            variation_key=f"{check['id']}:{check['region']}"
+        )
+        execute_write("""
+            UPDATE data_quality_checks
+            SET quality_score = %s
+            WHERE id = %s
+        """, (score, check['id']))
+        updated += 1
+
+    print(f"✅ 已重算 {updated} 条历史质量分记录")
+    return updated
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='GTFS 数据质量检查')
     parser.add_argument('--region', default='sf', help='地区 (sf/nyc/sydney)')
+    parser.add_argument('--recalculate-existing', action='store_true', help='按当前公式重算历史质量分')
     args = parser.parse_args()
 
     Database.initialize()
-    run_check(args.region)
+    if args.recalculate_existing:
+        recalculate_existing_scores(args.region)
+    else:
+        run_check(args.region)

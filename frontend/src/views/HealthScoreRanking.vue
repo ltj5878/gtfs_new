@@ -10,7 +10,7 @@
           <el-option :label="$t('healthScore.sortCoverage')" value="coverage_score" />
           <el-option :label="$t('healthScore.sortDelay')" value="delay_dist_score" />
         </el-select>
-        <el-button :icon="Refresh" @click="loadScores" :loading="loading" size="small">{{ $t('common.refresh') }}</el-button>
+        <el-button :icon="Refresh" @click="handleRefresh" :loading="loading" size="small">{{ $t('common.refresh') }}</el-button>
       </div>
     </div>
     <p class="page-subtitle">{{ $t('healthScore.subtitle') }}</p>
@@ -101,6 +101,18 @@ const historyRef = ref(null)
 let radarChart = null
 let historyChart = null
 
+function normalizeScore(item) {
+  if (!item) return null
+  return {
+    ...item,
+    punctuality_score: Number(item.punctuality_score ?? 0),
+    frequency_score: Number(item.frequency_score ?? 0),
+    coverage_score: Number(item.coverage_score ?? 0),
+    delay_dist_score: Number(item.delay_dist_score ?? 0),
+    total_score: Number(item.total_score ?? 0)
+  }
+}
+
 function scoreColor(v) {
   if (v >= 80) return '#67c23a'
   if (v >= 60) return '#e6a23c'
@@ -112,15 +124,17 @@ function routeColor(v) {
   return '#fef0f0'
 }
 
-async function loadScores() {
+async function loadScores(forceRefresh = false) {
   loading.value = true
   try {
-    scores.value = await getHealthScores({
+    const data = await getHealthScores({
       region: regionStore.selectedRegion,
       sort_by: sortBy.value,
       order: 'desc',
-      limit: 100
-    }) || []
+      limit: 100,
+      ...(forceRefresh ? { refresh: 1 } : {})
+    })
+    scores.value = Array.isArray(data) ? data.map(normalizeScore) : []
   } catch (e) {
     console.error(e)
   } finally {
@@ -128,13 +142,21 @@ async function loadScores() {
   }
 }
 
+function handleRefresh() {
+  loadScores(true)
+}
+
 async function showDetail(row) {
   detailTitle.value = `${row.route_short_name || row.route_id} - ${row.route_long_name || ''}`
   drawerVisible.value = true
   try {
-    detailData.value = await getRouteHealthDetail(row.route_id, {
+    const data = await getRouteHealthDetail(row.route_id, {
       region: regionStore.selectedRegion
     })
+    detailData.value = {
+      latest: normalizeScore(data?.latest),
+      history: Array.isArray(data?.history) ? data.history.map(normalizeScore) : []
+    }
     renderRadar(detailData.value?.latest)
     renderHistory(detailData.value?.history || [])
   } catch (e) {

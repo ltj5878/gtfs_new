@@ -3,7 +3,7 @@
     <div class="page-header">
       <h1>{{ $t('flowPrediction.title') }}</h1>
       <div class="header-actions">
-        <el-button :icon="Refresh" @click="loadStops" :loading="loading" size="small">{{ $t('common.refresh') }}</el-button>
+        <el-button :icon="Refresh" @click="handleRefresh" :loading="loading || loadingPrediction" size="small">{{ $t('common.refresh') }}</el-button>
       </div>
     </div>
     <p class="page-subtitle">{{ $t('flowPrediction.subtitle') }}</p>
@@ -78,7 +78,7 @@ import { useI18n } from 'vue-i18n'
 import * as echarts from 'echarts'
 import { getStopFlowPrediction, getStopBestTime } from '@/api/flowPrediction.js'
 import { useRegionStore } from '@/stores/regionStore'
-import apiClient from '@/api/index.js'
+import { getStops } from '@/api/stops.js'
 
 const { t } = useI18n()
 const regionStore = useRegionStore()
@@ -92,6 +92,15 @@ const prediction = ref([])
 const bestTimes = ref([])
 const chartRef = ref(null)
 let chart = null
+
+function normalizePredictionRows(list = []) {
+  return list.map(item => ({
+    ...item,
+    hour_of_day: Number(item.hour_of_day ?? 0),
+    scheduled_trips: Number(item.scheduled_trips ?? 0),
+    predicted_flow_index: Number(item.predicted_flow_index ?? 0)
+  }))
+}
 
 const currentHour = new Date().getHours()
 const currentHourData = computed(() =>
@@ -119,10 +128,15 @@ const crowdLabel = computed(() => {
 async function loadStops() {
   loading.value = true
   try {
-    const data = await apiClient.get('/stops', {
-      params: { region: regionStore.selectedRegion, limit: 500 }
-    })
-    stopList.value = Array.isArray(data) ? data : (data?.items || [])
+    const data = await getStops({ page_size: 500 })
+    stopList.value = Array.isArray(data?.stops) ? data.stops : []
+    const exists = stopList.value.some(item => item.stop_id === selectedStop.value)
+    if (!selectedStop.value || !exists) {
+      selectedStop.value = stopList.value[0]?.stop_id || ''
+    }
+    if (selectedStop.value) {
+      await loadPrediction()
+    }
   } catch (e) {
     console.error(e)
   } finally {
@@ -130,25 +144,36 @@ async function loadStops() {
   }
 }
 
-async function loadPrediction() {
+async function loadPrediction(forceRefresh = false) {
   if (!selectedStop.value) return
   loadingPrediction.value = true
   try {
     const [predData, btData] = await Promise.all([
       getStopFlowPrediction(selectedStop.value, {
-        region: regionStore.selectedRegion, day_type: dayType.value
+        region: regionStore.selectedRegion,
+        day_type: dayType.value,
+        ...(forceRefresh ? { refresh: 1 } : {})
       }),
       getStopBestTime(selectedStop.value, {
-        region: regionStore.selectedRegion, day_type: dayType.value
+        region: regionStore.selectedRegion,
+        day_type: dayType.value,
+        ...(forceRefresh ? { refresh: 1 } : {})
       })
     ])
-    prediction.value = predData || []
-    bestTimes.value = btData || []
+    prediction.value = normalizePredictionRows(predData || [])
+    bestTimes.value = normalizePredictionRows(btData || [])
     renderChart()
   } catch (e) {
     console.error(e)
   } finally {
     loadingPrediction.value = false
+  }
+}
+
+async function handleRefresh() {
+  await loadStops()
+  if (selectedStop.value) {
+    await loadPrediction(true)
   }
 }
 

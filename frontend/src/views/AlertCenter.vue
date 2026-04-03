@@ -3,7 +3,7 @@
     <div class="page-header">
       <h1>{{ $t('alertCenter.title') }}</h1>
       <div class="header-actions">
-        <el-button :icon="Refresh" @click="loadAll" :loading="loading" size="small">{{ $t('common.refresh') }}</el-button>
+        <el-button :icon="Refresh" @click="handleRefresh" :loading="loading" size="small">{{ $t('common.refresh') }}</el-button>
       </div>
     </div>
     <p class="page-subtitle">{{ $t('alertCenter.subtitle') }}</p>
@@ -57,7 +57,7 @@
           <el-tag :type="severityType(alert.severity)" size="small">{{ severityLabel(alert.severity) }}</el-tag>
           <span class="alert-type-badge">{{ alertTypeLabel(alert.alert_type) }}</span>
           <span class="alert-time">{{ formatTime(alert.triggered_at) }}</span>
-          <el-button size="small" type="success" plain @click.stop="handleResolve(alert.id)">
+          <el-button v-if="authStore.isAdmin" size="small" type="success" plain @click.stop="handleResolve(alert.id)">
             {{ $t('alertCenter.resolve') }}
           </el-button>
         </div>
@@ -121,9 +121,11 @@ import { useI18n } from 'vue-i18n'
 import * as echarts from 'echarts'
 import { getActiveAlerts, getAlertHistory, resolveAlert, getAlertStats } from '@/api/alerts.js'
 import { useRegionStore } from '@/stores/regionStore'
+import { useAuthStore } from '@/stores/authStore'
 
 const { t } = useI18n()
 const regionStore = useRegionStore()
+const authStore = useAuthStore()
 
 const loading = ref(false)
 const loadingHistory = ref(false)
@@ -144,7 +146,7 @@ const criticalCount = computed(() =>
 function severityType(s) {
   if (s === 'critical') return 'danger'
   if (s === 'high') return 'warning'
-  if (s === 'medium') return ''
+  if (s === 'medium') return 'info'
   return 'info'
 }
 function severityLabel(s) {
@@ -165,23 +167,30 @@ function formatTime(t_) {
   return new Date(t_).toLocaleString('zh-CN')
 }
 
-async function loadAll() {
+async function loadAll(forceRefresh = false) {
   loading.value = true
   try {
     const region = regionStore.selectedRegion
-    const [active, statsData] = await Promise.all([
-      getActiveAlerts({ region }),
-      getAlertStats({ region })
+    const active = await getActiveAlerts({
+      region,
+      ...(forceRefresh ? { refresh: 1 } : {})
+    })
+    const [statsData] = await Promise.all([
+      getAlertStats({ region }),
+      loadHistory()
     ])
     activeAlerts.value = active || []
     stats.value = statsData || {}
     renderTrend()
-    await loadHistory()
   } catch (e) {
     console.error(e)
   } finally {
     loading.value = false
   }
+}
+
+function handleRefresh() {
+  loadAll(true)
 }
 
 async function loadHistory() {

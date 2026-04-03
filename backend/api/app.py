@@ -9,6 +9,7 @@ from flask_cors import CORS
 from core.db import Database, execute_query, execute_query_one, execute_count, execute_write
 from core.route_mappings import enrich_route_attributes
 from core.audit import record_audit_log
+from core.schema_bootstrap import ensure_feature_schemas
 from typing import Dict, Any, List
 import os
 import sys
@@ -30,6 +31,7 @@ def before_first_request():
     if Database._connection_pool is None:
         Database.initialize()
         init_default_user()
+        ensure_feature_schemas()
 
 
 @app.teardown_appcontext
@@ -54,6 +56,26 @@ def error_response(message: str, code: int = 400) -> Dict:
         "message": message,
         "data": None
     }
+
+
+def _is_truthy_param(value) -> bool:
+    return str(value).strip().lower() in ('1', 'true', 'yes', 'y', 'on')
+
+
+def _normalize_health_score_row(row):
+    if not row:
+        return None
+    data = dict(row)
+    for key in (
+        'punctuality_score',
+        'frequency_score',
+        'coverage_score',
+        'delay_dist_score',
+        'total_score',
+    ):
+        if data.get(key) is not None:
+            data[key] = round(float(data[key]), 2)
+    return data
 
 
 @app.route('/api/health', methods=['GET'])
@@ -2858,6 +2880,10 @@ def get_route_health_scores():
     order = request.args.get('order', 'desc')
     limit = request.args.get('limit', 50, type=int)
     try:
+        if _is_truthy_param(request.args.get('refresh')):
+            from scripts.calculate_health_scores import calculate_scores
+            calculate_scores(region)
+
         order_dir = 'DESC' if order == 'desc' else 'ASC'
         sort_col = sort_by if sort_by in ('total_score', 'punctuality_score', 'frequency_score',
                                            'coverage_score', 'delay_dist_score') else 'total_score'
@@ -2873,7 +2899,23 @@ def get_route_health_scores():
             ORDER BY hs.{sort_col} {order_dir} NULLS LAST
             LIMIT %s
         """, (region, region, limit))
-        return jsonify(success_response([dict(r) for r in rows]))
+
+        if not rows:
+            from scripts.calculate_health_scores import calculate_scores
+            calculate_scores(region)
+            rows = execute_query(f"""
+                SELECT hs.route_id, r.route_short_name, r.route_long_name, r.route_type,
+                       hs.score_date, hs.punctuality_score, hs.frequency_score,
+                       hs.coverage_score, hs.delay_dist_score, hs.total_score
+                FROM route_health_scores hs
+                JOIN routes r ON hs.route_id = r.route_id AND hs.region = r.region
+                WHERE hs.region = %s AND hs.score_date = (
+                    SELECT MAX(score_date) FROM route_health_scores WHERE region = %s
+                )
+                ORDER BY hs.{sort_col} {order_dir} NULLS LAST
+                LIMIT %s
+            """, (region, region, limit))
+        return jsonify(success_response([_normalize_health_score_row(r) for r in rows]))
     except Exception as e:
         return jsonify(error_response(f"获取健康度评分失败: {str(e)}", 500)), 500
 
@@ -2897,9 +2939,26 @@ def get_route_health_score_detail(route_id):
             WHERE route_id = %s AND region = %s
             ORDER BY score_date DESC LIMIT 30
         """, (route_id, region))
+
+        if len(history) < 2:
+            from scripts.calculate_health_scores import calculate_score_history
+            calculate_score_history(region, days=14, route_ids=[route_id])
+            latest = execute_query_one("""
+                SELECT * FROM route_health_scores
+                WHERE route_id = %s AND region = %s
+                ORDER BY score_date DESC LIMIT 1
+            """, (route_id, region))
+            history = execute_query("""
+                SELECT score_date, total_score, punctuality_score, frequency_score,
+                       coverage_score, delay_dist_score
+                FROM route_health_scores
+                WHERE route_id = %s AND region = %s
+                ORDER BY score_date DESC LIMIT 30
+            """, (route_id, region))
+
         return jsonify(success_response({
-            'latest': dict(latest) if latest else None,
-            'history': [dict(r) for r in history]
+            'latest': _normalize_health_score_row(latest),
+            'history': [_normalize_health_score_row(r) for r in history]
         }))
     except Exception as e:
         return jsonify(error_response(f"获取健康度详情失败: {str(e)}", 500)), 500
@@ -2929,6 +2988,9 @@ def get_active_alerts():
     """获取当前活跃告警列表"""
     region = request.args.get('region', 'sf')
     try:
+        from services.alert_service import ensure_alert_data
+        ensure_alert_data(region, force_refresh=_is_truthy_param(request.args.get('refresh')))
+
         rows = execute_query("""
             SELECT id, region, alert_type, entity_type, entity_id, entity_name,
                    severity, title, alert_data, triggered_at
@@ -2953,6 +3015,9 @@ def get_alert_history():
     page = request.args.get('page', 1, type=int)
     page_size = request.args.get('page_size', 20, type=int)
     try:
+        from services.alert_service import ensure_alert_data
+        ensure_alert_data(region, force_refresh=_is_truthy_param(request.args.get('refresh')))
+
         where = "WHERE region = %s AND triggered_at >= (NOW() - INTERVAL '%s days')"
         params = [region, days]
         if alert_type:
@@ -2999,6 +3064,9 @@ def get_alert_stats():
     """获取告警统计摘要"""
     region = request.args.get('region', 'sf')
     try:
+        from services.alert_service import ensure_alert_data
+        ensure_alert_data(region, force_refresh=_is_truthy_param(request.args.get('refresh')))
+
         # 活跃告警计数
         active = execute_query_one(
             "SELECT COUNT(*) as cnt FROM anomaly_alerts WHERE region = %s AND resolved_at IS NULL",
@@ -3038,80 +3106,11 @@ def get_alert_stats():
 def get_route_carbon(route_id):
     """计算某条线路的碳排放对比数据"""
     region = request.args.get('region', 'sf')
-    # 排放因子 (kg CO2/乘客公里)
-    EMISSION_FACTORS = {
-        0: 0.041,  # 轻轨
-        1: 0.041,  # 地铁
-        2: 0.041,  # 铁路
-        3: 0.089,  # 公交
-        4: 0.120,  # 轮渡
-        5: 0.041,  # 有轨电车
-        6: 0.020,  # 缆车
-        7: 0.020,  # 索道
-    }
-    CAR_EMISSION = 0.271  # 私家车 kg CO2/km
     try:
-        # 查询线路类型
-        route = execute_query_one(
-            "SELECT route_type FROM routes WHERE route_id = %s AND region = %s",
-            (route_id, region))
-        route_type = route['route_type'] if route else 3
-
-        # 查询缓存距离
-        dist = execute_query_one(
-            "SELECT distance_km FROM route_distances WHERE route_id = %s AND region = %s LIMIT 1",
-            (route_id, region))
-
-        if dist and dist['distance_km']:
-            distance_km = float(dist['distance_km'])
-        else:
-            # 从 shapes 计算距离
-            shape_row = execute_query_one("""
-                SELECT t.shape_id FROM trips t
-                WHERE t.route_id = %s AND t.region = %s AND t.shape_id IS NOT NULL
-                LIMIT 1
-            """, (route_id, region))
-            if shape_row and shape_row['shape_id']:
-                points = execute_query("""
-                    SELECT shape_pt_lat, shape_pt_lon FROM shapes
-                    WHERE shape_id = %s AND region = %s ORDER BY shape_pt_sequence
-                """, (shape_row['shape_id'], region))
-                distance_km = _calc_shape_distance(points)
-                # 缓存距离
-                if distance_km > 0:
-                    execute_write("""
-                        INSERT INTO route_distances (route_id, region, direction_id, distance_km)
-                        VALUES (%s, %s, 0, %s)
-                        ON CONFLICT (route_id, region, direction_id)
-                        DO UPDATE SET distance_km = EXCLUDED.distance_km, calculated_at = NOW()
-                    """, (route_id, region, round(distance_km, 3)))
-            else:
-                # 从站点间距估算
-                stop_count_row = execute_query_one("""
-                    SELECT COUNT(DISTINCT stop_id) as cnt FROM stop_times
-                    WHERE trip_id IN (SELECT trip_id FROM trips WHERE route_id = %s AND region = %s LIMIT 1)
-                    AND region = %s
-                """, (route_id, region, region))
-                sc = stop_count_row['cnt'] if stop_count_row else 5
-                distance_km = sc * 0.8  # 默认每站 0.8km
-
-        transit_factor = EMISSION_FACTORS.get(route_type, 0.089)
-        transit_emission = round(distance_km * transit_factor, 4)
-        car_emission = round(distance_km * CAR_EMISSION, 4)
-        carbon_saved = round(car_emission - transit_emission, 4)
-        trees_equivalent = round(carbon_saved / 21.77 * 365, 1)  # 一棵树年吸收约21.77kg CO2
-
-        return jsonify(success_response({
-            'route_id': route_id,
-            'distance_km': round(distance_km, 2),
-            'route_type': route_type,
-            'transit_emission_kg': transit_emission,
-            'car_emission_kg': car_emission,
-            'carbon_saved_kg': carbon_saved,
-            'saving_percent': round((1 - transit_emission / max(car_emission, 0.001)) * 100, 1),
-            'trees_equivalent_yearly': trees_equivalent,
-            'fuel_saved_liters': round(distance_km / 8.5, 2),  # 百公里8.5L油耗
-        }))
+        from services.carbon_service import calculate_route_carbon
+        return jsonify(success_response(calculate_route_carbon(route_id, region)))
+    except ValueError as e:
+        return jsonify(error_response(str(e), 404)), 404
     except Exception as e:
         return jsonify(error_response(f"碳排放计算失败: {str(e)}", 500)), 500
 
@@ -3144,17 +3143,74 @@ def record_carbon_trip():
     data = request.get_json() or {}
     route_id = data.get('route_id')
     region = data.get('region', 'sf')
-    distance = data.get('distance_km', 0)
-    transit_emission = data.get('transit_emission', 0)
-    car_emission = data.get('car_emission', 0)
-    carbon_saved = data.get('carbon_saved', 0)
+    if not route_id:
+        return jsonify(error_response("缺少线路ID", 400)), 400
+
     try:
+        ride_count = int(data.get('ride_count', 1) or 1)
+    except (TypeError, ValueError):
+        return jsonify(error_response("乘坐次数格式错误", 400)), 400
+    if ride_count < 1 or ride_count > 50:
+        return jsonify(error_response("乘坐次数需在 1 到 50 之间", 400)), 400
+
+    trip_date_raw = str(data.get('trip_date') or '').strip()
+    if trip_date_raw:
+        try:
+            from datetime import date as _date
+            trip_date = _date.fromisoformat(trip_date_raw)
+        except ValueError:
+            return jsonify(error_response("出行日期格式错误，应为 YYYY-MM-DD", 400)), 400
+    else:
+        from datetime import date as _date
+        trip_date = _date.today()
+
+    distance_input = data.get('distance_km')
+    try:
+        from services.carbon_service import build_trip_carbon_record
+
+        metrics = build_trip_carbon_record(
+            route_id,
+            region,
+            ride_count=ride_count,
+            ride_distance_km=distance_input,
+        )
         execute_write("""
             INSERT INTO user_carbon_records
-                (user_id, route_id, region, distance_km, transit_emission, car_emission, carbon_saved)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-        """, (user['user_id'], route_id, region, distance, transit_emission, car_emission, carbon_saved))
-        return jsonify(success_response({'message': '绿色出行已记录'}))
+                (user_id, route_id, region, trip_date, ride_count, distance_km,
+                 transit_emission, car_emission, carbon_saved, record_source)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'user')
+            RETURNING id
+        """, (
+            user['user_id'],
+            route_id,
+            region,
+            trip_date,
+            metrics['ride_count'],
+            metrics['distance_km'],
+            metrics['transit_emission'],
+            metrics['car_emission'],
+            metrics['carbon_saved'],
+        ))
+        record_audit_log(
+            user['user_id'],
+            user['username'],
+            'record_carbon_trip',
+            f'carbon:{route_id}',
+            {
+                'region': region,
+                'trip_date': trip_date.isoformat(),
+                'ride_count': metrics['ride_count'],
+                'distance_km': metrics['distance_km'],
+                'carbon_saved': metrics['carbon_saved'],
+            }
+        )
+        return jsonify(success_response({
+            'message': '绿色出行已记录',
+            'trip_date': trip_date.isoformat(),
+            **metrics,
+        }))
+    except ValueError as e:
+        return jsonify(error_response(str(e), 400)), 400
     except Exception as e:
         return jsonify(error_response(f"记录失败: {str(e)}", 500)), 500
 
@@ -3166,37 +3222,43 @@ def get_carbon_my_stats():
     if not user:
         return jsonify(error_response("请先登录", 401)), 401
     try:
+        region = request.args.get('region', '').strip()
+        region_sql = " AND region = %s" if region else ""
+        region_params = (region,) if region else ()
+        source_sql = " AND record_source = 'user'"
         stats = execute_query_one("""
             SELECT
-                COUNT(*) as total_trips,
+                COALESCE(SUM(ride_count), 0) as total_trips,
                 COALESCE(SUM(distance_km), 0) as total_distance,
                 COALESCE(SUM(carbon_saved), 0) as total_saved,
                 COALESCE(SUM(transit_emission), 0) as total_transit,
                 COALESCE(SUM(car_emission), 0) as total_car
-            FROM user_carbon_records WHERE user_id = %s
-        """, (user['user_id'],))
+            FROM user_carbon_records
+            WHERE user_id = %s
+        """ + source_sql + region_sql, (user['user_id'],) + region_params)
 
         # 本周统计
         week_stats = execute_query_one("""
-            SELECT COALESCE(SUM(carbon_saved), 0) as week_saved, COUNT(*) as week_trips
+            SELECT COALESCE(SUM(carbon_saved), 0) as week_saved, COALESCE(SUM(ride_count), 0) as week_trips
             FROM user_carbon_records
             WHERE user_id = %s AND trip_date >= (CURRENT_DATE - INTERVAL '7 days')
-        """, (user['user_id'],))
+        """ + source_sql + region_sql, (user['user_id'],) + region_params)
 
         # 本月统计
         month_stats = execute_query_one("""
-            SELECT COALESCE(SUM(carbon_saved), 0) as month_saved, COUNT(*) as month_trips
+            SELECT COALESCE(SUM(carbon_saved), 0) as month_saved, COALESCE(SUM(ride_count), 0) as month_trips
             FROM user_carbon_records
             WHERE user_id = %s AND trip_date >= DATE_TRUNC('month', CURRENT_DATE)
-        """, (user['user_id'],))
+        """ + source_sql + region_sql, (user['user_id'],) + region_params)
 
         # 每日趋势（最近30天）
         daily = execute_query("""
-            SELECT trip_date, SUM(carbon_saved) as saved, COUNT(*) as trips
+            SELECT trip_date, SUM(carbon_saved) as saved, COALESCE(SUM(ride_count), 0) as trips
             FROM user_carbon_records
             WHERE user_id = %s AND trip_date >= (CURRENT_DATE - INTERVAL '30 days')
+        """ + source_sql + region_sql + """
             GROUP BY trip_date ORDER BY trip_date
-        """, (user['user_id'],))
+        """, (user['user_id'],) + region_params)
 
         total_saved = float(stats['total_saved']) if stats else 0
         return jsonify(success_response({
@@ -3215,20 +3277,117 @@ def get_carbon_my_stats():
         return jsonify(error_response(f"获取统计失败: {str(e)}", 500)), 500
 
 
+@app.route('/api/carbon/my-records', methods=['GET'])
+def get_my_carbon_records():
+    """获取当前用户手动录入的绿色出行记录。"""
+    user = _get_current_user()
+    if not user:
+        return jsonify(error_response("请先登录", 401)), 401
+
+    region = request.args.get('region', '').strip()
+    limit = request.args.get('limit', 10, type=int)
+    limit = min(max(limit, 1), 50)
+    try:
+        region_sql = " AND c.region = %s" if region else ""
+        params = (user['user_id'], region, limit) if region else (user['user_id'], limit)
+        rows = execute_query("""
+            SELECT
+                c.id,
+                c.route_id,
+                c.region,
+                c.trip_date,
+                COALESCE(c.ride_count, 1) as ride_count,
+                c.distance_km,
+                c.transit_emission,
+                c.car_emission,
+                c.carbon_saved,
+                c.created_at,
+                COALESCE(r.route_short_name, c.route_id) as route_short_name,
+                COALESCE(r.route_long_name, '') as route_long_name
+            FROM user_carbon_records c
+            LEFT JOIN routes r
+              ON c.route_id = r.route_id
+             AND c.region = r.region
+            WHERE c.user_id = %s
+              AND c.record_source = 'user'
+        """ + region_sql + """
+            ORDER BY c.trip_date DESC, c.created_at DESC
+            LIMIT %s
+        """, params)
+        return jsonify(success_response([dict(r) for r in rows]))
+    except Exception as e:
+        return jsonify(error_response(f"获取个人记录失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/carbon/records/<int:record_id>', methods=['DELETE'])
+def delete_carbon_record(record_id):
+    """删除当前用户的一条手动录入记录。"""
+    user = _get_current_user()
+    if not user:
+        return jsonify(error_response("请先登录", 401)), 401
+
+    try:
+        record = execute_query_one("""
+            SELECT id, route_id
+            FROM user_carbon_records
+            WHERE id = %s
+              AND user_id = %s
+              AND record_source = 'user'
+        """, (record_id, user['user_id']))
+        if not record:
+            return jsonify(error_response("记录不存在", 404)), 404
+
+        execute_write("""
+            DELETE FROM user_carbon_records
+            WHERE id = %s
+              AND user_id = %s
+              AND record_source = 'user'
+        """, (record_id, user['user_id']))
+        record_audit_log(
+            user['user_id'],
+            user['username'],
+            'delete_carbon_trip',
+            f"carbon:{record.get('route_id') or record_id}",
+            {'record_id': record_id}
+        )
+        return jsonify(success_response({'id': record_id, 'message': '记录已删除'}))
+    except Exception as e:
+        return jsonify(error_response(f"删除失败: {str(e)}", 500)), 500
+
+
 @app.route('/api/carbon/leaderboard', methods=['GET'])
 def get_carbon_leaderboard():
     """绿色出行排行榜"""
+    region = request.args.get('region', '').strip()
     limit = request.args.get('limit', 10, type=int)
     try:
+        refresh = _is_truthy_param(request.args.get('refresh'))
+        user_region_sql = " AND region = %s" if region else ""
+        user_count_row = execute_query_one("""
+            SELECT COUNT(*) as cnt
+            FROM user_carbon_records
+            WHERE record_source = 'user'
+        """ + user_region_sql, (region,) if region else None)
+        user_count = int(user_count_row['cnt'] or 0) if user_count_row else 0
+
+        source_clause = "c.record_source = 'user'"
+        if user_count == 0:
+            from services.carbon_service import ensure_demo_carbon_data
+            ensure_demo_carbon_data(region or 'sf', force_refresh=refresh)
+            source_clause = "1 = 1"
+
+        region_sql = " AND c.region = %s" if region else ""
+        params = (region, limit) if region else (limit,)
         rows = execute_query("""
-            SELECT u.username, COUNT(*) as trip_count,
+            SELECT u.username, COALESCE(SUM(c.ride_count), 0) as trip_count,
                    ROUND(COALESCE(SUM(c.carbon_saved), 0)::numeric, 2) as total_saved
             FROM user_carbon_records c
             JOIN users u ON c.user_id = u.id
+            WHERE """ + source_clause + region_sql + """
             GROUP BY u.username
             ORDER BY total_saved DESC
             LIMIT %s
-        """, (limit,))
+        """, params)
         return jsonify(success_response([dict(r) for r in rows]))
     except Exception as e:
         return jsonify(error_response(f"获取排行榜失败: {str(e)}", 500)), 500
@@ -3242,57 +3401,22 @@ def get_stop_flow_prediction(stop_id):
     region = request.args.get('region', 'sf')
     day_type = request.args.get('day_type', 'weekday')
     try:
-        rows = execute_query("""
-            SELECT hour_of_day, scheduled_trips, predicted_flow_index
-            FROM stop_flow_predictions
-            WHERE stop_id = %s AND region = %s AND day_type = %s
-            ORDER BY hour_of_day
-        """, (stop_id, region, day_type))
-
-        if not rows:
-            # 实时计算
-            rows = _compute_stop_flow(stop_id, region, day_type)
-
-        return jsonify(success_response([dict(r) for r in rows]))
+        from services.flow_prediction_service import get_stop_flow_prediction_data
+        rows = get_stop_flow_prediction_data(
+            stop_id,
+            region,
+            day_type,
+            refresh=_is_truthy_param(request.args.get('refresh'))
+        )
+        return jsonify(success_response(rows))
     except Exception as e:
         return jsonify(error_response(f"获取客流预测失败: {str(e)}", 500)), 500
 
 
 def _compute_stop_flow(stop_id, region, day_type):
     """实时计算站点分时客流指数"""
-    # 查询该站点各小时班次数
-    day_filter = "monday = 1 OR tuesday = 1 OR wednesday = 1 OR thursday = 1 OR friday = 1" if day_type == 'weekday' else "saturday = 1 OR sunday = 1"
-    rows = execute_query(f"""
-        SELECT
-            EXTRACT(HOUR FROM st.departure_time::interval)::int as hour_of_day,
-            COUNT(*) as trip_count
-        FROM stop_times st
-        JOIN trips t ON st.trip_id = t.trip_id AND st.region = t.region
-        JOIN calendar c ON t.service_id = c.service_id AND t.region = c.region
-        WHERE st.stop_id = %s AND st.region = %s
-          AND ({day_filter})
-          AND st.departure_time IS NOT NULL
-        GROUP BY hour_of_day
-        ORDER BY hour_of_day
-    """, (stop_id, region))
-
-    if not rows:
-        return []
-
-    # 计算平均水平
-    counts = {r['hour_of_day']: r['trip_count'] for r in rows}
-    avg_count = sum(counts.values()) / max(len(counts), 1)
-
-    result = []
-    for hour in range(24):
-        trip_count = counts.get(hour, 0)
-        flow_index = round(trip_count / max(avg_count, 1) * 100, 2) if avg_count > 0 else 0
-        result.append({
-            'hour_of_day': hour,
-            'scheduled_trips': trip_count,
-            'predicted_flow_index': flow_index
-        })
-    return result
+    from services.flow_prediction_service import compute_stop_flow
+    return compute_stop_flow(stop_id, region, day_type, persist=True)
 
 
 @app.route('/api/stops/<stop_id>/best-time', methods=['GET'])
@@ -3301,7 +3425,13 @@ def get_stop_best_time(stop_id):
     region = request.args.get('region', 'sf')
     day_type = request.args.get('day_type', 'weekday')
     try:
-        predictions = _compute_stop_flow(stop_id, region, day_type)
+        from services.flow_prediction_service import get_stop_flow_prediction_data
+        predictions = get_stop_flow_prediction_data(
+            stop_id,
+            region,
+            day_type,
+            refresh=_is_truthy_param(request.args.get('refresh'))
+        )
         if not predictions:
             return jsonify(success_response([]))
 
@@ -3320,22 +3450,11 @@ def get_stops_flow_heatmap():
     """获取所有站点当前时刻客流热力图数据"""
     region = request.args.get('region', 'sf')
     hour = request.args.get('hour', None, type=int)
+    day_type = request.args.get('day_type', 'weekday')
     try:
-        if hour is None:
-            from datetime import datetime
-            hour = datetime.now().hour
-
-        rows = execute_query("""
-            SELECT s.stop_id, s.stop_name, s.stop_lat, s.stop_lon, fp.predicted_flow_index
-            FROM stop_flow_predictions fp
-            JOIN stops s ON fp.stop_id = s.stop_id AND fp.region = s.region
-            WHERE fp.region = %s AND fp.hour_of_day = %s AND fp.day_type = 'weekday'
-              AND fp.predicted_flow_index > 0
-            ORDER BY fp.predicted_flow_index DESC
-            LIMIT 500
-        """, (region, hour))
-
-        return jsonify(success_response([dict(r) for r in rows]))
+        from services.flow_prediction_service import get_flow_heatmap_data
+        rows = get_flow_heatmap_data(region, hour=hour, day_type=day_type)
+        return jsonify(success_response(rows))
     except Exception as e:
         return jsonify(error_response(f"获取热力图数据失败: {str(e)}", 500)), 500
 
@@ -3353,10 +3472,11 @@ def get_recommendations():
     try:
         # 从收藏中获取偏好线路
         fav_routes = execute_query("""
-            SELECT entity_id FROM favorites
-            WHERE user_id = %s AND entity_type = 'route' AND region = %s
+            SELECT item_id
+            FROM user_favorites
+            WHERE user_id = %s AND item_type = 'route' AND region = %s
         """, (user['user_id'], region))
-        fav_ids = [f['entity_id'] for f in fav_routes]
+        fav_ids = [f['item_id'] for f in fav_routes]
 
         # 从审计日志获取高频访问线路
         freq_routes = execute_query("""

@@ -20,10 +20,12 @@ CREATE TABLE IF NOT EXISTS user_carbon_records (
     route_id VARCHAR(50),                            -- 线路ID
     region VARCHAR(20),                              -- 地区
     trip_date DATE DEFAULT CURRENT_DATE,             -- 出行日期
+    ride_count INTEGER DEFAULT 1,                    -- 本次录入包含的乘坐次数
     distance_km DECIMAL(8,3),                        -- 行程距离
     transit_emission DECIMAL(8,4),                   -- 公交排放 kg CO2
     car_emission DECIMAL(8,4),                       -- 等效私家车排放
     carbon_saved DECIMAL(8,4),                       -- 节省 kg CO2
+    record_source VARCHAR(20) DEFAULT 'user',        -- user/demo
     created_at TIMESTAMP DEFAULT NOW()               -- 记录时间
 );
 CREATE INDEX IF NOT EXISTS idx_carbon_user ON user_carbon_records(user_id);

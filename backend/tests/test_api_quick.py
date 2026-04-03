@@ -7,12 +7,14 @@ import requests
 import json
 
 API_BASE_URL = "http://localhost:5001/api"
+SESSION = requests.Session()
+SESSION.trust_env = False
 
 def test_endpoint(endpoint, description, params=None):
     """测试单个API端点"""
     try:
         url = f"{API_BASE_URL}{endpoint}"
-        response = requests.get(url, params=params)
+        response = SESSION.get(url, params=params, timeout=20)
 
         if response.status_code == 200:
             data = response.json()
