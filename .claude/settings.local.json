@@ -65,7 +65,8 @@
       "Bash(npm search:*)",
       "Read(//System/Library/Fonts/**)",
       "Read(//System/Library/Fonts/Supplemental/**)",
-      "Bash(NO_PROXY=localhost no_proxy=localhost python3 backend/tests/test_api_quick.py)"
+      "Bash(NO_PROXY=localhost no_proxy=localhost python3 backend/tests/test_api_quick.py)",
+      "Read(//tmp/**)"
     ],
     "deny": [],
     "ask": []
