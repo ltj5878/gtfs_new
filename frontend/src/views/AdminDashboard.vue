@@ -33,6 +33,7 @@
       <el-button size="small" plain @click="router.push('/users')">用户管理</el-button>
       <el-button size="small" plain @click="router.push('/admin/audit-logs')">审计日志</el-button>
       <el-button size="small" plain @click="router.push('/punctuality')">准点率概览</el-button>
+      <el-button size="small" plain @click="router.push('/admin/data-quality')">数据质量</el-button>
     </div>
 
     <!-- 顶部指标卡片（5格一行） -->

@@ -29,6 +29,8 @@
             <el-menu-item index="/planner/transfer">{{ $t('nav.transferPlanner') }}</el-menu-item>
             <el-menu-item index="/analysis/reachability">{{ $t('nav.stopReachability') }}</el-menu-item>
             <el-menu-item index="/compare/routes">{{ $t('nav.routeCompare') }}</el-menu-item>
+            <el-menu-item index="/recommendations">{{ $t('nav.recommendations') }}</el-menu-item>
+            <el-menu-item index="/carbon">{{ $t('nav.carbonFootprint') }}</el-menu-item>
           </el-sub-menu>
           <el-sub-menu index="/punctuality">
             <template #title>{{ $t('nav.punctuality') }}</template>
@@ -36,12 +38,16 @@
             <el-menu-item index="/punctuality/stops">{{ $t('nav.stopPunctuality') }}</el-menu-item>
             <el-menu-item index="/punctuality/trends">{{ $t('nav.punctualityTrends') }}</el-menu-item>
             <el-menu-item index="/export">{{ $t('nav.dataExport') }}</el-menu-item>
+            <el-menu-item index="/health-scores">{{ $t('nav.healthScores') }}</el-menu-item>
+            <el-menu-item index="/flow-prediction">{{ $t('nav.flowPrediction') }}</el-menu-item>
+            <el-menu-item index="/alerts">{{ $t('nav.alertCenter') }}</el-menu-item>
           </el-sub-menu>
           <el-sub-menu v-if="authStore.isAdmin" index="/manage">
             <template #title>{{ $t('nav.manage') }}</template>
             <el-menu-item index="/admin">{{ $t('nav.adminDashboard') }}</el-menu-item>
             <el-menu-item index="/users">{{ $t('nav.userManagement') }}</el-menu-item>
             <el-menu-item index="/admin/audit-logs">{{ $t('nav.auditLog') }}</el-menu-item>
+            <el-menu-item index="/admin/data-quality">{{ $t('nav.dataQuality') }}</el-menu-item>
           </el-sub-menu>
         </el-menu>
         <div class="header-right">
@@ -149,9 +155,15 @@ const activeMenu = computed(() => {
   if (path.startsWith('/analysis')) return '/analysis/reachability'
   if (path.startsWith('/compare')) return '/compare/routes'
   if (path.startsWith('/export')) return '/export'
+  if (path.startsWith('/admin/data-quality')) return '/admin/data-quality'
   if (path.startsWith('/admin/audit')) return '/admin/audit-logs'
   if (path.startsWith('/admin')) return '/admin'
   if (path.startsWith('/users')) return '/users'
+  if (path.startsWith('/health-scores')) return '/health-scores'
+  if (path.startsWith('/alerts')) return '/alerts'
+  if (path.startsWith('/carbon')) return '/carbon'
+  if (path.startsWith('/flow-prediction')) return '/flow-prediction'
+  if (path.startsWith('/recommendations')) return '/recommendations'
   return '/'
 })
 

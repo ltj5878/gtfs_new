@@ -152,6 +152,42 @@ const router = createRouter({
       name: 'audit-logs',
       component: () => import('@/views/AuditLog.vue'),
       meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/admin/data-quality',
+      name: 'data-quality',
+      component: () => import('@/views/DataQualityDashboard.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true }
+    },
+    {
+      path: '/health-scores',
+      name: 'health-scores',
+      component: () => import('@/views/HealthScoreRanking.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/alerts',
+      name: 'alert-center',
+      component: () => import('@/views/AlertCenter.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/carbon',
+      name: 'carbon-footprint',
+      component: () => import('@/views/CarbonFootprint.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/flow-prediction',
+      name: 'flow-prediction',
+      component: () => import('@/views/FlowPrediction.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/recommendations',
+      name: 'recommendations',
+      component: () => import('@/views/Recommendations.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })

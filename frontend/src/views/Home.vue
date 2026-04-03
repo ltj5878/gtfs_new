@@ -35,6 +35,28 @@
               <span class="feature-title">{{ $t('home.routesAndStops') }}</span>
             </div>
             <div class="feature-content">
+              <div class="feature-item" @click="$router.push('/routes')">
+                <div class="feature-item-icon" style="background-color: #e0f2fe;">
+                  <el-icon :size="20" color="#0284c7"><Guide /></el-icon>
+                </div>
+                <div class="feature-item-text">
+                  <div class="feature-item-title">{{ $t('home.browseRoutes') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.browseRoutesDesc') }}</div>
+                </div>
+                <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
+              </div>
+
+              <div class="feature-item" @click="$router.push('/stops')">
+                <div class="feature-item-icon" style="background-color: #ecfdf5;">
+                  <el-icon :size="20" color="#16a34a"><Location /></el-icon>
+                </div>
+                <div class="feature-item-text">
+                  <div class="feature-item-title">{{ $t('home.findStops') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.findStopsDesc') }}</div>
+                </div>
+                <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
+              </div>
+
               <div class="feature-item" @click="$router.push('/heatmap')">
                 <div class="feature-item-icon" style="background-color: #fee2e2;">
                   <el-icon :size="20" color="#ef4444"><DataLine /></el-icon>
@@ -133,6 +155,28 @@
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
+
+              <div class="feature-item" @click="$router.push('/recommendations')">
+                <div class="feature-item-icon" style="background-color: #ede9fe;">
+                  <el-icon :size="20" color="#7c3aed"><Opportunity /></el-icon>
+                </div>
+                <div class="feature-item-text">
+                  <div class="feature-item-title">{{ $t('nav.recommendations') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.recommendationsDesc') }}</div>
+                </div>
+                <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
+              </div>
+
+              <div class="feature-item" @click="$router.push('/carbon')">
+                <div class="feature-item-icon" style="background-color: #ecfdf5;">
+                  <el-icon :size="20" color="#059669"><Sunrise /></el-icon>
+                </div>
+                <div class="feature-item-text">
+                  <div class="feature-item-title">{{ $t('nav.carbonFootprint') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.carbonFootprintDesc') }}</div>
+                </div>
+                <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
+              </div>
             </div>
           </div>
         </el-col>
@@ -199,6 +243,29 @@
                 </div>
                 <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
               </div>
+
+              <div class="feature-item" @click="navigate('/health-scores')">
+                <div class="feature-item-icon" style="background-color: #f0fdf4;">
+                  <el-icon :size="20" color="#16a34a"><Rank /></el-icon>
+                </div>
+                <div class="feature-item-text">
+                  <div class="feature-item-title">{{ $t('nav.healthScores') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.healthScoresDesc') }}</div>
+                </div>
+                <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
+              </div>
+
+              <div class="feature-item" @click="navigate('/flow-prediction')">
+                <div class="feature-item-icon" style="background-color: #eff6ff;">
+                  <el-icon :size="20" color="#3b82f6"><Histogram /></el-icon>
+                </div>
+                <div class="feature-item-text">
+                  <div class="feature-item-title">{{ $t('nav.flowPrediction') }}</div>
+                  <div class="feature-item-desc">{{ $t('home.flowPredictionDesc') }}</div>
+                </div>
+                <el-icon class="feature-item-arrow"><ArrowRight /></el-icon>
+              </div>
+
             </div>
           </div>
         </el-col>
@@ -250,7 +317,11 @@ import {
   Star,
   Promotion,
   DataAnalysis,
-  Document
+  Document,
+  Opportunity,
+  Sunrise,
+  Rank,
+  Histogram
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -474,6 +545,7 @@ watch(() => regionStore.selectedRegion, async () => {
 
 .feature-item-text {
   flex: 1;
+  min-width: 0;
 }
 
 .feature-item-title {
@@ -486,6 +558,9 @@ watch(() => regionStore.selectedRegion, async () => {
 .feature-item-desc {
   font-size: 13px;
   color: var(--el-text-color-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .feature-item-arrow {

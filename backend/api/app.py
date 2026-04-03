@@ -2713,6 +2713,734 @@ def get_stop_reachability():
         return jsonify(error_response(f'站点可达性分析失败: {str(e)}', 500)), 500
 
 
+# ==================== 数据质量审查接口 ====================
+
+@app.route('/api/admin/data-quality/latest', methods=['GET'])
+def get_data_quality_latest():
+    """获取最新数据质量检查结果"""
+    admin_user, err = _require_admin()
+    if err:
+        return err
+    region = request.args.get('region', 'sf')
+    try:
+        check = execute_query_one("""
+            SELECT id, region, check_time, total_errors, total_warnings,
+                   total_infos, quality_score, check_duration_ms, feed_version
+            FROM data_quality_checks
+            WHERE region = %s ORDER BY check_time DESC LIMIT 1
+        """, (region,))
+        if not check:
+            return jsonify(success_response(None))
+        # 获取该次检查的问题摘要
+        issues = execute_query("""
+            SELECT rule_code, severity, entity_type, description, affected_count
+            FROM data_quality_issues WHERE check_id = %s ORDER BY severity, rule_code
+        """, (check['id'],))
+        check['issues'] = [dict(i) for i in issues]
+        return jsonify(success_response(dict(check)))
+    except Exception as e:
+        return jsonify(error_response(f"获取数据质量检查失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/admin/data-quality/issues', methods=['GET'])
+def get_data_quality_issues():
+    """获取数据质量问题详情列表"""
+    admin_user, err = _require_admin()
+    if err:
+        return err
+    region = request.args.get('region', 'sf')
+    severity = request.args.get('severity', '')
+    page = request.args.get('page', 1, type=int)
+    page_size = request.args.get('page_size', 20, type=int)
+    try:
+        # 获取最新检查ID
+        check = execute_query_one(
+            "SELECT id FROM data_quality_checks WHERE region = %s ORDER BY check_time DESC LIMIT 1",
+            (region,))
+        if not check:
+            return jsonify(success_response({'items': [], 'total': 0}))
+        check_id = check['id']
+
+        where_clause = "WHERE check_id = %s"
+        params = [check_id]
+        if severity:
+            where_clause += " AND severity = %s"
+            params.append(severity)
+
+        total_row = execute_query_one(
+            f"SELECT COUNT(*) as cnt FROM data_quality_issues {where_clause}", tuple(params))
+        total = total_row['cnt'] if total_row else 0
+
+        items = execute_query(f"""
+            SELECT id, rule_code, severity, entity_type, entity_id,
+                   description, suggestion, affected_count, example_data
+            FROM data_quality_issues {where_clause}
+            ORDER BY severity, rule_code
+            LIMIT %s OFFSET %s
+        """, tuple(params) + (page_size, (page - 1) * page_size))
+
+        return jsonify(success_response({
+            'items': [dict(i) for i in items],
+            'total': total
+        }))
+    except Exception as e:
+        return jsonify(error_response(f"获取问题详情失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/admin/data-quality/history', methods=['GET'])
+def get_data_quality_history():
+    """获取数据质量分数历史趋势"""
+    admin_user, err = _require_admin()
+    if err:
+        return err
+    region = request.args.get('region', 'sf')
+    limit = request.args.get('limit', 30, type=int)
+    try:
+        rows = execute_query("""
+            SELECT id, check_time, total_errors, total_warnings, total_infos,
+                   quality_score, check_duration_ms
+            FROM data_quality_checks WHERE region = %s
+            ORDER BY check_time DESC LIMIT %s
+        """, (region, limit))
+        return jsonify(success_response([dict(r) for r in rows]))
+    except Exception as e:
+        return jsonify(error_response(f"获取质量历史失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/admin/data-quality/run', methods=['POST'])
+def run_data_quality_check():
+    """触发数据质量检查"""
+    admin_user, err = _require_admin()
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    region = request.args.get('region', data.get('region', 'sf'))
+    try:
+        from scripts.data_quality_checker import run_check
+        result = run_check(region)
+        record_audit_log(admin_user['user_id'], admin_user['username'],
+                        'run_quality_check', f'region:{region}', result)
+        return jsonify(success_response(result))
+    except Exception as e:
+        return jsonify(error_response(f"质量检查执行失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/admin/data-quality/rules', methods=['GET'])
+def get_data_quality_rules():
+    """获取所有数据质量检查规则说明"""
+    rules = [
+        {'code': 'E001', 'severity': 'ERROR', 'description': '到站时间晚于发车时间', 'category': '时刻表'},
+        {'code': 'E002', 'severity': 'ERROR', 'description': '行程引用不存在的线路ID', 'category': '引用完整性'},
+        {'code': 'E003', 'severity': 'ERROR', 'description': '站点坐标超出地区合理范围', 'category': '地理数据'},
+        {'code': 'E004', 'severity': 'ERROR', 'description': '行程引用不存在的服务日历ID', 'category': '引用完整性'},
+        {'code': 'E005', 'severity': 'ERROR', 'description': '轨迹坐标异常跳变（>50km）', 'category': '地理数据'},
+        {'code': 'W001', 'severity': 'WARNING', 'description': '线路缺少轨迹数据', 'category': '数据完整性'},
+        {'code': 'W002', 'severity': 'WARNING', 'description': '相邻站点间隔时间过短', 'category': '时刻表'},
+        {'code': 'W003', 'severity': 'WARNING', 'description': '服务日历已过期', 'category': '日历'},
+        {'code': 'W004', 'severity': 'WARNING', 'description': '线路仅有单向数据', 'category': '数据完整性'},
+        {'code': 'W005', 'severity': 'WARNING', 'description': '孤立站点（无班次经过）', 'category': '数据完整性'},
+        {'code': 'W006', 'severity': 'WARNING', 'description': '线路无任何班次', 'category': '数据完整性'},
+        {'code': 'I001', 'severity': 'INFO', 'description': '线路未设置颜色代码', 'category': '展示优化'},
+        {'code': 'I002', 'severity': 'INFO', 'description': '站点缺少无障碍信息', 'category': '无障碍'},
+        {'code': 'I003', 'severity': 'INFO', 'description': '班次未关联 block_id', 'category': '数据完整性'},
+        {'code': 'I004', 'severity': 'INFO', 'description': '线路缺少长名称', 'category': '展示优化'},
+    ]
+    return jsonify(success_response(rules))
+
+
+# ==================== 线路健康度评分接口 ====================
+
+@app.route('/api/routes/health-scores', methods=['GET'])
+def get_route_health_scores():
+    """获取所有线路的健康度评分"""
+    region = request.args.get('region', 'sf')
+    sort_by = request.args.get('sort_by', 'total_score')
+    order = request.args.get('order', 'desc')
+    limit = request.args.get('limit', 50, type=int)
+    try:
+        order_dir = 'DESC' if order == 'desc' else 'ASC'
+        sort_col = sort_by if sort_by in ('total_score', 'punctuality_score', 'frequency_score',
+                                           'coverage_score', 'delay_dist_score') else 'total_score'
+        rows = execute_query(f"""
+            SELECT hs.route_id, r.route_short_name, r.route_long_name, r.route_type,
+                   hs.score_date, hs.punctuality_score, hs.frequency_score,
+                   hs.coverage_score, hs.delay_dist_score, hs.total_score
+            FROM route_health_scores hs
+            JOIN routes r ON hs.route_id = r.route_id AND hs.region = r.region
+            WHERE hs.region = %s AND hs.score_date = (
+                SELECT MAX(score_date) FROM route_health_scores WHERE region = %s
+            )
+            ORDER BY hs.{sort_col} {order_dir} NULLS LAST
+            LIMIT %s
+        """, (region, region, limit))
+        return jsonify(success_response([dict(r) for r in rows]))
+    except Exception as e:
+        return jsonify(error_response(f"获取健康度评分失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/routes/<route_id>/health-score', methods=['GET'])
+def get_route_health_score_detail(route_id):
+    """获取单条线路的健康度详情"""
+    region = request.args.get('region', 'sf')
+    try:
+        # 最新评分
+        latest = execute_query_one("""
+            SELECT * FROM route_health_scores
+            WHERE route_id = %s AND region = %s
+            ORDER BY score_date DESC LIMIT 1
+        """, (route_id, region))
+        # 历史趋势（最近30天）
+        history = execute_query("""
+            SELECT score_date, total_score, punctuality_score, frequency_score,
+                   coverage_score, delay_dist_score
+            FROM route_health_scores
+            WHERE route_id = %s AND region = %s
+            ORDER BY score_date DESC LIMIT 30
+        """, (route_id, region))
+        return jsonify(success_response({
+            'latest': dict(latest) if latest else None,
+            'history': [dict(r) for r in history]
+        }))
+    except Exception as e:
+        return jsonify(error_response(f"获取健康度详情失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/admin/recalculate-health-scores', methods=['POST'])
+def recalculate_health_scores():
+    """管理员触发重新计算健康度评分"""
+    admin_user, err = _require_admin()
+    if err:
+        return err
+    region = request.args.get('region', 'sf')
+    try:
+        from scripts.calculate_health_scores import calculate_scores
+        calculate_scores(region)
+        record_audit_log(admin_user['user_id'], admin_user['username'],
+                        'recalculate_health', f'region:{region}', {})
+        return jsonify(success_response({'message': '健康度评分计算完成'}))
+    except Exception as e:
+        return jsonify(error_response(f"计算失败: {str(e)}", 500)), 500
+
+
+# ==================== 异常检测与告警接口 ====================
+
+@app.route('/api/alerts/active', methods=['GET'])
+def get_active_alerts():
+    """获取当前活跃告警列表"""
+    region = request.args.get('region', 'sf')
+    try:
+        rows = execute_query("""
+            SELECT id, region, alert_type, entity_type, entity_id, entity_name,
+                   severity, title, alert_data, triggered_at
+            FROM anomaly_alerts
+            WHERE region = %s AND resolved_at IS NULL
+            ORDER BY
+                CASE severity WHEN 'critical' THEN 1 WHEN 'high' THEN 2
+                              WHEN 'medium' THEN 3 ELSE 4 END,
+                triggered_at DESC
+        """, (region,))
+        return jsonify(success_response([dict(r) for r in rows]))
+    except Exception as e:
+        return jsonify(error_response(f"获取活跃告警失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/alerts/history', methods=['GET'])
+def get_alert_history():
+    """获取历史告警记录"""
+    region = request.args.get('region', 'sf')
+    days = request.args.get('days', 7, type=int)
+    alert_type = request.args.get('type', '')
+    page = request.args.get('page', 1, type=int)
+    page_size = request.args.get('page_size', 20, type=int)
+    try:
+        where = "WHERE region = %s AND triggered_at >= (NOW() - INTERVAL '%s days')"
+        params = [region, days]
+        if alert_type:
+            where += " AND alert_type = %s"
+            params.append(alert_type)
+
+        total_row = execute_query_one(
+            f"SELECT COUNT(*) as cnt FROM anomaly_alerts {where}", tuple(params))
+        total = total_row['cnt'] if total_row else 0
+
+        rows = execute_query(f"""
+            SELECT id, alert_type, entity_type, entity_id, entity_name,
+                   severity, title, alert_data, triggered_at, resolved_at
+            FROM anomaly_alerts {where}
+            ORDER BY triggered_at DESC
+            LIMIT %s OFFSET %s
+        """, tuple(params) + (page_size, (page - 1) * page_size))
+
+        return jsonify(success_response({
+            'items': [dict(r) for r in rows],
+            'total': total
+        }))
+    except Exception as e:
+        return jsonify(error_response(f"获取告警历史失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/alerts/<int:alert_id>/resolve', methods=['PATCH'])
+def resolve_alert(alert_id):
+    """手动标记告警为已解决"""
+    admin_user, err = _require_admin()
+    if err:
+        return err
+    try:
+        execute_write(
+            "UPDATE anomaly_alerts SET resolved_at = NOW() WHERE id = %s",
+            (alert_id,))
+        return jsonify(success_response({'message': '告警已解决'}))
+    except Exception as e:
+        return jsonify(error_response(f"操作失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/alerts/stats', methods=['GET'])
+def get_alert_stats():
+    """获取告警统计摘要"""
+    region = request.args.get('region', 'sf')
+    try:
+        # 活跃告警计数
+        active = execute_query_one(
+            "SELECT COUNT(*) as cnt FROM anomaly_alerts WHERE region = %s AND resolved_at IS NULL",
+            (region,))
+        # 今日新增
+        today = execute_query_one("""
+            SELECT COUNT(*) as cnt FROM anomaly_alerts
+            WHERE region = %s AND triggered_at >= CURRENT_DATE
+        """, (region,))
+        # 按类型统计（最近7天）
+        by_type = execute_query("""
+            SELECT alert_type, severity, COUNT(*) as cnt
+            FROM anomaly_alerts
+            WHERE region = %s AND triggered_at >= (NOW() - INTERVAL '7 days')
+            GROUP BY alert_type, severity ORDER BY cnt DESC
+        """, (region,))
+        # 按天统计（最近7天）
+        by_day = execute_query("""
+            SELECT triggered_at::DATE as day, COUNT(*) as cnt
+            FROM anomaly_alerts
+            WHERE region = %s AND triggered_at >= (NOW() - INTERVAL '7 days')
+            GROUP BY day ORDER BY day
+        """, (region,))
+        return jsonify(success_response({
+            'active_count': active['cnt'] if active else 0,
+            'today_count': today['cnt'] if today else 0,
+            'by_type': [dict(r) for r in by_type],
+            'by_day': [dict(r) for r in by_day]
+        }))
+    except Exception as e:
+        return jsonify(error_response(f"获取告警统计失败: {str(e)}", 500)), 500
+
+
+# ==================== 碳排放计算接口 ====================
+
+@app.route('/api/carbon/route/<route_id>', methods=['GET'])
+def get_route_carbon(route_id):
+    """计算某条线路的碳排放对比数据"""
+    region = request.args.get('region', 'sf')
+    # 排放因子 (kg CO2/乘客公里)
+    EMISSION_FACTORS = {
+        0: 0.041,  # 轻轨
+        1: 0.041,  # 地铁
+        2: 0.041,  # 铁路
+        3: 0.089,  # 公交
+        4: 0.120,  # 轮渡
+        5: 0.041,  # 有轨电车
+        6: 0.020,  # 缆车
+        7: 0.020,  # 索道
+    }
+    CAR_EMISSION = 0.271  # 私家车 kg CO2/km
+    try:
+        # 查询线路类型
+        route = execute_query_one(
+            "SELECT route_type FROM routes WHERE route_id = %s AND region = %s",
+            (route_id, region))
+        route_type = route['route_type'] if route else 3
+
+        # 查询缓存距离
+        dist = execute_query_one(
+            "SELECT distance_km FROM route_distances WHERE route_id = %s AND region = %s LIMIT 1",
+            (route_id, region))
+
+        if dist and dist['distance_km']:
+            distance_km = float(dist['distance_km'])
+        else:
+            # 从 shapes 计算距离
+            shape_row = execute_query_one("""
+                SELECT t.shape_id FROM trips t
+                WHERE t.route_id = %s AND t.region = %s AND t.shape_id IS NOT NULL
+                LIMIT 1
+            """, (route_id, region))
+            if shape_row and shape_row['shape_id']:
+                points = execute_query("""
+                    SELECT shape_pt_lat, shape_pt_lon FROM shapes
+                    WHERE shape_id = %s AND region = %s ORDER BY shape_pt_sequence
+                """, (shape_row['shape_id'], region))
+                distance_km = _calc_shape_distance(points)
+                # 缓存距离
+                if distance_km > 0:
+                    execute_write("""
+                        INSERT INTO route_distances (route_id, region, direction_id, distance_km)
+                        VALUES (%s, %s, 0, %s)
+                        ON CONFLICT (route_id, region, direction_id)
+                        DO UPDATE SET distance_km = EXCLUDED.distance_km, calculated_at = NOW()
+                    """, (route_id, region, round(distance_km, 3)))
+            else:
+                # 从站点间距估算
+                stop_count_row = execute_query_one("""
+                    SELECT COUNT(DISTINCT stop_id) as cnt FROM stop_times
+                    WHERE trip_id IN (SELECT trip_id FROM trips WHERE route_id = %s AND region = %s LIMIT 1)
+                    AND region = %s
+                """, (route_id, region, region))
+                sc = stop_count_row['cnt'] if stop_count_row else 5
+                distance_km = sc * 0.8  # 默认每站 0.8km
+
+        transit_factor = EMISSION_FACTORS.get(route_type, 0.089)
+        transit_emission = round(distance_km * transit_factor, 4)
+        car_emission = round(distance_km * CAR_EMISSION, 4)
+        carbon_saved = round(car_emission - transit_emission, 4)
+        trees_equivalent = round(carbon_saved / 21.77 * 365, 1)  # 一棵树年吸收约21.77kg CO2
+
+        return jsonify(success_response({
+            'route_id': route_id,
+            'distance_km': round(distance_km, 2),
+            'route_type': route_type,
+            'transit_emission_kg': transit_emission,
+            'car_emission_kg': car_emission,
+            'carbon_saved_kg': carbon_saved,
+            'saving_percent': round((1 - transit_emission / max(car_emission, 0.001)) * 100, 1),
+            'trees_equivalent_yearly': trees_equivalent,
+            'fuel_saved_liters': round(distance_km / 8.5, 2),  # 百公里8.5L油耗
+        }))
+    except Exception as e:
+        return jsonify(error_response(f"碳排放计算失败: {str(e)}", 500)), 500
+
+
+def _calc_shape_distance(points):
+    """计算 shape 点序列的总距离（km）"""
+    import math
+    total = 0
+    for i in range(len(points) - 1):
+        lat1 = float(points[i]['shape_pt_lat'])
+        lon1 = float(points[i]['shape_pt_lon'])
+        lat2 = float(points[i+1]['shape_pt_lat'])
+        lon2 = float(points[i+1]['shape_pt_lon'])
+        # Haversine 公式
+        R = 6371  # 地球半径 km
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+        a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
+        c = 2 * math.asin(math.sqrt(a))
+        total += R * c
+    return total
+
+
+@app.route('/api/carbon/record', methods=['POST'])
+def record_carbon_trip():
+    """用户记录一次绿色出行"""
+    user = _get_current_user()
+    if not user:
+        return jsonify(error_response("请先登录", 401)), 401
+    data = request.get_json() or {}
+    route_id = data.get('route_id')
+    region = data.get('region', 'sf')
+    distance = data.get('distance_km', 0)
+    transit_emission = data.get('transit_emission', 0)
+    car_emission = data.get('car_emission', 0)
+    carbon_saved = data.get('carbon_saved', 0)
+    try:
+        execute_write("""
+            INSERT INTO user_carbon_records
+                (user_id, route_id, region, distance_km, transit_emission, car_emission, carbon_saved)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (user['user_id'], route_id, region, distance, transit_emission, car_emission, carbon_saved))
+        return jsonify(success_response({'message': '绿色出行已记录'}))
+    except Exception as e:
+        return jsonify(error_response(f"记录失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/carbon/my-stats', methods=['GET'])
+def get_carbon_my_stats():
+    """获取当前用户碳排放统计"""
+    user = _get_current_user()
+    if not user:
+        return jsonify(error_response("请先登录", 401)), 401
+    try:
+        stats = execute_query_one("""
+            SELECT
+                COUNT(*) as total_trips,
+                COALESCE(SUM(distance_km), 0) as total_distance,
+                COALESCE(SUM(carbon_saved), 0) as total_saved,
+                COALESCE(SUM(transit_emission), 0) as total_transit,
+                COALESCE(SUM(car_emission), 0) as total_car
+            FROM user_carbon_records WHERE user_id = %s
+        """, (user['user_id'],))
+
+        # 本周统计
+        week_stats = execute_query_one("""
+            SELECT COALESCE(SUM(carbon_saved), 0) as week_saved, COUNT(*) as week_trips
+            FROM user_carbon_records
+            WHERE user_id = %s AND trip_date >= (CURRENT_DATE - INTERVAL '7 days')
+        """, (user['user_id'],))
+
+        # 本月统计
+        month_stats = execute_query_one("""
+            SELECT COALESCE(SUM(carbon_saved), 0) as month_saved, COUNT(*) as month_trips
+            FROM user_carbon_records
+            WHERE user_id = %s AND trip_date >= DATE_TRUNC('month', CURRENT_DATE)
+        """, (user['user_id'],))
+
+        # 每日趋势（最近30天）
+        daily = execute_query("""
+            SELECT trip_date, SUM(carbon_saved) as saved, COUNT(*) as trips
+            FROM user_carbon_records
+            WHERE user_id = %s AND trip_date >= (CURRENT_DATE - INTERVAL '30 days')
+            GROUP BY trip_date ORDER BY trip_date
+        """, (user['user_id'],))
+
+        total_saved = float(stats['total_saved']) if stats else 0
+        return jsonify(success_response({
+            'total_trips': stats['total_trips'] if stats else 0,
+            'total_distance_km': round(float(stats['total_distance']) if stats else 0, 2),
+            'total_saved_kg': round(total_saved, 2),
+            'week_saved_kg': round(float(week_stats['week_saved']) if week_stats else 0, 2),
+            'week_trips': week_stats['week_trips'] if week_stats else 0,
+            'month_saved_kg': round(float(month_stats['month_saved']) if month_stats else 0, 2),
+            'month_trips': month_stats['month_trips'] if month_stats else 0,
+            'trees_equivalent': round(total_saved / 21.77, 1),
+            'fuel_saved_liters': round(float(stats['total_distance']) / 8.5 if stats and stats['total_distance'] else 0, 1),
+            'daily_trend': [dict(r) for r in daily]
+        }))
+    except Exception as e:
+        return jsonify(error_response(f"获取统计失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/carbon/leaderboard', methods=['GET'])
+def get_carbon_leaderboard():
+    """绿色出行排行榜"""
+    limit = request.args.get('limit', 10, type=int)
+    try:
+        rows = execute_query("""
+            SELECT u.username, COUNT(*) as trip_count,
+                   ROUND(COALESCE(SUM(c.carbon_saved), 0)::numeric, 2) as total_saved
+            FROM user_carbon_records c
+            JOIN users u ON c.user_id = u.id
+            GROUP BY u.username
+            ORDER BY total_saved DESC
+            LIMIT %s
+        """, (limit,))
+        return jsonify(success_response([dict(r) for r in rows]))
+    except Exception as e:
+        return jsonify(error_response(f"获取排行榜失败: {str(e)}", 500)), 500
+
+
+# ==================== 站点客流预测接口 ====================
+
+@app.route('/api/stops/<stop_id>/flow-prediction', methods=['GET'])
+def get_stop_flow_prediction(stop_id):
+    """获取站点全天客流预测"""
+    region = request.args.get('region', 'sf')
+    day_type = request.args.get('day_type', 'weekday')
+    try:
+        rows = execute_query("""
+            SELECT hour_of_day, scheduled_trips, predicted_flow_index
+            FROM stop_flow_predictions
+            WHERE stop_id = %s AND region = %s AND day_type = %s
+            ORDER BY hour_of_day
+        """, (stop_id, region, day_type))
+
+        if not rows:
+            # 实时计算
+            rows = _compute_stop_flow(stop_id, region, day_type)
+
+        return jsonify(success_response([dict(r) for r in rows]))
+    except Exception as e:
+        return jsonify(error_response(f"获取客流预测失败: {str(e)}", 500)), 500
+
+
+def _compute_stop_flow(stop_id, region, day_type):
+    """实时计算站点分时客流指数"""
+    # 查询该站点各小时班次数
+    day_filter = "monday = 1 OR tuesday = 1 OR wednesday = 1 OR thursday = 1 OR friday = 1" if day_type == 'weekday' else "saturday = 1 OR sunday = 1"
+    rows = execute_query(f"""
+        SELECT
+            EXTRACT(HOUR FROM st.departure_time::interval)::int as hour_of_day,
+            COUNT(*) as trip_count
+        FROM stop_times st
+        JOIN trips t ON st.trip_id = t.trip_id AND st.region = t.region
+        JOIN calendar c ON t.service_id = c.service_id AND t.region = c.region
+        WHERE st.stop_id = %s AND st.region = %s
+          AND ({day_filter})
+          AND st.departure_time IS NOT NULL
+        GROUP BY hour_of_day
+        ORDER BY hour_of_day
+    """, (stop_id, region))
+
+    if not rows:
+        return []
+
+    # 计算平均水平
+    counts = {r['hour_of_day']: r['trip_count'] for r in rows}
+    avg_count = sum(counts.values()) / max(len(counts), 1)
+
+    result = []
+    for hour in range(24):
+        trip_count = counts.get(hour, 0)
+        flow_index = round(trip_count / max(avg_count, 1) * 100, 2) if avg_count > 0 else 0
+        result.append({
+            'hour_of_day': hour,
+            'scheduled_trips': trip_count,
+            'predicted_flow_index': flow_index
+        })
+    return result
+
+
+@app.route('/api/stops/<stop_id>/best-time', methods=['GET'])
+def get_stop_best_time(stop_id):
+    """推荐最佳到站时间（低客流时段）"""
+    region = request.args.get('region', 'sf')
+    day_type = request.args.get('day_type', 'weekday')
+    try:
+        predictions = _compute_stop_flow(stop_id, region, day_type)
+        if not predictions:
+            return jsonify(success_response([]))
+
+        # 找出有班次的时段中客流指数最低的 top 3
+        with_service = [p for p in predictions if p['scheduled_trips'] > 0]
+        with_service.sort(key=lambda x: x['predicted_flow_index'])
+        best = with_service[:3] if with_service else []
+
+        return jsonify(success_response(best))
+    except Exception as e:
+        return jsonify(error_response(f"获取最佳时间失败: {str(e)}", 500)), 500
+
+
+@app.route('/api/stops/flow-heatmap', methods=['GET'])
+def get_stops_flow_heatmap():
+    """获取所有站点当前时刻客流热力图数据"""
+    region = request.args.get('region', 'sf')
+    hour = request.args.get('hour', None, type=int)
+    try:
+        if hour is None:
+            from datetime import datetime
+            hour = datetime.now().hour
+
+        rows = execute_query("""
+            SELECT s.stop_id, s.stop_name, s.stop_lat, s.stop_lon, fp.predicted_flow_index
+            FROM stop_flow_predictions fp
+            JOIN stops s ON fp.stop_id = s.stop_id AND fp.region = s.region
+            WHERE fp.region = %s AND fp.hour_of_day = %s AND fp.day_type = 'weekday'
+              AND fp.predicted_flow_index > 0
+            ORDER BY fp.predicted_flow_index DESC
+            LIMIT 500
+        """, (region, hour))
+
+        return jsonify(success_response([dict(r) for r in rows]))
+    except Exception as e:
+        return jsonify(error_response(f"获取热力图数据失败: {str(e)}", 500)), 500
+
+
+# ==================== 智能行程推荐接口 ====================
+
+@app.route('/api/recommendations', methods=['GET'])
+def get_recommendations():
+    """获取个性化行程推荐"""
+    user = _get_current_user()
+    if not user:
+        return jsonify(error_response("请先登录", 401)), 401
+    region = request.args.get('region', 'sf')
+    limit = request.args.get('limit', 5, type=int)
+    try:
+        # 从收藏中获取偏好线路
+        fav_routes = execute_query("""
+            SELECT entity_id FROM favorites
+            WHERE user_id = %s AND entity_type = 'route' AND region = %s
+        """, (user['user_id'], region))
+        fav_ids = [f['entity_id'] for f in fav_routes]
+
+        # 从审计日志获取高频访问线路
+        freq_routes = execute_query("""
+            SELECT target as route_path, COUNT(*) as freq
+            FROM audit_logs
+            WHERE user_id = %s AND action = 'page_visit'
+              AND target LIKE '/routes/%%'
+              AND created_at > NOW() - INTERVAL '30 days'
+            GROUP BY target ORDER BY freq DESC LIMIT 10
+        """, (user['user_id'],))
+
+        # 提取路由ID
+        candidate_ids = set(fav_ids)
+        for fr in freq_routes:
+            path = fr['route_path']
+            if path.startswith('/routes/'):
+                rid = path.replace('/routes/', '').split('?')[0]
+                candidate_ids.add(rid)
+
+        if not candidate_ids:
+            # 没有个性化数据时推荐准点率最高的线路
+            top_routes = execute_query("""
+                SELECT r.route_id, r.route_short_name, r.route_long_name, r.route_type,
+                       rdp.punctuality_rate
+                FROM routes r
+                LEFT JOIN route_daily_punctuality rdp ON r.route_id = rdp.route_id
+                    AND r.region = rdp.region AND rdp.stat_date = (
+                        SELECT MAX(stat_date) FROM route_daily_punctuality WHERE region = %s
+                    )
+                WHERE r.region = %s
+                ORDER BY rdp.punctuality_rate DESC NULLS LAST
+                LIMIT %s
+            """, (region, region, limit))
+            recommendations = []
+            for r in top_routes:
+                recommendations.append({
+                    'route_id': r['route_id'],
+                    'route_short_name': r['route_short_name'],
+                    'route_long_name': r['route_long_name'],
+                    'route_type': r['route_type'],
+                    'punctuality_rate': float(r['punctuality_rate']) if r['punctuality_rate'] else None,
+                    'reason': '准点率表现优秀',
+                    'score': float(r['punctuality_rate']) if r['punctuality_rate'] else 0
+                })
+            return jsonify(success_response(recommendations[:limit]))
+
+        # 查询候选线路的详情和准点率
+        placeholders = ','.join(['%s'] * len(candidate_ids))
+        candidates = execute_query(f"""
+            SELECT r.route_id, r.route_short_name, r.route_long_name, r.route_type,
+                   rdp.punctuality_rate, rdp.total_trips,
+                   CASE WHEN r.route_id = ANY(%s::text[]) THEN 20 ELSE 0 END as fav_bonus
+            FROM routes r
+            LEFT JOIN route_daily_punctuality rdp ON r.route_id = rdp.route_id
+                AND r.region = rdp.region AND rdp.stat_date = (
+                    SELECT MAX(stat_date) FROM route_daily_punctuality WHERE region = %s
+                )
+            WHERE r.region = %s AND r.route_id IN ({placeholders})
+        """, (list(fav_ids), region, region) + tuple(candidate_ids))
+
+        recommendations = []
+        for c in candidates:
+            rate = float(c['punctuality_rate']) if c['punctuality_rate'] else 70
+            fav_bonus = c['fav_bonus'] or 0
+            score = rate + fav_bonus
+            reason = '已收藏线路' if c['route_id'] in fav_ids else '近期常浏览'
+            if rate >= 90:
+                reason += '，准点率优秀'
+            recommendations.append({
+                'route_id': c['route_id'],
+                'route_short_name': c['route_short_name'],
+                'route_long_name': c['route_long_name'],
+                'route_type': c['route_type'],
+                'punctuality_rate': rate,
+                'reason': reason,
+                'score': score
+            })
+
+        recommendations.sort(key=lambda x: x['score'], reverse=True)
+        return jsonify(success_response(recommendations[:limit]))
+    except Exception as e:
+        return jsonify(error_response(f"获取推荐失败: {str(e)}", 500)), 500
+
+
 @app.errorhandler(404)
 def not_found(error):
     """404 错误处理"""
