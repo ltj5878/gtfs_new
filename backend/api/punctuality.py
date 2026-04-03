@@ -3,6 +3,8 @@
 Blueprint prefix: /api/punctuality
 """
 
+import os
+import sys
 from flask import Blueprint, jsonify, request
 from core.db import Database, execute_query, execute_query_one, execute_count, execute_write
 from core.audit import record_audit_log
