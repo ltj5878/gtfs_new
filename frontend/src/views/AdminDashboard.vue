@@ -88,18 +88,18 @@
     </el-row>
 
     <!-- 中间：饼图 + 数据时效 -->
-    <el-row :gutter="16" class="content-row">
+    <el-row :gutter="16" class="content-row equal-height-row">
       <!-- 数据库存储饼图 -->
-      <el-col :xs="24" :md="12">
-        <el-card>
+      <el-col :xs="24" :md="12" class="equal-height-col">
+        <el-card class="equal-height-card">
           <template #header><span>数据库存储分布（Top 10）</span></template>
           <div ref="pieChartRef" class="chart-container" v-loading="loadingDb"></div>
         </el-card>
       </el-col>
 
       <!-- 数据时效性 -->
-      <el-col :xs="24" :md="12">
-        <el-card>
+      <el-col :xs="24" :md="12" class="equal-height-col">
+        <el-card class="equal-height-card">
           <template #header><span>各地区数据</span></template>
           <div v-loading="loadingFreshness">
             <div v-for="item in freshness" :key="item.region" class="freshness-item">
@@ -323,19 +323,32 @@ const renderPieChart = () => {
   if (!pieChart) {
     pieChart = echarts.init(pieChartRef.value)
   }
+  pieChart.resize()
   const top10 = dbStats.value.tables.slice(0, 10)
   pieChart.setOption({
-    tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-    legend: { orient: 'vertical', right: 10, top: 'center', textStyle: { fontSize: 12 } },
+    tooltip: {
+      trigger: 'item',
+      formatter: (params) => `${params.data.fullName}: ${params.data.sizeLabel} (${params.percent}%)`
+    },
+    legend: {
+      orient: 'vertical',
+      right: 0,
+      top: 'middle',
+      textStyle: { fontSize: 11 },
+      formatter: (name) => name.length > 18 ? name.slice(0, 18) + '…' : name
+    },
     series: [{
       type: 'pie',
-      radius: ['40%', '70%'],
-      center: ['38%', '50%'],
-      avoidLabelOverlap: true,
+      radius: ['38%', '75%'],
+      center: ['32%', '50%'],
+      avoidLabelOverlap: false,
       label: { show: false },
-      emphasis: { label: { show: true, fontSize: 13, fontWeight: 'bold' } },
+      labelLine: { show: false },
+      emphasis: { label: { show: false } },
       data: top10.map(t => ({
         name: t.table_name,
+        fullName: t.table_name,
+        sizeLabel: t.total_size,
         value: t.total_bytes
       }))
     }]
@@ -561,7 +574,26 @@ onMounted(() => {
 }
 
 .chart-container {
-  height: 280px;
+  height: 320px;
+}
+
+.equal-height-row {
+  align-items: stretch;
+}
+
+.equal-height-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.equal-height-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.equal-height-card :deep(.el-card__body) {
+  flex: 1;
 }
 
 .freshness-item {

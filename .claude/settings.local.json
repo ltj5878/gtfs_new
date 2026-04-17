@@ -66,7 +66,9 @@
       "Read(//System/Library/Fonts/**)",
       "Read(//System/Library/Fonts/Supplemental/**)",
       "Bash(NO_PROXY=localhost no_proxy=localhost python3 backend/tests/test_api_quick.py)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(grep -h ^@.*_bp.route /Users/lvtongjie/Documents/code/bs/gtfs_new/backend/api/*.py)",
+      "Bash(xargs -I {} basename {})"
     ],
     "deny": [],
     "ask": []
