@@ -111,3 +111,7 @@ lsof -i :5001                                # 后端端口占用
 tail -f /tmp/gtfs_backend.log                # 后端日志
 lsof -i :5173                                # 前端端口占用
 ```
+
+
+## Imported guidance
+@imports/karpathy-guidelines.md
