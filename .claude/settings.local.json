@@ -68,7 +68,10 @@
       "Bash(NO_PROXY=localhost no_proxy=localhost python3 backend/tests/test_api_quick.py)",
       "Read(//tmp/**)",
       "Bash(grep -h ^@.*_bp.route /Users/lvtongjie/Documents/code/bs/gtfs_new/backend/api/*.py)",
-      "Bash(xargs -I {} basename {})"
+      "Bash(xargs -I {} basename {})",
+      "Read(//private/tmp/**)",
+      "Bash(find backend *)",
+      "Bash(awk '{print $3, $4, $5, $6}')"
     ],
     "deny": [],
     "ask": []

@@ -341,7 +341,7 @@ def punctuality_config():
             if not configs:
                 return jsonify(error_response("配置数据不能为空", 400)), 400
 
-            for key, value in configs:
+            for key, value in configs.items():
                 query = """
                     UPDATE punctuality_config
                     SET config_value = %s, updated_at = CURRENT_TIMESTAMP
